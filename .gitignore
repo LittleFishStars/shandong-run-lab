@@ -11,6 +11,7 @@ __pycache__/
 *.db-shm
 *.log
 exports/
+shots/
 
 # 参考仓（第三方 clone，不入库）
 .ref/
