@@ -194,6 +194,45 @@ def main() -> int:
               js(window, "!/NaN/.test(document.querySelector('#log').textContent)") is True)
         shot(window, outdir, "gui-1-init.png", full=args.full)
 
+        # 布局断言：用户要求「轨迹与围栏卡片置于上半页，且显示区域适应卡片大小」。
+        # 用真实几何量验证，不靠看截图拍板。
+        geo = js(window, "JSON.stringify((()=>{"
+                     "const r=(s)=>{const e=document.querySelector(s);"
+                     "return e?e.getBoundingClientRect():null;};"
+                     "const g=(o)=>o?{top:Math.round(o.top),bottom:Math.round(o.bottom),"
+                     "h:Math.round(o.height),w:Math.round(o.width)}:null;"
+                     "return {vh:window.innerHeight,vw:window.innerWidth,"
+                     "layout:g(r('.layout')),colMid:g(r('.col-mid')),mapCard:g(r('.map-card')),"
+                     "mapBody:g(r('.map-body')),map:g(r('#map')),runCard:g(r('.col-mid .card:last-child'))};"
+                     "})())")
+        try:
+            G = json.loads(geo) if isinstance(geo, str) else {}
+        except Exception:
+            G = {}
+        if not G:
+            check("能读到中栏实际尺寸", False, str(geo)[:120])
+        else:
+            vh = G.get("vh") or 0
+            mc, mm, cm = G.get("mapCard") or {}, G.get("mapBody") or {}, G.get("colMid") or {}
+            rc = G.get("runCard") or {}
+            print(f"    · 视口 {G.get('vw')}x{vh}，中栏高 {cm.get('h')}，"
+                  f"地图卡 top={mc.get('top')} h={mc.get('h')}（{mm.get('w')}x{mm.get('h')}），"
+                  f"本次跑步卡 h={rc.get('h')}")
+            check("地图所在卡片位于页面上半部",
+                  bool(mc) and (mc.get("top") or 0) + (mc.get("h") or 0) / 2 <= vh * 0.5,
+                  f"卡片中线 {int((mc.get('top') or 0) + (mc.get('h') or 0) / 2)} / 视口高 {vh}")
+            check("地图卡占中栏高度的一半以上",
+                  bool(cm) and (mc.get("h") or 0) >= (cm.get("h") or 0) * 0.45,
+                  f"地图卡 {mc.get('h')} / 中栏 {cm.get('h')}")
+            check("地图显示区域填满卡片正文（无垂直留白）",
+                  bool(mc) and bool(mm) and (mm.get("top") or 0) + (mm.get("h") or 0)
+                  >= (mc.get("top") or 0) + (mc.get("h") or 0) - 30,
+                  f"地图区底 {int((mm.get('top') or 0) + (mm.get('h') or 0))} vs 卡片底 "
+                  f"{int((mc.get('top') or 0) + (mc.get('h') or 0))}")
+            check("地图区宽度填满卡片",
+                  bool(mc) and bool(mm) and (mm.get("w") or 0) >= (mc.get("w") or 0) - 4,
+                  f"地图区宽 {mm.get('w')} vs 卡片宽 {mc.get('w')}")
+
         print("\n[2] 登录（点界面按钮）")
         js(window, "document.querySelector('#btn-login').click()")
         time.sleep(4)
@@ -230,9 +269,11 @@ def main() -> int:
             v = float(v) if isinstance(v, (int, float)) else 0.0
             seen.append(round(v, 1))
             if 0 < v < 100:
-                # 途中反复截图、后面覆盖前面：拿到的就是“写得最满”的那张
-                shot(window, outdir, "gui-2-running.png", full=args.full)
-                shot_taken = True
+                # 轨迹写入阶段（36%→45%）反复截图、后面覆盖前面：
+                # 拿到的是“写得最满、但还没进入上传阶段”的那张，README 才是“轨迹一笔笔长出来”。
+                if v < 50:
+                    shot(window, outdir, "gui-2-running.png", full=args.full)
+                    shot_taken = True
                 live_pts = js(window, "((S.detail && S.detail.points) || []).length")
                 if isinstance(live_pts, (int, float)):
                     max_live = max(max_live, int(live_pts))

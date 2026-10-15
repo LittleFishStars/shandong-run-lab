@@ -74,6 +74,7 @@ const S = {
   showState: true,
   fit: true,
   logCount: 0,
+  tiles: 'amap',
 };
 const $ = (id) => document.getElementById(id);
 
@@ -332,117 +333,157 @@ function kvTable(rows) {
     `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') + '</table>';
 }
 
-// ══════════════════ 地图绘制 ══════════════════
-const canvas = () => $('map');
-function drawMap() {
-  const cv = canvas();
-  const wrap = cv.parentElement;
-  const dpr = window.devicePixelRatio || 1;
-  const w = wrap.clientWidth, h = wrap.clientHeight;
-  cv.width = Math.max(1, w * dpr);
-  cv.height = Math.max(1, h * dpr);
-  cv.style.width = w + 'px';
-  cv.style.height = h + 'px';
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0c1120';
-  ctx.fillRect(0, 0, w, h);
+// ══════════════════ 地图（Leaflet 真实底图 + 矢量叠加） ══════════════════
+// 坐标系：原 APP 用百度定位 SDK，并在 com.huachenjie.base.util.ThirdUtil 里显式
+// `SDKInitializer.setCoordType(CoordType.GCJ02)`，所以记下来的经纬度是 GCJ-02。
+// 高德瓦片同样是 GCJ-02 → 直接叠加即对齐。换成 OSM（WGS-84）会有几百米偏移，
+// 调试时以矢量叠加层为准（底图只是参考）。
+const TILES = {
+  amap: {
+    url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+    subdomains: '1234', maxZoom: 18, attribution: '&copy; 高德地图',
+  },
+  'amap-sat': {
+    url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+    subdomains: '1234', maxZoom: 18, attribution: '&copy; 高德地图（卫星）',
+  },
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png',
+    subdomains: 'abc', maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+  },
+  none: null,          // 无底图：只看矢量叠加（离线时也能用）
+};
+// Mock 围栏中心（济南附近）：一点数据都没有时先把地图落在这里，免得一片黑
+const MAP_HOME = [36.6615, 117.0265];
 
+const MAP = { obj: null, tile: null, layers: {}, bounds: null, fitKey: '', tileError: false, blank: false,
+              userMoved: false, runId: '' };
+
+function tileSetting() {
+  try { return localStorage.getItem('sdlab.tiles') || 'amap'; } catch (e) { return 'amap'; }
+}
+
+// 幂等建图：容器尺寸由卡片决定，瓦片负责“真实地图”，轨迹/围栏/打卡点都是叠加层
+function ensureMap() {
+  if (MAP.obj) return MAP.obj;
+  const el = $('map');
+  if (!window.L) {
+    el.innerHTML = '<div class="map-fallback">Leaflet 资源没加载成功（web/vendor/leaflet/），'
+      + '底图和矢量都画不了。确认文件随仓库一起拉下来了。</div>';
+    return null;
+  }
+  const m = L.map(el, {
+    center: MAP_HOME, zoom: 16,
+    zoomControl: true, attributionControl: true, preferCanvas: true,
+  });
+  for (const k of ['fence', 'track', 'cps', 'start']) MAP.layers[k] = L.layerGroup().addTo(m);
+  m.on('tileerror', () => {
+    if (MAP.tileError) return;
+    MAP.tileError = true;
+    toast('底图瓦片加载失败（网络不可达或瓦片源不可用），矢量轨迹不受影响', 'err');
+  });
+  // 用户自己拖了/缩了地图之后，实时重绘不再抢镜头（下一次跑步开始时自动恢复）
+  m.on('dragstart zoomstart', () => { MAP.userMoved = true; });
+  MAP.obj = m;
+  setTiles(m);
+  // 卡片一变尺寸就要告诉 Leaflet，否则瓦片会错位、四周留白
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => m.invalidateSize()).observe(el.parentElement);
+  }
+  return m;
+}
+
+function setTiles(m) {
+  m = m || MAP.obj;
+  if (!m) return;
+  if (MAP.tile) { m.removeLayer(MAP.tile); MAP.tile = null; }
+  const conf = TILES[S.tiles];
+  if (!conf) return;                    // “无底图”：只留矢量叠加
+  MAP.tileError = false;
+  MAP.tile = L.tileLayer(conf.url, {
+    subdomains: conf.subdomains, maxZoom: conf.maxZoom, attribution: conf.attribution,
+  }).addTo(m);
+}
+
+// 重画叠加层；forceFit=true 或内容变化时才移动镜头（否则会抢用户的拖动）
+function drawMap(forceFit) {
+  const m = ensureMap();
+  if (!m) return;
+  // 切换记录时重置“用户已手动移动”标记，否则新记录不会自动定位
+  const rid = (S.detail && S.detail.run && S.detail.run.run_code) || S.currentRun || '';
+  if (rid !== MAP.runId) { MAP.runId = rid; MAP.userMoved = false; }
   const st = S.status || {};
   const fence = st.fence_polygon || [];
   const pts = (S.detail && S.detail.points) || [];
   const cps = (S.detail && S.detail.checkpoints) || st.checkpoints || [];
-  if (!fence.length && !pts.length) {
-    ctx.fillStyle = '#47536e';
-    ctx.font = '13px system-ui';
-    ctx.fillText('暂无轨迹数据：先登录并点击「一键跑完整链路」', 20, 30);
+
+  for (const k of Object.keys(MAP.layers)) MAP.layers[k].clearLayers();
+  MAP.bounds = null;
+
+  if (!fence.length && !pts.length && !cps.length) {
+    if (!MAP.blank) { MAP.blank = true; m.setView(MAP_HOME, 16); }
     return;
   }
+  MAP.blank = false;
 
-  // 经纬度 → 平面（等距圆柱，按纬度压缩经度）
-  const all = []
-    .concat(fence.map(p => [p[0], p[1]]))
-    .concat(pts.map(p => [p.lat, p.lng]))
-    .concat(cps.map(p => [Number(p.lat), Number(p.lng)]));
-  let latMin = Infinity, latMax = -Infinity, lngMin = Infinity, lngMax = -Infinity;
-  for (const [la, ln] of all) {
-    if (!isFinite(la) || !isFinite(ln)) continue;
-    latMin = Math.min(latMin, la); latMax = Math.max(latMax, la);
-    lngMin = Math.min(lngMin, ln); lngMax = Math.max(lngMax, ln);
-  }
-  if (!isFinite(latMin)) return;
-  const kx = Math.cos(((latMin + latMax) / 2) * Math.PI / 180);
-  const spanLat = Math.max(1e-6, latMax - latMin);
-  const spanLng = Math.max(1e-6, (lngMax - lngMin) * kx);
-  const pad = 34;
-  const scale = Math.min((w - pad * 2) / spanLng, (h - pad * 2) / spanLat);
-  const ox = pad + ((w - pad * 2) - spanLng * scale) / 2;
-  const oy = pad + ((h - pad * 2) - spanLat * scale) / 2;
-  const P = (la, ln) => [
-    ox + ((ln - lngMin) * kx) * scale,
-    oy + (latMax - la) * scale,
-  ];
+  const corners = [];
+  const P = (la, ln) => {
+    const a = Number(la), b = Number(ln);
+    if (isFinite(a) && isFinite(b)) corners.push([a, b]);
+    return [a, b];
+  };
 
-  // 围栏
+  // 围栏（服务端下发的多边形）
   if (fence.length) {
-    ctx.beginPath();
-    fence.forEach(([la, ln], i) => {
-      const [x, y] = P(la, ln);
-      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    });
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(62,207,142,.10)';
-    ctx.fill();
-    ctx.strokeStyle = '#3ecf8e';
-    ctx.lineWidth = 1.6;
-    ctx.stroke();
+    L.polygon(fence.map(([la, ln]) => P(la, ln)), {
+      color: '#3ecf8e', weight: 1.8, opacity: .95,
+      fillColor: '#3ecf8e', fillOpacity: .10,
+    }).addTo(MAP.layers.fence);
   }
 
-  // 轨迹
+  // 轨迹：按上传状态着色；同色连续点合成一条 polyline（几百个点也不卡）
   if (pts.length > 1) {
-    ctx.lineWidth = 2.4;
-    if (S.showState) {
-      let prev = null;
-      for (const p of pts) {
-        const [x, y] = P(p.lat, p.lng);
-        if (prev) {
-          ctx.beginPath();
-          ctx.moveTo(prev[0], prev[1]);
-          ctx.lineTo(x, y);
-          ctx.strokeStyle = p.state === 8 ? '#3ecf8e' : (p.state === 4 ? '#ef6a6a' : '#5b7fff');
-          ctx.stroke();
-        }
-        prev = [x, y];
-      }
-    } else {
-      ctx.beginPath();
-      pts.forEach((p, i) => {
-        const [x, y] = P(p.lat, p.lng);
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      });
-      ctx.strokeStyle = '#5b7fff';
-      ctx.stroke();
+    const colorOf = (s) => (S.showState
+      ? (Number(s) === 8 ? '#3ecf8e' : (Number(s) === 4 ? '#ef6a6a' : '#5b7fff'))
+      : '#5b7fff');
+    let cur = null, seg = [];
+    const flush = () => {
+      if (seg.length > 1) L.polyline(seg, { color: cur, weight: 3, opacity: .92 }).addTo(MAP.layers.track);
+      seg = [];
+    };
+    for (const p of pts) {
+      const ll = P(p.lat, p.lng);
+      const c = colorOf(p.state);
+      if (cur === null) { cur = c; seg = [ll]; continue; }
+      if (c !== cur) { seg.push(ll); flush(); cur = c; seg = [ll]; } else { seg.push(ll); }
     }
-    const [sx, sy] = P(pts[0].lat, pts[0].lng);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(sx, sy, 3.6, 0, Math.PI * 2); ctx.fill();
+    flush();
+    L.circleMarker(P(pts[0].lat, pts[0].lng), {
+      radius: 4.5, color: '#0c1120', weight: 1.5, fillColor: '#ffffff', fillOpacity: 1,
+    }).addTo(MAP.layers.start);
   }
 
-  // 打卡点
+  // 打卡点：带序号的圆点，命中后由紫转绿
   cps.forEach((c, i) => {
-    const [x, y] = P(Number(c.lat), Number(c.lng));
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = Number(c.passed) === 1 ? 'rgba(62,207,142,.9)' : 'rgba(176,124,240,.85)';
-    ctx.fill();
-    ctx.strokeStyle = '#0c1120'; ctx.lineWidth = 1.4; ctx.stroke();
-    ctx.fillStyle = '#0c1120';
-    ctx.font = 'bold 8px system-ui';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), x, y + 0.5);
-    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+    const passed = Number(c.passed) === 1;
+    L.marker(P(c.lat, c.lng), {
+      icon: L.divIcon({
+        className: 'cp-icon', iconSize: [18, 18], iconAnchor: [9, 9],
+        html: '<span class="cp-label' + (passed ? ' passed' : '') + '">' + (i + 1) + '</span>',
+      }),
+      title: '打卡点 ' + (i + 1) + (passed ? '（已打卡）' : ''),
+      keyboard: false,
+    }).addTo(MAP.layers.cps);
   });
+
+  MAP.bounds = corners.length ? L.latLngBounds(corners) : null;
+  if (!MAP.bounds) return;
+  const key = MAP.bounds.toBBoxString() + '|' + pts.length + '|' + cps.length;
+  if (forceFit || S.fit || (key !== MAP.fitKey && !MAP.userMoved)) {
+    MAP.fitKey = key;
+    S.fit = false;
+    m.fitBounds(MAP.bounds, { padding: [28, 28], maxZoom: 18, animate: false });
+  }
 }
 
 // ══════════════════ 事件绑定 ══════════════════
@@ -453,6 +494,11 @@ async function init() {
   if (!(window.pywebview && window.pywebview.api) && !location.protocol.startsWith('http')) {
     toast('未检测到 Python 桥接，请用桌面入口启动', 'err');
   }
+
+  // 底图：记住用户上次选的瓦片源（localStorage，不写后端配置）
+  S.tiles = tileSetting();
+  $('in-tiles').value = S.tiles;
+  ensureMap();
 
   // 顶栏
   $('btn-data-dir').addEventListener('click', async () => {
@@ -512,10 +558,16 @@ async function init() {
 
   // 地图 / 日志
   $('in-show-state').addEventListener('change', (e) => { S.showState = e.target.checked; drawMap(); });
-  $('btn-fit').addEventListener('click', drawMap);
+  $('btn-fit').addEventListener('click', () => { S.fit = true; drawMap(true); });
+  $('in-tiles').addEventListener('change', (e) => {
+    S.tiles = e.target.value;
+    try { localStorage.setItem('sdlab.tiles', S.tiles); } catch (err) { /* 隐私模式等 */ }
+    setTiles(MAP.obj);
+  });
   $('btn-clear-log').addEventListener('click', () => { $('log').innerHTML = ''; S.logCount = 0; });
   $('btn-refresh-runs').addEventListener('click', refreshRuns);
-  window.addEventListener('resize', drawMap);
+  // 尺寸变化：Leaflet 必须收到 invalidateSize，否则瓦片错位、底图留白
+  window.addEventListener('resize', () => { if (MAP.obj) MAP.obj.invalidateSize(); drawMap(); });
 
   // 首次渲染 + 轮询事件流（失败一定要看得见，否则界面会静默地全空）
   try {

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>闪动校园 · 阳光跑工作台</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -127,17 +128,23 @@
 
   <!-- ═══════════ 中栏：地图与实时状态 ═══════════ -->
   <section class="col col-mid">
-    <div class="card grow">
+    <div class="card map-card">
       <div class="card-head">
         <h2>轨迹与围栏</h2>
         <div class="head-tools">
+          <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
+            <option value="amap">高德路网</option>
+            <option value="amap-sat">高德卫星</option>
+            <option value="osm">OpenStreetMap</option>
+            <option value="none">无底图</option>
+          </select>
           <label class="check small"><input type="checkbox" id="in-show-state" checked>
             <span>按上传状态着色</span></label>
           <button class="btn ghost small" id="btn-fit">适应</button>
         </div>
       </div>
       <div class="card-body map-body">
-        <canvas id="map"></canvas>
+        <div id="map"></div>
         <div class="map-legend">
           <span><i class="sw fence"></i>围栏</span>
           <span><i class="sw cp"></i>打卡点</span>
@@ -188,6 +195,7 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

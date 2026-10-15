@@ -69,6 +69,20 @@ html, body {
   overflow: hidden;
 }
 .col { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: auto; }
+/* 中栏：地图卡片钉在页面上半部分（网格行高决定，不再被内容拉伸或居中），
+   下半部分给“本次跑步”。overflow:hidden 避免整列滚动把地图推出视野。 */
+.col-mid {
+  display: grid;
+  grid-template-rows: minmax(280px, 1.6fr) minmax(0, 1fr);
+  overflow: hidden;
+}
+/* 窗口变窄时收窄两侧栏，把宽度让给地图（地图是主视口） */
+@media (max-width: 1340px) {
+  .layout { grid-template-columns: 300px minmax(300px, 1fr) 352px; }
+}
+@media (max-width: 1140px) {
+  .layout { grid-template-columns: 268px minmax(260px, 1fr) 312px; gap: 10px; padding: 10px; }
+}
 .col::-webkit-scrollbar { width: 8px; }
 .col::-webkit-scrollbar-thumb { background: #2c3852; border-radius: 4px; }
 
@@ -87,7 +101,7 @@ html, body {
 }
 .card-head h2 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: .3px; }
 .card-body { padding: 12px 14px; overflow: auto; min-height: 0; }
-.card-body.map-body { padding: 0; position: relative; overflow: hidden; }
+.card-body.map-body { padding: 0; position: relative; overflow: hidden; flex: 1 1 auto; min-height: 0; }
 .hint { font-size: 11.5px; color: var(--text-faint); }
 .head-tools { display: flex; align-items: center; gap: 8px; }
 
@@ -159,13 +173,19 @@ select option { background: #131a29; color: var(--text); }
 .kv .v.mono { font-family: var(--mono); font-size: 11.5px; }
 
 /* ── 地图 ── */
-#map { display: block; width: 100%; height: 100%; background: #0c1120; }
+#map { position: absolute; inset: 0; background: #0c1120; }
+.map-fallback {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  padding: 20px; text-align: center; color: var(--text-faint); font-size: 12.5px;
+}
 .map-legend {
-  position: absolute; left: 10px; bottom: 10px;
+  position: absolute; left: 10px; bottom: 22px;   /* 抬高让出 Leaflet 版权行的位置，避免压字 */
   display: flex; gap: 12px; flex-wrap: wrap;
   padding: 6px 10px; border-radius: 8px;
   background: #0f1626cc; border: 1px solid var(--line);
   font-size: 11.5px; color: var(--text-dim);
+  z-index: 900;            /* 压在 Leaflet 的面板/控件之上 */
+  pointer-events: none;    /* 但不挡地图拖拽 */
 }
 .map-legend i.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
 .sw.fence { background: var(--fence); }
@@ -173,6 +193,34 @@ select option { background: #131a29; color: var(--text); }
 .sw.init { background: #5b7fff; }
 .sw.fail { background: var(--err); }
 .sw.succ { background: var(--ok); }
+
+/* ── 地图：Leaflet 深色适配与叠加样式 ── */
+.leaflet-container { background: #0c1120; font: inherit; outline: none; }
+.leaflet-control-zoom a {
+  background: var(--card-2) !important; color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+.leaflet-control-zoom a:hover { background: #26314a !important; }
+.leaflet-bar { border: 1px solid var(--line) !important; }
+.leaflet-control-attribution {
+  background: #0f1626cc !important; color: var(--text-faint) !important;
+  font-size: 10.5px !important; padding: 1px 6px !important;
+}
+.leaflet-control-attribution a { color: var(--text-dim) !important; }
+/* 打卡点序号：Leaflet 的 divIcon，用 CSS 画成带数字的小圆点 */
+.cp-label {
+  display: grid; place-items: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  box-sizing: border-box; border: 1.5px solid #0c1120;
+  background: var(--cp); color: #0c1120;
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+.cp-label.passed { background: var(--ok); }
+/* 卡片头部里的小号下拉（瓦片源选择） */
+select.mini {
+  width: auto; padding: 3px 22px 3px 8px; font-size: 11.5px;
+  background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%;
+}
 
 /* ── 日志 ── */
 .log-body { padding: 0 !important; }
