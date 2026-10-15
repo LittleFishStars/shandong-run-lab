@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# 运行期产物
+.run/
+*.db
+*.db-wal
+*.db-shm
+*.log
+exports/
+
+# 参考仓（第三方 clone，不入库）
+.ref/
+reference/
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
