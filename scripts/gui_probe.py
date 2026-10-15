@@ -247,6 +247,45 @@ def main() -> int:
         check("围栏下拉已有选项", js(window, "document.querySelector('#in-fence').options.length > 0") is True)
         check("规则已显示",
               js(window, "document.querySelector('#rule-info').textContent.indexOf('尚未加载') < 0") is True)
+        # 布局与「只规划不动」：先把路径画出来，不升跑。
+        # 用户要求：加入摇杆便于自行控制路径 + 加入仅渲染路径点但不一键跑完的功能。
+        print("\n[3.5] 只规划路径（不升跑、不落库）与摇杆干跑")
+        runs_before = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        js(window, "document.querySelector('#btn-plan').click()")
+        time.sleep(1.5)
+        check("规划已画出路线（S.route 非空）",
+              int(js(window, "((S.route)||[]).length") or 0) >= 1,
+              f"route={js(window, '((S.route)||[]).length')} 个点")
+        check("规划未升跑（run_code 仍为空）",
+              not str(js(window, "(S.walk && S.walk.run_code) || ''") or ''))
+        runs_now = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        check("规划后本地记录条数不变（只画不写）", runs_now == runs_before,
+              f"{runs_before} → {runs_now}")
+
+        # 摇杆干跑：推杆后地图上必须长出实时轨迹，且不落库
+        js(window, "document.querySelector('#btn-walk-dry').click()")
+        time.sleep(2.0)
+        check("干跑已启动（界面进入 walking 态）",
+              js(window, "document.querySelector('.map-card').classList.contains('walking')") is True)
+        # 直接调桥推杆（与拖动摇杆走同一条通路），然后看实时点是否在变多
+        js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
+        time.sleep(2.0)
+        n1 = int(js(window, "(S.livePoints||[]).length") or 0)
+        js(window, "Bridge.call('walk_joystick', 0, 1, 1)")   # 换个方向，验证真在跟摇杆
+        time.sleep(2.0)
+        n2 = int(js(window, "(S.livePoints||[]).length") or 0)
+        check("摇杆推动后地图上出现实时轨迹点", n1 >= 1, f"推杆 2 秒后 {n1} 个点")
+        check("轨迹随摇杆方向继续增长", n2 > n1, f"{n1} → {n2} 个点")
+        shot(window, outdir, "gui-4-walk.png", full=args.full)
+        js(window, "Bridge.call('walk_joystick', 0, 0, 0)")
+        time.sleep(0.5)
+        js(window, "document.querySelector('#btn-walk-stop').click()")
+        time.sleep(1.5)
+        check("干跑已停止（按钮回到禁用）",
+              js(window, "document.querySelector('#btn-walk-stop').disabled") is True)
+        runs_after = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        check("干跑不落库（记录条数未变）", runs_after == runs_before,
+              f"{runs_before} → {runs_after}")
 
         print(f"\n[4] 一键跑 {args.distance:.0f} 米（点界面按钮，开实时仿真）")
         js(window, f"document.querySelector('#in-distance').value = {args.distance}")

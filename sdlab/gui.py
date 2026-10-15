@@ -78,6 +78,41 @@ class JsApi:
     def resume(self, run_code: str = "") -> Dict[str, Any]:
         return self.app.resume(str(run_code))
 
+    # —— 摇杆实走 ——
+    def walk_start(self, mode: str = "dry", target_m: float = 0.0,
+                   fence_index: int = 0, speed_mps: float = 0.0,
+                   auto_route: bool = False, auto_start: bool = False,
+                   speed: float = 0.0) -> Dict[str, Any]:
+        return self.app.walk_start(str(mode), float(target_m), int(fence_index),
+                                   float(speed_mps), bool(auto_route), bool(auto_start),
+                                   float(speed))
+
+    def walk_joystick(self, dx: float, dy: float, mag: float) -> Dict[str, Any]:
+        return self.app.walk_joystick(float(dx), float(dy), float(mag))
+
+    def walk_stop(self) -> Dict[str, Any]:
+        return self.app.walk_stop()
+
+    def walk_status(self, since: int = -1) -> Dict[str, Any]:
+        return self.app.walk_status(int(since))
+
+    def walk_route(self, waypoints_json: str = "", auto: bool = True,
+                   targets: bool = False) -> Dict[str, Any]:
+        try:
+            wps = json.loads(waypoints_json) if waypoints_json else []
+        except Exception as e:  # noqa: BLE001
+            return {"code": -1, "message": f"路点不是合法 JSON：{e}", "data": None}
+        return self.app.walk_route(wps, auto=bool(auto), targets=bool(targets))
+
+    def walk_upload(self, do_finish: bool = True) -> Dict[str, Any]:
+        return self.app.walk_upload(bool(do_finish))
+
+    def walk_save(self, name: str = "") -> Dict[str, Any]:
+        return self.app.walk_save(str(name))
+
+    def walk_plan(self) -> Dict[str, Any]:
+        return self.app.walk_plan()
+
     # —— 记录 ——
     def list_runs(self, limit: int = 100) -> Any:
         return self.app.list_runs(int(limit))

@@ -75,6 +75,15 @@ const S = {
   fit: true,
   logCount: 0,
   tiles: 'amap',
+  // ── 手动实走（摇杆）──
+  walk: null,            // 最近一次 walk_status 快照
+  walkSince: 0,          // 已拉取到的轨迹点数（增量拉取用）
+  livePoints: [],        // 本次实走已经推出来的轨迹点
+  route: [],             // 规划路线 [[lat,lng], …]
+  waypoints: [],         // 手动点选的路点
+  pickMode: false,       // 地图点击添加路点
+  walkTimer: null,
+  joyKey: null,          // 方向键当前方向
 };
 const $ = (id) => document.getElementById(id);
 
@@ -341,15 +350,18 @@ function kvTable(rows) {
 const TILES = {
   amap: {
     url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+    label: '高德路网',
     subdomains: '1234', maxZoom: 18, attribution: '&copy; 高德地图',
   },
   'amap-sat': {
     url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
     subdomains: '1234', maxZoom: 18, attribution: '&copy; 高德地图（卫星）',
+    label: '高德卫星',
   },
   osm: {
     url: 'https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png',
     subdomains: 'abc', maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+    label: 'OSM（WGS-84，与记录有偏移）',
   },
   none: null,          // 无底图：只看矢量叠加（离线时也能用）
 };
@@ -376,7 +388,7 @@ function ensureMap() {
     center: MAP_HOME, zoom: 16,
     zoomControl: true, attributionControl: true, preferCanvas: true,
   });
-  for (const k of ['fence', 'track', 'cps', 'start']) MAP.layers[k] = L.layerGroup().addTo(m);
+  for (const k of ['fence', 'route', 'wpt', 'track', 'cps', 'start']) MAP.layers[k] = L.layerGroup().addTo(m);
   m.on('tileerror', () => {
     if (MAP.tileError) return;
     MAP.tileError = true;
@@ -384,6 +396,13 @@ function ensureMap() {
   });
   // 用户自己拖了/缩了地图之后，实时重绘不再抢镜头（下一次跑步开始时自动恢复）
   m.on('dragstart zoomstart', () => { MAP.userMoved = true; });
+  // “点选路点”：地图点一下加一个路点，连线就是待走的路线
+  m.on('click', (e) => {
+    if (!S.pickMode) return;
+    S.waypoints.push([e.latlng.lat, e.latlng.lng]);
+    drawMap();
+    toast(`已加第 ${S.waypoints.length} 个路点（点“完成点选”结束）`, 'ok');
+  });
   MAP.obj = m;
   setTiles(m);
   // 卡片一变尺寸就要告诉 Leaflet，否则瓦片会错位、四周留白
@@ -398,11 +417,16 @@ function setTiles(m) {
   if (!m) return;
   if (MAP.tile) { m.removeLayer(MAP.tile); MAP.tile = null; }
   const conf = TILES[S.tiles];
-  if (!conf) return;                    // “无底图”：只留矢量叠加
+  const hint = document.getElementById('map-hint');
+  if (!conf) {
+    if (hint) hint.textContent = '无底图 · 仅矢量叠加';
+    return;                    // “无底图”：只留矢量叠加
+  }
   MAP.tileError = false;
   MAP.tile = L.tileLayer(conf.url, {
     subdomains: conf.subdomains, maxZoom: conf.maxZoom, attribution: conf.attribution,
   }).addTo(m);
+  if (hint) hint.textContent = conf.label + ' · GCJ-02';
 }
 
 // 重画叠加层；forceFit=true 或内容变化时才移动镜头（否则会抢用户的拖动）
@@ -420,18 +444,54 @@ function drawMap(forceFit) {
   for (const k of Object.keys(MAP.layers)) MAP.layers[k].clearLayers();
   MAP.bounds = null;
 
-  if (!fence.length && !pts.length && !cps.length) {
-    if (!MAP.blank) { MAP.blank = true; m.setView(MAP_HOME, 16); }
-    return;
-  }
-  MAP.blank = false;
-
+  // P() 负责“转成坐标 + 顺手收集包围盒”，后面的图层全部靠它；
+  // 必须先定义——下面的路线块比围栏块先画，而它是 const。
   const corners = [];
   const P = (la, ln) => {
     const a = Number(la), b = Number(ln);
     if (isFinite(a) && isFinite(b)) corners.push([a, b]);
     return [a, b];
   };
+  // 规划路线与手动路点优先画：它们不依赖本地记录（“只渲染路径点不跑完”就靠这一层）
+  const route = S.route || [];
+  if (route.length > 1) {
+    L.polyline(route.map(([la, ln]) => P(la, ln)), {
+      color: '#ffd166', weight: 2, opacity: .85, dashArray: '6 5',
+    }).addTo(MAP.layers.route);
+    route.forEach(([la, ln], i) => {
+      L.circleMarker(P(la, ln), {
+        radius: 3.5, color: '#ffd166', weight: 1.5, fillColor: '#0c1120', fillOpacity: .9,
+      }).bindTooltip('路线点 ' + (i + 1), { direction: 'top' }).addTo(MAP.layers.route);
+    });
+  }
+  (S.waypoints || []).forEach(([la, ln], i) => {
+    L.marker(P(la, ln), {
+      icon: L.divIcon({
+        className: 'cp-icon', iconSize: [18, 18], iconAnchor: [9, 9],
+        html: '<span class="wp-label">' + (i + 1) + '</span>',
+      }),
+      title: '路点 ' + (i + 1) + '（拖不了，用“清路点”重来）', keyboard: false,
+    }).addTo(MAP.layers.wpt);
+  });
+  // 实走轨迹（尚未落库的实时点）也要能看见，否则干跑时地图是空的
+  const live = S.livePoints || [];
+  if (live.length > 1) {
+    L.polyline(live.map((p) => P(p.lat, p.lng)), {
+      color: '#7ee0b0', weight: 3, opacity: .95,
+    }).addTo(MAP.layers.track);
+    const last = live[live.length - 1];
+    L.circleMarker(P(last.lat, last.lng), {
+      radius: 5, color: '#0c1120', weight: 2, fillColor: '#7ee0b0', fillOpacity: 1,
+    }).bindTooltip('当前位置', { direction: 'top' }).addTo(MAP.layers.track);
+  }
+  if (!fence.length && !pts.length && !cps.length
+      && !(S.route || []).length && !(S.waypoints || []).length
+      && !(S.livePoints || []).length) {
+    if (!MAP.blank) { MAP.blank = true; m.setView(MAP_HOME, 16); }
+    return;
+  }
+  MAP.blank = false;
+
 
   // 围栏（服务端下发的多边形）
   if (fence.length) {
@@ -478,7 +538,9 @@ function drawMap(forceFit) {
 
   MAP.bounds = corners.length ? L.latLngBounds(corners) : null;
   if (!MAP.bounds) return;
-  const key = MAP.bounds.toBBoxString() + '|' + pts.length + '|' + cps.length;
+  const key = MAP.bounds.toBBoxString() + '|' + pts.length + '|' + cps.length
+    + '|' + (S.livePoints || []).length + '|' + (S.route || []).length
+    + '|' + (S.waypoints || []).length;
   if (forceFit || S.fit || (key !== MAP.fitKey && !MAP.userMoved)) {
     MAP.fitKey = key;
     S.fit = false;
@@ -489,6 +551,224 @@ function drawMap(forceFit) {
 // ══════════════════ 事件绑定 ══════════════════
 function busy(btn, on) { btn.disabled = on; }
 
+// ══════════════════ 摇杆与手动实走 ══════════════════
+// 一个 0..1 的推杆向量，方向用东(x)/北(y) 分量。轮询发给后端的是单位方向 + 幅度，
+// 后端 Walker 自己乘满速，所以这里只管“杆在哪里”。
+const JOY = { dx: 0, dy: 0, mag: 0, dragging: false, id: null };
+
+function joyApply(e) {
+  const box = $('joy');
+  const r = box.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  let dx = (Number(e.clientX) - cx), dy = (Number(e.clientY) - cy);
+  const rad = r.width / 2 - 10;
+  let mag = Math.sqrt(dx * dx + dy * dy) / rad;
+  if (mag < 0.02) { joyReset(); return; }
+  if (mag > 1) { dx = dx / mag; dy = dy / mag; mag = 1; }
+  JOY.dx = dx / rad; JOY.dy = -dy / rad; JOY.mag = Math.min(1, mag);
+  const kx = JOY.dx * rad * JOY.mag, ky = -JOY.dy * rad * JOY.mag;
+  $('joy-knob').style.transform = `translate(${kx.toFixed(1)}px, ${ky.toFixed(1)}px)`;
+  box.classList.add('active');
+  Bridge.call('walk_joystick', JOY.dx, JOY.dy, JOY.mag).catch(() => { /* 未开始时后端会拒，忽略 */ });
+}
+
+function joyReset() {
+  JOY.dx = 0; JOY.dy = 0; JOY.mag = 0;
+  $('joy-knob').style.transform = '';
+  $('joy').classList.remove('active');
+  Bridge.call('walk_joystick', 0, 0, 0).catch(() => { /* 同上 */ });
+}
+
+function bindJoystick() {
+  const box = $('joy');
+  box.addEventListener('pointerdown', (e) => {
+    JOY.dragging = true; JOY.id = e.pointerId;
+    try { box.setPointerCapture(e.pointerId); } catch (_) { /* 老 WebKit 没有 */ }
+    joyApply(e);
+    e.preventDefault();
+  });
+  box.addEventListener('pointermove', (e) => { if (JOY.dragging) joyApply(e); });
+  const up = (e) => {
+    if (!JOY.dragging) return;
+    JOY.dragging = false;
+    joyReset();
+    if (e && e.pointerId !== undefined) { try { box.releasePointerCapture(e.pointerId); } catch (_) {} }
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  box.addEventListener('pointerleave', up);
+
+  // 方向键：按下就开始推，松开就停（与摇杆走同一条通路）
+  const KEYMAP = {
+    ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    w: [0, 1], s: [0, -1], a: [-1, 0], d: [1, 0],
+  };
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    const k = KEYMAP[e.key];
+    if (!k) return;
+    e.preventDefault();
+    S.joyKey = e.key;
+    JOY.dx = k[0]; JOY.dy = k[1]; JOY.mag = 1;
+    $('joy').classList.add('active');
+    const rad = $('joy').getBoundingClientRect().width / 2 - 10;
+    $('joy-knob').style.transform = `translate(${(k[0] * rad * 0.72).toFixed(1)}px, ${(-k[1] * rad * 0.72).toFixed(1)}px)`;
+    Bridge.call('walk_joystick', JOY.dx, JOY.dy, 1).catch(() => { /* 同上 */ });
+  });
+  window.addEventListener('keyup', (e) => {
+    if (!S.joyKey || e.key !== S.joyKey) return;
+    S.joyKey = null;
+    joyReset();
+  });
+}
+
+// ── 路径规划（只画不跑）───────────────────────────────
+// “只规划路径”不需要升跑、不落库、不上传：后端只做几何（最近邻排序 + 闭环）
+// 然后把线交给地图；“点选路点”则是用鼠标在地图上自己画一条线。
+let PLAN_INFO = null;      // 最近一次规划的摘要，供界面显示
+
+async function planPaths() {
+  const r = await Bridge.call('walk_plan');
+  const d = (r && r.data) || null;
+  if (!d) { toast('规划失败：' + ((r && r.message) || '?'), 'err'); return; }
+  PLAN_INFO = d;
+  S.route = d.route || [];
+  S.fit = true;
+  if (d.start && isFinite(Number(d.start.lat))) {
+    S.livePoints = [];      // 重新规划时把上一次的实走残迹清掉，免得两套线混在一起
+  }
+  drawMap(true);
+  const est = Number(d.est_duration_s || 0);
+  $('walk-info').textContent = `已规划 ${S.route.length} 个点 / ${Number(d.route_length_m || 0).toFixed(0)} 米`
+    + `（预计 ${Math.floor(est / 60)}分${String(est % 60).padStart(2, '0')}秒走完）`;
+  toast(`已规划路线：${S.route.length} 个点，${Number(d.route_length_m || 0).toFixed(0)} 米（未开跑）`, 'ok');
+}
+
+function togglePick() {
+  S.pickMode = !S.pickMode;
+  $('btn-pick').textContent = S.pickMode ? '完成点选' : '点选路点';
+  $('btn-pick').classList.toggle('primary', S.pickMode);
+  if (S.pickMode) {
+    S.waypoints = [];
+    toast('点选模式：在地图上依次点击即可加路点', 'ok');
+  } else {
+    applyWaypoints();
+  }
+}
+
+async function applyWaypoints() {
+  if (!S.waypoints.length) { toast('还没有路点', 'err'); return; }
+  const r = await Bridge.call('walk_route', JSON.stringify(S.waypoints), true, false);
+  const d = (r && r.data) || {};
+  S.route = (d.route && d.route.length) ? d.route : S.waypoints;
+  drawMap(true);
+  toast(`已设置 ${S.waypoints.length} 个路点（干跑/实跑时可以自动沿它们走）`, 'ok');
+}
+
+function clearWaypoints() {
+  S.waypoints = [];
+  S.route = [];
+  S.pickMode = false;
+  $('btn-pick').textContent = '点选路点';
+  $('btn-pick').classList.remove('primary');
+  Bridge.call('walk_route', '[]', false, false).catch(() => {});
+  drawMap();
+}
+
+// ── 实走：升跑 / 叫停 / 上传 ────────────────────────
+async function walkStart(mode) {
+  busy($('btn-walk-dry'), true); busy($('btn-walk-real'), true);
+  try {
+    const target = Number($('in-distance').value) || 0;
+    const auto = $('in-auto-route').checked;
+    const r = await Bridge.call('walk_start', mode, target, Number($('in-fence').value),
+      0, auto, true, 0);
+    if (!r || r.code !== 0) { toast('启动失败：' + ((r && r.message) || '?'), 'err'); return; }
+    S.walkSince = 0;
+    S.livePoints = [];
+    S.walk = r.data || {};
+    $('map').closest('.map-card').classList.add('walking');
+    $('btn-walk-stop').disabled = false;
+    toast(mode === 'real' ? '实跑已开始（轨迹实时入库）' : '干跑已开始（不落库、不上传）', 'ok');
+    startWalkTimer();
+  } finally {
+    busy($('btn-walk-dry'), false); busy($('btn-walk-real'), false);
+  }
+}
+
+async function walkStop() {
+  const r = await Bridge.call('walk_stop');
+  S.walk = r || S.walk;
+  $('btn-walk-stop').disabled = true;
+  $('map').closest('.map-card').classList.remove('walking');
+  const st = (r && r.state) || {};
+  toast(`已停止：${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步`
+    + `（本地已落库 ${r && r.stored || 0} 点）`, 'ok');
+  refreshRuns();
+}
+
+async function walkUpload() {
+  const r = await Bridge.call('walk_upload', true);
+  toast((r && r.message) || '已提交', r && r.code === 0 ? 'ok' : 'err');
+}
+
+async function walkSave() {
+  const r = await Bridge.call('walk_save', '');
+  toast((r && r.message) || '已保存', r && r.code === 0 ? 'ok' : 'err');
+  if (r && r.code === 0) refreshRuns();
+}
+
+// 实走进行中：从后端增量拉点（S.walkSince = 已拉到的点数），描到地图上。
+// 干跑时后端不落库，只能靠这条通道把轨迹送过来。
+function startWalkTimer() {
+  if (S.walkTimer) return;
+  S.walkTimer = setInterval(pumpWalk, 500);
+}
+function stopWalkTimer() {
+  if (S.walkTimer) { clearInterval(S.walkTimer); S.walkTimer = null; }
+}
+
+async function pumpWalk() {
+  let r = null;
+  try { r = await Bridge.call('walk_status', S.walkSince); } catch (_) { return; }
+  if (!r) return;
+  S.walk = r;
+  const pts = r.points || [];
+  if (pts.length) {
+    S.walkSince = Number(r.total || (S.walkSince + pts.length));
+    for (const p of pts) {
+      S.livePoints.push({ lat: Number(p.lat), lng: Number(p.lng) });
+      if (S.livePoints.length > 4000) S.livePoints.shift();
+    }
+  }
+  const st = r.state || {};
+  const done = !r.running;
+  $('walk-info').textContent = `${r.mode === 'real' ? '实跑' : '干跑'} `
+    + `${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 / `
+    + `配速 ${st.speed_mps ? Number(st.speed_mps).toFixed(2) : '0.00'} m/s / `
+    + `打卡 ${st.passed || 0}/${st.targets || 0}`
+    + (r.mode === 'real' ? `　已落库 ${r.stored || 0} 点` : '　（未落库）');
+  if (r.run_code) { S.currentRun = r.run_code; $('run-code-label').textContent = r.run_code; }
+  // 跑步中“本次跑步”面板实时跟距离、步数、打卡
+  renderRunInfo({
+    run_code: r.run_code || '--', distance_m: st.dist_m, duration_s: st.move_sec,
+    total_step: st.steps, stride_m: st.steps ? (st.dist_m / st.steps) : 0,
+    pace_s_per_km: st.dist_m > 0 ? (st.move_sec / (st.dist_m / 1000)) : 0,
+    checkpoints_done: st.passed, checkpoints_total: st.targets,
+    valid: { isValid: true, reasons: [] },
+  });
+  drawMap();
+  if (done) {
+    stopWalkTimer();
+    $('btn-walk-stop').disabled = true;
+    $('map').closest('.map-card').classList.remove('walking');
+    if (st.arrived) {
+      toast('实走结束：' + st.arrived, 'ok');
+      refreshRuns();
+    }
+  }
+}
 async function init() {
   await Bridge.waitReady();
   if (!(window.pywebview && window.pywebview.api) && !location.protocol.startsWith('http')) {
@@ -555,6 +835,35 @@ async function init() {
   $('btn-load-rule').addEventListener('click', async () => {
     await Bridge.call('prepare'); refreshStatus();
   });
+
+  // 路径规划 / 摇杆实走（这一块全部不依赖登录状态，先接上，免得按钮点了没反应）
+  $('btn-plan').addEventListener('click', async () => {
+    const b = $('btn-plan'); busy(b, true);
+    try {
+      if (!S.status || !S.status.logged_in) toast('建议先登录：规划本身不需要网络，但需要已经拉过的围栏与打卡点', 'err');
+      await planPaths();
+    } finally { busy(b, false); }
+  });
+  $('btn-pick').addEventListener('click', togglePick);
+  $('btn-clear-wp').addEventListener('click', clearWaypoints);
+  $('btn-walk-dry').addEventListener('click', () => walkStart('dry'));
+  $('btn-walk-real').addEventListener('click', () => walkStart('real'));
+  $('btn-walk-stop').addEventListener('click', walkStop);
+  $('btn-walk-up').addEventListener('click', walkUpload);
+  $('btn-walk-save').addEventListener('click', walkSave);
+  bindJoystick();
+
+  // 页面刷新/重启时可能还有一次实走在跑，接上轮询不要断
+  try {
+    const w = await Bridge.call('walk_status', -1);
+    if (w && w.running) {
+      S.walk = w; S.walkSince = Number(w.points || 0);
+      $('btn-walk-stop').disabled = false;
+      $('map').closest('.map-card').classList.add('walking');
+      startWalkTimer();
+      toast('检测到正在进行的实走，已重新接管', 'ok');
+    }
+  } catch (_) { /* 后端没这接口时忽略 */ }
 
   // 地图 / 日志
   $('in-show-state').addEventListener('change', (e) => { S.showState = e.target.checked; drawMap(); });

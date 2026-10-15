@@ -20,8 +20,11 @@ from typing import Any, Dict, List, Optional
 from .bus import ConfigStore, EventBus, default_data_dir
 from .client import ShandongClient
 from .engine import RunEngine
+from .protocol import haversine
 from .mock import MockServer, MockWorld
 from .store import RecordStore
+from .walk import WalkSession, build_walk_targets
+from .walker import route_from_checkpoints
 
 
 class App:
@@ -46,6 +49,10 @@ class App:
         self.world: Optional[MockWorld] = None
         self.client: ShandongClient = None            # type: ignore[assignment]
         self.engine: RunEngine = None                 # type: ignore[assignment]
+        self.walk: WalkSession = None                 # type: ignore[assignment]  # 摇杆实走会话
+        # 用户在地图上点出来（或“仅渲染路径点”生成）的待用路线，开走时交给 Walker
+        self._pending_route: List[List[float]] = []
+        self._pending_auto: bool = True
         self._thread: Optional[threading.Thread] = None
         self._last_result: Dict[str, Any] = {}
         self._progress: Dict[str, Any] = {"percent": 0, "message": "就绪", "running": False}
@@ -62,6 +69,8 @@ class App:
                                      base_url=base_url)
         self.client.local_mode = (self.mode == "mock")
         self.engine = RunEngine(self.client, self.cfg, self.bus)
+        # 摇杆实走会话与引擎共用同一个 store/bus：实跑模式落的库就是 engine 后续要上传的库
+        self.walk = WalkSession(self.cfg, bus=self.bus, store=self.store, engine=self.engine)
         self.bus.subscribe(self._on_event)
 
     def _on_event(self, ev: Dict[str, Any]) -> None:
@@ -255,6 +264,190 @@ class App:
 
     def running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
+
+    # ══════════════════ 摇杆实走（手动控制路径） ══════════════════
+    def walk_start(self, mode: str = "dry", target_m: float = 0.0,
+                   fence_index: int = 0, speed_mps: float = 0.0,
+                   auto_route: bool = False, auto_start: bool = False,
+                   speed: float = 0.0) -> Dict[str, Any]:
+        """开始一次手动实走
+
+        mode='dry' 干跑：不升跑、不落库、不上传，纯调试路径；
+        mode='real' 实跑：auto_start 时会先调 engine.start() 拿 runRecordCode，
+                         然后轨迹实时写进同一库，叫停后可原地上传结算。
+        targets 默认取「当前围栏内的打卡点」，没有就现场推导一份（与一键跑同源）。
+        """
+        if not self.client.logged_in:
+            return {"code": -1, "message": "请先登录", "data": None}
+        try:
+            self.engine.prepare(fence_index=int(fence_index))
+        except Exception as e:  # noqa: BLE001
+            self.bus.emit("log", f"✗ 实走前准备失败：{e}", level="error")
+            return {"code": -1, "message": str(e), "data": None}
+
+        lat, lng = self.client.fence_center()
+        run_code = ""
+        mode = "real" if str(mode).lower() == "real" else "dry"
+        if mode == "real" and auto_start:
+            try:
+                run_code = self.engine.start(target_m=target_m, fence_index=int(fence_index))
+            except Exception as e:  # noqa: BLE001
+                self.bus.emit("log", f"✗ 实跑开跑失败：{e}", level="error")
+                return {"code": -1, "message": str(e), "data": None}
+            self._progress = {"percent": 0, "message": "实跑已开始", "running": True,
+                              "run_code": run_code}
+
+        cps = self.engine.checkpoints or []
+        # 优先用用户在地图上点出来/“仅渲染路径点”生成的那条路线，没有才回到默认闭环
+        route = list(getattr(self, "_pending_route", None) or [])
+        if not route and cps:
+            route = route_from_checkpoints(lat, lng, cps, loop=True)
+        return self.walk.start(
+            mode, lat=lat, lng=lng, target_m=float(target_m or 0),
+            speed_mps=(float(speed_mps) if speed_mps else None),
+            route=route, auto_route=bool(auto_route or self._pending_auto),
+            targets=build_walk_targets(cps),
+            polygon=self.client.fence_polygon(),
+            run_code=run_code,
+            speed=(float(speed) if speed else None))
+
+    def walk_joystick(self, dx: float, dy: float, mag: float) -> Dict[str, Any]:
+        return self.walk.joystick(float(dx), float(dy), float(mag))
+
+    def walk_stop(self) -> Dict[str, Any]:
+        out = self.walk.stop()
+        self._progress = {**self._progress, "running": False, "percent": 0}
+        return out
+
+    def walk_status(self, since: int = -1) -> Dict[str, Any]:
+        return self.walk.status(None if int(since) < 0 else int(since))
+
+    def walk_route(self, waypoints: Optional[List[Any]] = None,
+                   auto: bool = True, targets: bool = False) -> Dict[str, Any]:
+        """设置手动路径。
+
+        waypoints 为空且 targets=True 时，自动按「起点→打卡点（最近邻）→回起点」
+        生成一条可走的闭环——即“只渲染路径点、不一键跑完”所需的那条线。
+        """
+        wps: List[List[float]] = []
+        for p in (waypoints or []):
+            try:
+                if isinstance(p, dict):
+                    wps.append([float(p["lat"]), float(p["lng"])])
+                else:
+                    wps.append([float(p[0]), float(p[1])])
+            except (TypeError, IndexError, KeyError, ValueError):
+                continue
+        if not wps and targets:
+            try:
+                lat, lng = self.client.fence_center()
+            except Exception:  # noqa: BLE001
+                lat, lng = 0.0, 0.0
+            wps = route_from_checkpoints(lat, lng, self.engine.checkpoints or [], loop=True)
+        # 还没开走也能先规划：此时只记在 engine.last 里，开走时再交给 Walker
+        self._pending_route = wps
+        self._pending_auto = bool(auto)
+        if self.walk.walker:
+            return self.walk.set_route(wps, auto=auto)
+        return {"code": 0, "data": {"route": wps, "auto": bool(auto), "staged": True}}
+
+    def walk_upload(self, do_finish: bool = True) -> Dict[str, Any]:
+        """叫停后上传：把实跑落的库走与一键跑完全相同的上传链路并结算"""
+        rc = self.walk.run_code
+        if not rc:
+            return {"code": -1, "message": "没有实跑记录可上传（干跑模式不落库）", "data": None}
+        if not self.client.logged_in:
+            return {"code": -1, "message": "请先登录", "data": None}
+
+        def _work() -> None:
+            try:
+                out = self.engine.upload(rc)
+                if out.get("points", {}).get("code") != 0:
+                    self.bus.emit("log", "✗ 轨迹上传中断，可稍后断点续传", level="error")
+                if do_finish:
+                    self.engine.finish(rc, sun=True)
+                    self.store.finish_run(rc, source="walk")
+                summary = self.engine.last
+                self._last_result = {**(summary or {}), "run_code": rc, "source": "walk"}
+                self._progress = {**self._progress, "percent": 100, "running": False}
+            except Exception as e:  # noqa: BLE001
+                self.bus.emit("log", f"✗ 实跑上传失败：{e}", level="error")
+                self._progress = {**self._progress, "running": False}
+
+        if self._thread and self._thread.is_alive():
+            return {"code": -1, "message": "已有任务在运行", "data": None}
+        self._progress = {**self._progress, "percent": 55, "running": True, "run_code": rc}
+        self._thread = threading.Thread(target=_work, name="walk-upload", daemon=True)
+        self._thread.start()
+        return {"code": 0, "message": f"已开始上传结算：{rc}", "data": {"run_code": rc}}
+
+    def walk_save(self, name: str = "", polygon: Optional[List[Any]] = None) -> Dict[str, Any]:
+        """把本次手动路径存成库里的草稿记录（不升跑、不上传，供反复调试）"""
+        st = self.walk.status()
+        pts = self.walk.all_points()
+        if not pts and not (st.get("targets") or []):
+            return {"code": -1, "message": "没有可保存的路径点", "data": None}
+        code = str(st.get("run_code") or "").strip() or f"WALK-{int(time.time())}"
+        if not self.store.get_run(code):
+            f = dict(self.client.fence or {})
+            self.store.create_run(code, source="walk", sport_type=1,
+                                  fence_code=str(f.get("fenceCode") or ""),
+                                  fence_name=str(f.get("fenceName") or ""))
+        if self.store.get_checkpoints(code) == [] and self.client.fence is not None:
+            self.store.add_checkpoints(code, self.engine.checkpoints)
+        for i, p in enumerate(pts):
+            p.lat_lng_index = int(i)   # 重新编号：草稿必须是 0..n-1 连续，否则续传定位会错
+            p.run_code = code
+        if pts:
+            self.store.add_points(code, pts)
+        self.store.finish_run(code, distance_m=float(st["state"].get("dist_m") or 0),
+                              duration_s=float(st["state"].get("move_sec") or 0),
+                              total_step=int(st["state"].get("steps") or 0),
+                              source="walk")
+        self.bus.emit("state", f"路径草稿已保存：{code}（{len(pts)} 点）")
+        return {"code": 0, "message": f"已保存为 {code}",
+                "data": {"run_code": code, "points": len(pts), "name": str(name or "")}}
+
+    def walk_plan(self) -> Dict[str, Any]:
+        """“只渲染路径点、不一键跑完”：仅做本地几何规划，不升跑、不落库、不上传。
+
+        返回起点、打卡点序列、围栏多边形、规划路线（含逐段长度与总长）以及
+        “跑完全程至少需要多少秒”的预估；后者用来判断目标距离是否够用。
+        """
+        c = self.client
+        try:
+            lat, lng = c.fence_center()
+        except Exception:  # noqa: BLE001
+            lat, lng = 0.0, 0.0
+        cps = [dict(x) for x in (self.engine.checkpoints or [])]
+        route = route_from_checkpoints(lat, lng, cps, loop=True) if cps else []
+        legs: List[Dict[str, Any]] = []
+        total = 0.0
+        prev = (lat, lng)
+        for i, p in enumerate(route):
+            d = haversine(prev[0], prev[1], float(p[0]), float(p[1]))
+            total += d
+            legs.append({"index": i, "lat": float(p[0]), "lng": float(p[1]),
+                         "leg_m": round(d, 1)})
+            prev = (float(p[0]), float(p[1]))
+        stride = float((self.cfg.get("run") or {}).get("stride_m", 0.85) or 0.85)
+        cadence = float((self.cfg.get("sim") or {}).get("max_cadence", 182.0) or 182.0)
+        est_s = int(round((total / max(0.5, stride)) / (max(60.0, cadence) / 60.0)))
+        return {
+            "code": 0, "message": "ok",
+            "data": {
+                "start": {"lat": lat, "lng": lng},
+                "checkpoints": cps,
+                "fence_polygon": c.fence_polygon(),
+                "fence": dict(c.fence or {}),
+                "route": route,
+                "legs": legs,
+                "route_length_m": round(total, 2),
+                "est_duration_s": est_s,
+                "min_distance_m": round(total, 1),
+                "planned": True,
+            },
+        }
 
     # ══════════════════ 记录查询 / 导出 ══════════════════
     def list_runs(self, limit: int = 100) -> List[Dict[str, Any]]:

@@ -196,8 +196,55 @@ def main() -> int:
         check(float(cfg2.get("run", {}).get("target_distance_m", 0)) == 1234.0,
               "补丁已生效（target_distance_m=1234）")
 
-        # ── 6. 删除记录 ──
-        section("6. 删除记录")
+        # ── 6. 摇杆实走与「只规划不动」 ──
+        section("6. 摇杆实走（干跑）与仅规划路径")
+        plan = post_api(api_url, "walk_plan")
+        pd = (plan or {}).get("data") or {}
+        check(plan.get("code") == 0 and pd.get("planned") is True,
+              "walk_plan() 仅返回规划结果（不开跑、不落库）",
+              json.dumps({k: pd.get(k) for k in ("route_length_m", "est_duration_s",
+                                                  "min_distance_m")}, ensure_ascii=False))
+        check(len(pd.get("route") or []) >= 1, f"规划路线含 {len(pd.get('route') or [])} 个路点")
+
+        # 干跑前先记下记录条数，干跑结束后必须一模一样（干跑绝不落库）
+        before = len(post_api(api_url, "list_runs", 100) or [])
+        ws = post_api(api_url, "walk_start", "dry", 0, 0, 3.0, False, False, 20.0)
+        check(ws.get("code") == 0, "walk_start(dry) 已开始",
+              json.dumps(ws.get("data", {}).get("state", {}), ensure_ascii=False)[:140])
+
+        # 摇杆一推就动：两个方向分别推，采样点必须真变多
+        post_api(api_url, "walk_joystick", 1.0, 0.0, 1.0)
+        time.sleep(1.2)
+        st1 = post_api(api_url, "walk_status", 0) or {}
+        n1 = int(st1.get("total") or len(st1.get("points") or []))
+        check(n1 >= 1, f"摇杆推动后已产生 {n1} 个轨迹点")
+        post_api(api_url, "walk_joystick", 0.0, 1.0, 1.0)
+        time.sleep(1.2)
+        st2 = post_api(api_url, "walk_status", n1) or {}
+        add = len(st2.get("points") or [])
+        check(add >= 1, f"walk_status(since={n1}) 增量返回 {add} 个新点（界面靠它一笔笔画线）")
+
+        # 只规划不动：给出路点后自动跟随打开，但仍可随时叫停
+        rt = post_api(api_url, "walk_route", json.dumps(pd.get("route") or []), True, False)
+        check(rt.get("code") == 0, "walk_route() 接受路点数组（仅渲染，不触发上传）",
+              json.dumps(rt.get("data", {}), ensure_ascii=False)[:120])
+        check(post_api(api_url, "walk_plan").get("code") == 0, "规划接口可重复调用（幂等）")
+
+        post_api(api_url, "walk_joystick", 0, 0, 0)
+        stp = post_api(api_url, "walk_stop")
+        # walk_stop() 直接返回终态快照（running/state/stored），不是 {code,...} 包装
+        check(stp.get("running") is False and isinstance(stp.get("state"), dict),
+              "walk_stop() 已叫停并返回终态快照",
+              json.dumps({"running": stp.get("running"),
+                          "dist_m": (stp.get("state") or {}).get("dist_m"),
+                          "steps": (stp.get("state") or {}).get("steps")}, ensure_ascii=False))
+        after = len(post_api(api_url, "list_runs", 100) or [])
+        check(after == before, f"干跑绝不落库（记录数 {before} → {after}）")
+        up = post_api(api_url, "walk_upload", True)
+        check(up.get("code") != 0, "干跑没有可上传记录，walk_upload() 被正确拒绝")
+
+        # ── 7. 删除记录 ──
+        section("7. 删除记录")
         dr = post_api(api_url, "delete_run", code)
         check(isinstance(dr, dict) and dr.get("code") == 0 and "error" not in dr,
               f"delete_run({code}) 完成", json.dumps(dr, ensure_ascii=False)[:120])

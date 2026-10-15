@@ -131,21 +131,41 @@
     <div class="card map-card">
       <div class="card-head">
         <h2>轨迹与围栏</h2>
-        <div class="head-tools">
-          <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
-            <option value="amap">高德路网</option>
-            <option value="amap-sat">高德卫星</option>
-            <option value="osm">OpenStreetMap</option>
-            <option value="none">无底图</option>
-          </select>
-          <label class="check small"><input type="checkbox" id="in-show-state" checked>
-            <span>按上传状态着色</span></label>
-          <button class="btn ghost small" id="btn-fit">适应</button>
-        </div>
+        <span class="hint" id="map-hint">高德路网 · GCJ-02</span>
+      </div>
+      <div class="map-bar">
+        <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
+        <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
+        <button class="btn ghost small" id="btn-clear-wp">清路点</button>
+        <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
+          <option value="amap">高德路网</option>
+          <option value="amap-sat">高德卫星</option>
+          <option value="osm">OpenStreetMap</option>
+          <option value="none">无底图</option>
+        </select>
+        <label class="check small"><input type="checkbox" id="in-show-state" checked>
+          <span>按上传状态着色</span></label>
+        <button class="btn ghost small" id="btn-fit">适应</button>
       </div>
       <div class="card-body map-body">
         <div id="map"></div>
+        <div class="map-tools">
+          <button class="btn small" id="btn-walk-dry" title="只推位置与数据，不升跑、不落库、不上传，纯调路径">干跑调试</button>
+          <button class="btn small primary" id="btn-walk-real" title="先开跑拿 runRecordCode，轨迹实时写进本地库">实跑记录</button>
+          <button class="btn small" id="btn-walk-stop" disabled>停止</button>
+          <button class="btn small" id="btn-walk-up" title="停止后按与一键跑完全相同的链路上传并结算">上传结算</button>
+          <button class="btn ghost small" id="btn-walk-save" title="把本次路径存成本地草稿，不升跑不上传">存草稿</button>
+          <label class="check small"><input type="checkbox" id="in-auto-route" checked>
+            <span>沿路线自动走</span></label>
+          <span class="hint" id="walk-info">未开始（摇杆 / 方向键 / 路点均可控制）</span>
+        </div>
+        <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键">
+          <div class="joy-ring"></div>
+          <div class="joy-knob" id="joy-knob"></div>
+        </div>
         <div class="map-legend">
+          <span><i class="sw route"></i>规划路线</span>
+          <span><i class="sw wpt"></i>路点</span>
           <span><i class="sw fence"></i>围栏</span>
           <span><i class="sw cp"></i>打卡点</span>
           <span><i class="sw init"></i>待上传</span>

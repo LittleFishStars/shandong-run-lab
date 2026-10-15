@@ -194,6 +194,90 @@ class 全链路测试(unittest.TestCase):
         self.assertNotIn("SDLAB-DELETE-ME", [r["run_code"] for r in self.app.list_runs(50)])
 
 
+class 手动实走测试(unittest.TestCase):
+    """摇杆控制路径 + 只规划不动：走同一套 App/Mock，不碰真实服务端
+
+    与全链路测试的区别：轨迹由外部输入（摇杆/路径跟随）驱动而不是一次算完，
+    因此验证重点是「增量采样」「干跑不落库」「实跑可上传」。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-walk-"))
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json")
+        cls.app.login("13800138000", "any-password", False)
+        cls.app.run_prepare()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.close()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_仅规划不升跑不落库(self):
+        before = len(self.app.list_runs(200))
+        r = self.app.walk_plan()
+        self.assertEqual(r["code"], C.CODE_OK)
+        d = r["data"]
+        self.assertTrue(d["planned"])
+        self.assertGreaterEqual(len(d["route"]), 1)
+        self.assertGreater(d["route_length_m"], 0)
+        # 关键：规划不是开跑，库里一条都不该多
+        self.assertEqual(len(self.app.list_runs(200)), before)
+
+    def test_干跑不落库且增量取点(self):
+        before = len(self.app.list_runs(200))
+        r = self.app.walk_start("dry", target_m=0, fence_index=0,
+                                speed_mps=3.0, auto_route=False,
+                                auto_start=False, speed=30.0)
+        self.assertEqual(r["code"], C.CODE_OK)
+        self.app.walk_joystick(1.0, 0.0, 1.0)
+        time.sleep(1.0)
+        st1 = self.app.walk_status(0)
+        n1 = int(st1["total"])
+        self.assertGreaterEqual(n1, 1)
+        self.app.walk_joystick(0.0, 1.0, 1.0)     # 换个方向，确认真在跟着摇杆转
+        time.sleep(1.0)
+        st2 = self.app.walk_status(n1)
+        self.assertGreaterEqual(len(st2["points"]), 1)
+        self.assertEqual(int(st2["from"]), n1)
+        st = self.app.walk_stop()
+        self.assertFalse(st["running"])
+        # 干跑的意义：调路径不污染记录
+        self.assertEqual(len(self.app.list_runs(200)), before)
+        self.assertNotEqual(self.app.walk_upload(True).get("code"), C.CODE_OK)
+
+    def test_实跑落库可上传结算(self):
+        before = len(self.app.list_runs(200))
+        r = self.app.walk_start("real", target_m=0, fence_index=0,
+                                speed_mps=0.0, auto_route=True,
+                                auto_start=True, speed=30.0)
+        self.assertEqual(r["code"], C.CODE_OK)
+        rc = r["data"]["run_code"]
+        self.assertTrue(rc)
+        # 沿打卡点闭环自动驾驶一会儿，同时确认点数在长
+        n = 0
+        for _ in range(12):
+            time.sleep(0.5)
+            n = int(self.app.walk_status(0)["total"])
+            if n >= 6:
+                break
+        self.assertGreaterEqual(n, 1)
+        st = self.app.walk_stop()
+        self.assertFalse(st["running"])
+        # 实跑必须落库，而且落的是本次 run_code
+        self.assertGreater(len(self.app.store.get_points(rc, None)), 0)
+        self.assertGreater(len(self.app.list_runs(200)), before)
+        # 走与一键跑完全相同的上传链路（含 sign）
+        up = self.app.walk_upload(True)
+        self.assertEqual(up.get("code"), C.CODE_OK)
+        t0 = time.time()
+        while self.app.running() and time.time() - t0 < 60:
+            time.sleep(0.2)
+        last = self.app.status().get("last") or {}
+        self.assertEqual((last.get("upload") or {}).get("points", {}).get("code"), C.CODE_OK)
+        self.assertEqual((last.get("finish") or {}).get("code"), C.CODE_OK)
+
+
 class 错误处理测试(unittest.TestCase):
     """不依赖前置跑步：只验证异常输入不会把程序带崩"""
 

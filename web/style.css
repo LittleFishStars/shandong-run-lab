@@ -193,6 +193,46 @@ select option { background: #131a29; color: var(--text); }
 .sw.init { background: #5b7fff; }
 .sw.fail { background: var(--err); }
 .sw.succ { background: var(--ok); }
+.sw.route { background: #ffd166; }
+.sw.wpt { background: #ffffff; }
+
+/* 地图卡片自己的工具行：不挤占卡片头，宽度不够时自动换行 */
+.map-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 7px 12px; border-bottom: 1px solid var(--line);
+  background: #171e2e; flex: 0 0 auto;
+}
+/* ── 地图上的摇杆与实走工具条 ── */
+.map-tools {
+  position: absolute; left: 10px; top: 10px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  max-width: calc(100% - 20px);
+  padding: 6px 8px; border-radius: 9px;
+  background: #0f1626e0; border: 1px solid var(--line);
+  z-index: 910;
+}
+.map-tools .hint { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.joy {
+  position: absolute; right: 12px; bottom: 26px;
+  width: 116px; height: 116px; border-radius: 50%;
+  background: #0f1626b8; border: 1px solid var(--line);
+  z-index: 910; touch-action: none; cursor: grab;
+}
+.joy:active { cursor: grabbing; }
+.joy .joy-ring {
+  position: absolute; inset: 14px; border-radius: 50%;
+  border: 1px dashed #ffffff26;
+}
+.joy .joy-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #6aa9ea, #2f5c96);
+  border: 1px solid #8ab6ea; box-shadow: 0 2px 10px #0008;
+  transition: transform .04s linear;
+}
+.joy.active .joy-knob { background: radial-gradient(circle at 35% 30%, #7ee0b0, #1f7a55); }
+/* 实走中：地图外圈给个呼吸提示，一眼能看出在推进 */
+.map-card.walking { box-shadow: 0 0 0 1px #3ecf8e66, 0 0 22px #3ecf8e2e; }
 
 /* ── 地图：Leaflet 深色适配与叠加样式 ── */
 .leaflet-container { background: #0c1120; font: inherit; outline: none; }
