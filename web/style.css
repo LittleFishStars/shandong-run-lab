@@ -101,6 +101,19 @@ input[type=text], input[type=password], input[type=number], select {
   font: inherit; font-size: 13px;
 }
 input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px #4a90d933; }
+/* WebKitGTK 下 <select> 默认用原生控件，深色主题会变成“白底+浅色字”——看不见选项。
+   去原生外观，自己画背景与下拉箭头。 */
+select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 26px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8b9bb4 50%),
+    linear-gradient(135deg, #8b9bb4 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat, no-repeat;
+}
+select option { background: #131a29; color: var(--text); }
 .row { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .check { display: flex; align-items: center; gap: 7px; margin: 8px 0; font-size: 12.5px; color: var(--text-dim); }

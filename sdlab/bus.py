@@ -129,6 +129,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "accel_amplitude": 3.5,
         "jitter": 0.15,
         "dropout_rate": 0.0,        # 秒级概率，模拟隧道/丢星
+        # 实时仿真：默认关（瞬间算完，适合自检）；打开后按真实时间推进数据写入，
+        # 界面上能看到轨迹一笔笔画出来、进度条一格一格走——调试时很有用。
+        "realtime": False,
+        "speed": 8.0,              # 实时仿真的倍速（8 = 8 倍速，约 1/8 真实耗时）
     },
 }
 
@@ -148,6 +152,7 @@ class ConfigStore:
 
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path) if path else default_config_path()
+        self.save_error: Optional[str] = None    # 配置写不进去时记下来，界面上可以提示
         self._data: Dict[str, Any] = dict(DEFAULT_CONFIG)
         self.load()
 
@@ -161,10 +166,19 @@ class ConfigStore:
         return self._data
 
     def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self._data, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(self.path)
+        """写回配置文件。
+
+        写不进去（配置目录只读、沙箱环境等）不应把整个程序搞崩：只记下 save_error，
+        配置仍在内存里生效，本轮跑步依然是对的。
+        """
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self._data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(self.path)
+            self.save_error = None
+        except Exception as exc:      # OSError / 权限 / 磁盘只读……都不能中断跑步
+            self.save_error = str(exc)
 
     # ── 访问 ──
     def get(self, key: str, default: Any = None) -> Any:
@@ -191,14 +205,25 @@ class ConfigStore:
 
 
 def default_config_path() -> Path:
-    """配置目录：$XDG_CONFIG_HOME/shandong-run-lab 或 ~/.config/..."""
+    """配置文件位置。
+
+    优先级：环境变量 SDLAB_HOME（与数据目录同一个开关，整个工作台指哪写哪，
+    沙箱/便携场景只设这一个变量）→ $XDG_CONFIG_HOME/shandong-run-lab →
+    ~/.config/shandong-run-lab。
+    """
+    home = os.environ.get("SDLAB_HOME")
+    if home:
+        return Path(home).expanduser() / "config.json"
     xdg = os.environ.get("XDG_CONFIG_HOME")
     base = Path(xdg) if xdg else Path.home() / ".config"
     return base / "shandong-run-lab" / "config.json"
 
 
 def default_data_dir() -> Path:
-    """数据目录（数据库 / 日志 / 轨迹导出）"""
+    """数据目录（数据库 / 日志 / 轨迹导出）。同样先看 SDLAB_HOME。"""
+    home = os.environ.get("SDLAB_HOME")
+    if home:
+        return Path(home).expanduser()
     xdg = os.environ.get("XDG_DATA_HOME")
     base = Path(xdg) if xdg else Path.home() / ".local" / "share"
     return base / "shandong-run-lab"

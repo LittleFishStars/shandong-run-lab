@@ -4,25 +4,58 @@
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 
+// ── 全局错误可见化（界面里直接能看到哪里炸了，不用开 devtools）────
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = (e.reason && (e.reason.message || e.reason)) || '未知错误';
+  console.error('[sdlab] 未处理的 Promise 异常：', e.reason);
+  try { toast('内部错误：' + msg, 'err'); } catch (_) { /* 界面还没建好 */ }
+});
+window.addEventListener('error', (e) => {
+  console.error('[sdlab] JS 错误：', e.message);
+  try { toast('脚本错误：' + e.message, 'err'); } catch (_) { /* 同上 */ }
+});
+
 // ── 桥接层 ────────────────────────────────────────────────
 const Bridge = {
   ready: false,
-  useHttp: location.protocol.startsWith('http') && !/pywebview/i.test(navigator.userAgent),
+  mode: '未知',            // desktop / http
 
-  async waitReady() {
-    if (window.pywebview && window.pywebview.api) { this.ready = true; return; }
-    if (this.useHttp) { this.ready = true; return; }
-    await new Promise((resolve) => {
-      const t = setTimeout(resolve, 2500);
-      window.addEventListener('pywebviewready', () => { clearTimeout(t); this.ready = true; resolve(); }, { once: true });
-    });
+  // pywebview 注入 window.pywebview 的时机不确定：早期它可能已经存在，
+  // 但 api 代理还没接好（这时调用会静默返回 undefined）——更新一下：
+  // 必须用一次真实的 ping 调用来确认真的通了。
+  async waitReady(timeoutMs = 15000) {
+    if (this.ready) return true;
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs) {
+      if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.ping === 'function') {
+        try {
+          const r = await window.pywebview.api.ping();
+          if (r && r.ok) { this.ready = true; this.mode = 'desktop'; return true; }
+        } catch (_) { /* 代理还没接好，继续等 */ }
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    if (location.protocol.startsWith('http')) {   // 降级：本地 HTTP 桥
+      this.ready = true; this.mode = 'http'; return true;
+    }
+    return false;
   },
+
+
 
   async call(method, ...args) {
     if (!this.ready) await this.waitReady();
     if (window.pywebview && window.pywebview.api && typeof window.pywebview.api[method] === 'function') {
-      return await window.pywebview.api[method](...args);
+      const out = await window.pywebview.api[method](...args);
+      if (out !== undefined) return out;
+      // 代理尚未就绪时会得到 undefined：等一次握手再重试
+      this.ready = false;
+      if (await this.waitReady(5000)) return await window.pywebview.api[method](...args);
     }
+    if (!location.protocol.startsWith('http')) {
+      throw new Error('桌面桥未就绪（window.pywebview 不存在，且非 HTTP 模式）');
+    }
+
     const r = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,7 +87,9 @@ function appendEvents(events) {
     const kind = String(ev.kind || 'log');
     const level = String(ev.level || 'info');
     div.className = `line k-${kind} lv-${level}`;
-    const t = new Date(ev.time || Date.now());
+    // bus 事件里的 time 是 "HH:MM:SS" 字符串，new Date() 得不到有效日期（会渲染成 NaN）；
+    // 真正的时间基准是 ts（毫秒）
+    const t = new Date(Number(ev.ts) || Date.now());
     const hh = String(t.getHours()).padStart(2, '0');
     const mm = String(t.getMinutes()).padStart(2, '0');
     const ss = String(t.getSeconds()).padStart(2, '0');
@@ -133,6 +168,8 @@ function renderStatus(st) {
     if (rc.stride_m) $('in-stride').value = rc.stride_m;
     if (sc.min_cadence) $('in-cad-lo').value = sc.min_cadence;
     if (sc.max_cadence) $('in-cad-hi').value = sc.max_cadence;
+    $('in-realtime').checked = !!sc.realtime;
+    if (sc.speed) $('in-speed').value = sc.speed;
     S.paramsLoaded = true;
   }
 
@@ -177,13 +214,15 @@ function renderRunInfo(last) {
 }
 
 // ══════════════════ 记录列表 ══════════════════
-async function refreshRuns() {
+async function refreshRuns(autoOpen = false) {
   const runs = await Bridge.call('list_runs', 100);
   const box = $('runs');
   if (!Array.isArray(runs) || !runs.length) {
     box.innerHTML = '<div class="hint">暂无本地记录</div>';
     return;
   }
+  // 刚跑完一次时自动展开最新一条（否则地图要等人手动点一下才画）
+  if (autoOpen && !S.currentRun && runs[0]) S.currentRun = runs[0].run_code;
   box.innerHTML = runs.map((r) => {
     const uploaded = r.uploaded ? '<span class="badge ok">已结算</span>'
       : (r.distance_m ? '<span class="badge warn">未结算</span>' : '<span class="badge">草稿</span>');
@@ -203,6 +242,37 @@ async function refreshRuns() {
       refreshDetail(el.dataset.code);
     });
   });
+}
+
+// 两点球面距离（米）——与后端 protocol.haversine 同一公式，用于跑步中实时累计距离。
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371008.8, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLng = (lng2 - lng1) * rad;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+// 跑步进行中只刷地图，不动详情面板（详情面板重绘会打断用户点击）。
+async function refreshLiveMap(code) {
+  const d = await Bridge.call('run_detail', code);
+  if (!d || !d.run) return;
+  S.detail = d;
+  S.currentRun = code;
+  // 跑步中“本次跑步”面板也实时跟：距离/步数/已落盘点数都从本地库里现算。
+  const run = d.run, pts = d.points || [];
+  let dist = 0;
+  for (let i = 1; i < pts.length; i++) {
+    dist += haversine(pts[i - 1].lat, pts[i - 1].lng, pts[i].lat, pts[i].lng);
+  }
+  renderRunInfo({
+    run_code: code,
+    distance_m: dist || run.distance_m || 0,
+    duration_s: run.duration_s || 0,
+    total_step: run.total_step || 0,
+    valid: run.valid || {},
+  });
+  drawMap();
 }
 
 async function refreshDetail(code) {
@@ -393,9 +463,14 @@ async function init() {
   // 登录
   $('btn-login').addEventListener('click', async () => {
     const b = $('btn-login'); busy(b, true);
+    const phone = $('in-phone').value.trim();
+    if (!phone) {                       // 别把空手机号送进去，那样后端只会回“预检失败：手机号缺失”
+      busy(b, false);
+      toast('请先填手机号', 'err');
+      return;
+    }
     try {
-      const res = await Bridge.call('login', $('in-phone').value.trim(),
-        $('in-password').value, $('in-captcha').checked);
+      const res = await Bridge.call('login', phone, $('in-password').value, $('in-captcha').checked);
       if (res && res.code === 0) toast('登录成功', 'ok');
       else toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
     } finally { busy(b, false); refreshStatus(); }
@@ -442,8 +517,13 @@ async function init() {
   $('btn-refresh-runs').addEventListener('click', refreshRuns);
   window.addEventListener('resize', drawMap);
 
-  await refreshStatus();
-  await refreshRuns();
+  // 首次渲染 + 轮询事件流（失败一定要看得见，否则界面会静默地全空）
+  try {
+    await refreshStatus();
+    await refreshRuns();
+  } catch (e) {
+    toast('初始化失败：' + ((e && e.message) || e), 'err');
+  }
   setInterval(poll, 700);
 }
 
@@ -456,6 +536,8 @@ async function saveParams(silent) {
     sim: {
       min_cadence: Number($('in-cad-lo').value),
       max_cadence: Number($('in-cad-hi').value),
+      realtime: $('in-realtime').checked,          // 实时推进仿真（调试时看轨迹一笔笔画）
+      speed: Number($('in-speed').value) || 8,
     },
     mock_fail_rate: Number($('in-failrate').value),
   };
@@ -475,11 +557,21 @@ async function poll() {
     (r.events || []).forEach((e) => { S.seq = Math.max(S.seq, e.seq || 0); });
     appendEvents(r.events || []);
     renderProgress(r.progress || {});
+    // 跑步中：每两次轮询（约 1.4 秒）拉一次轨迹，让地图“一笔一笔”长出来。
+    if (r.running && r.progress && r.progress.run_code) {
+      S.liveTick = (S.liveTick || 0) + 1;
+      if (S.liveTick % 2 === 0) refreshLiveMap(r.progress.run_code);
+    }
     if (r.logged_in !== undefined && S.status && r.logged_in !== S.status.logged_in) {
       refreshStatus();
     }
     const done = (r.events || []).some(e => e.kind === 'auto_done' || e.kind === 'run_finished');
-    if (done) { await refreshStatus(); await refreshRuns(); }
+    if (done) {
+      S.currentRun = null;      // 让最新一条自动展开
+      await refreshStatus();
+      await refreshRuns(true);
+      if (S.currentRun) await refreshDetail(S.currentRun);
+    }
   } catch (err) {
     /* 轮询失败静默重试 */
   }

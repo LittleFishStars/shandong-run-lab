@@ -65,11 +65,21 @@ class App:
         self.bus.subscribe(self._on_event)
 
     def _on_event(self, ev: Dict[str, Any]) -> None:
+        # 任何事件只要带着 run_code，就记下来：界面跑步中要靠它拉轨迹画地图。
+        _rc = (ev.get("data") or {}).get("run_code")
+        if _rc:
+            self._progress = {**self._progress, "run_code": str(_rc)}
         if ev.get("kind") == "progress":
+            # 注意：EventBus.emit(kind, msg, **data) 把附加字段放在 ev["data"] 里，
+            # percent 不在事件顶层——直接读 ev.get("percent") 永远是 0，进度条就不会动。
+            _d = ev.get("data") or {}
+            # 用 {**self._progress, ...} 合并而不是新建字典：否则会把上面记下的
+            # run_code（还有 running）冲掉，界面跑步中就拉不到轨迹画地图。
             self._progress = {
-                "percent": int(ev.get("percent", 0)),
-                "message": str(ev.get("message", "")),
-                "running": self._progress.get("running", False),
+                **self._progress,
+                "percent": int(_d.get("percent", 0)),
+                "message": str(ev.get("message", "") or _d.get("message", "")),
+                "ts": ev.get("ts"),
             }
         elif ev.get("kind") == "auto_done":
             self._progress = {**self._progress, "percent": 100, "running": False}
@@ -178,6 +188,9 @@ class App:
             "last": self._last_result,
             "data_dir": str(self.data_dir),
             "config_path": str(self.cfg_store.path),
+            # 配置目录只读时（沙箱、容器）界面上要能看见，不然“保存参数”看着成功其实没落盘
+            "config_save_error": self.cfg_store.save_error,
+            "config_writable": self.cfg_store.save_error is None,
             "version": _version(),
         }
 

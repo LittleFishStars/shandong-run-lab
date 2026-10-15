@@ -58,6 +58,10 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 .venv/bin/python -m sdlab run -d 2000            # 2000 米
 .venv/bin/python -m sdlab run -d 1500 --no-upload --json | tail -40
 
+# ③′ 实时仿真：按真实时间推进数据写入，能在界面上看到轨迹一笔笔长出来（调试友好）
+#     默认关闭（瞬间算完）。倍速 8 ≈ 真实跑步耗时的 1/8。
+.venv/bin/python -m sdlab run -d 1200 --realtime --speed 8
+
 # ④ 只起 Mock 服务端（给别的东西当靶子）
 .venv/bin/python -m sdlab mock --port 8899 --latency 200 --fail-rate 0.3
 
@@ -81,10 +85,19 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 ### 界面速览
 
+![桌面工作台](docs/screenshots/gui-2-running.png)
+
+> 上图是「一键跑」进行中的实拍（开启实时仿真，40 倍速）：中栏地图上轨迹正一笔笔画出来，
+> 紫色编号是服务端下发的打卡点，进度条与左侧参数面板同步刷新。另有两张：
+> `docs/screenshots/gui-1-init.png`（首屏）、`docs/screenshots/gui-3-done.png`（跑完结算）。
+
+
 * **左栏**：登录/注销、模式切换、围栏选择、目标距离与仿真参数（步频区间、步幅、失败率）、
   一键备跑 / 开跑 / 续传、学校规则阈值。
 * **中栏**：Canvas 地图 —— 围栏多边形、打卡点编号、轨迹点按状态着色
   （已上传=绿、失败=红、待传=蓝）；下方是本次跑步的实时进度条与统计。
+  勾选「实时仿真」后，跑步过程中地图**每隔约 1.4 秒自动重绘**，轨迹一笔笔长出来，
+  「本次跑步」面板同步累计距离/步数——专门为观察逐点行为而做（默认关，关掉就是秒算完）。
 * **右栏**：事件流（请求/响应/状态/进度/Mock 注入分色显示）、本地记录列表与明细、
   导出 JSON/GPX、删除、打开数据目录。
 

@@ -35,7 +35,7 @@
       <div class="card-body">
         <label class="field">
           <span>手机号 / 学号</span>
-          <input id="in-phone" type="text" placeholder="13800138000" autocomplete="off">
+          <input id="in-phone" type="text" value="13800138000" placeholder="13800138000" autocomplete="off">
         </label>
         <label class="field">
           <span>密码</span>
@@ -88,6 +88,16 @@
             <span>服务端注入失败率</span>
             <input id="in-failrate" type="number" value="0" min="0" max="1" step="0.05"
                    title="Mock 服务端随机失败，用来验证断点续传">
+          </label>
+        </div>
+        <div class="row2">
+          <label class="check" title="打开后按真实时间推进数据写入，能看到轨迹一笔笔画出来">
+            <input id="in-realtime" type="checkbox"> 实时仿真（便于观察）
+          </label>
+          <label class="field">
+            <span>仿真倍速</span>
+            <input id="in-speed" type="number" value="8" min="0.5" step="1"
+                   title="8 = 8 倍速（耗时约为真实跑步的 1/8）">
           </label>
         </div>
         <div class="row">

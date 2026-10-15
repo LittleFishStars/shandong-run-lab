@@ -13,10 +13,12 @@ import json
 import os
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from . import constants as C
 from .app import App
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -30,6 +32,20 @@ class JsApi:
     def __init__(self, app: App, window=None):
         self.app = app
         self.window = window
+    # —— 握手 ——
+    def ping(self) -> Dict[str, Any]:
+        """前端用来确认桌面桥真的接好了。
+
+        pywebview 的 window.pywebview 对象可能早于 api 代理出现，此时任何调用都会静默
+        返回 undefined；前端只能靠“真调一下 ping 能不能拿到结果”来判断就绪
+        （见 web/app.js 的 Bridge.waitReady）。
+        """
+        return {
+            "ok": True,
+            "mode": self.app.mode,
+            "ts": int(time.time() * 1000),
+            "app_version": C.APP_VERSION,
+        }
 
     # —— 状态 ——
     def status(self) -> Dict[str, Any]:
@@ -127,9 +143,34 @@ class JsApi:
 
 
 # ══════════════════ 启动器 ══════════════════
+def _spawn_autorun(app: App, target_m: float) -> None:
+    """窗口加载后自动跑一次完整流程（调试/演示用，等价于点了「一键跑完整链路」）"""
+
+    def _job() -> None:
+        import time as _t
+        _t.sleep(1.0)                       # 等前端轮询线程就绪
+        try:
+            app.run_auto(target_m=float(target_m), fence_index=0,
+                         do_upload=True, do_finish=True, sport_type=1)
+        except Exception as e:  # noqa: BLE001
+            app.bus.emit("state", f"✗ 自动跑失败：{e}", level="error")
+
+    threading.Thread(target=_job, name="sdlab-autorun", daemon=True).start()
+
+
 def run_desktop(config_path: Optional[Path] = None, debug: bool = False,
-                width: int = 1360, height: int = 900) -> int:
-    app = App(config_path=config_path)
+                width: int = 1360, height: int = 900,
+                app: Optional[App] = None, autorun: float = 0.0) -> int:
+    """启动桌面窗口
+
+    第一个参数既可以是配置文件路径，也可以直接传一个 App 实例
+    （CLI 与 __main__ 就是这么调的，历史 bug：把 App 当成路径传进来会抛
+    `TypeError: argument should be a str or an os.PathLike object ... not 'App'`）。
+    """
+    if app is None and isinstance(config_path, App):
+        app, config_path = config_path, None
+    if app is None:
+        app = App(config_path=config_path)
     try:
         import webview  # type: ignore
     except Exception as e:  # noqa: BLE001
@@ -149,6 +190,8 @@ def run_desktop(config_path: Optional[Path] = None, debug: bool = False,
 
     def _on_loaded() -> None:
         app.bus.emit("state", "界面已加载，准备就绪")
+        if autorun:
+            _spawn_autorun(app, autorun)
 
     try:
         window.events.loaded += _on_loaded
@@ -165,7 +208,9 @@ def run_desktop(config_path: Optional[Path] = None, debug: bool = False,
                 break
         except Exception:
             continue
-    webview.start(debug=debug, gui=gui, http_server=False)
+    # 用 pywebview 内置 http 服务供给本地文件（默认开启）：
+    # 以 file:// 直接加载时 pywebview 不会注入 window.pywebview，前端就永远拿不到后端。
+    webview.start(debug=debug, gui=gui, http_server=True)
     app.close()
     return 0
 

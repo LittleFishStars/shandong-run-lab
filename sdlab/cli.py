@@ -65,6 +65,13 @@ def build_app(args: argparse.Namespace):
         app.switch_mode(mode)
     if getattr(args, "proxy", None):
         app.patch_config({"transport": "proxy", "proxy": args.proxy})
+    sim_patch: Dict[str, Any] = {}
+    if getattr(args, "realtime", False):
+        sim_patch["realtime"] = True
+    if getattr(args, "speed", 0.0):
+        sim_patch["speed"] = float(args.speed)
+    if sim_patch:
+        app.patch_config({"sim": sim_patch})
     return app
 
 
@@ -107,7 +114,7 @@ def cmd_gui(args: argparse.Namespace) -> int:
     app = build_app(args)
     if args.browser:
         return run_browser(app)
-    return run_desktop(app, debug=args.debug)
+    return run_desktop(app=app, debug=args.debug, autorun=getattr(args, "autorun", 0.0))
 
 
 def cmd_info(args: argparse.Namespace) -> int:
@@ -391,12 +398,18 @@ def build_parser() -> argparse.ArgumentParser:
     common.add_argument("-p", "--phone", default="13800138000", help="手机号")
     common.add_argument("-w", "--password", default="", help="密码（Mock 模式下任意值）")
     common.add_argument("-q", "--quiet", action="store_true", help="不打印事件流")
+    common.add_argument("--realtime", action="store_true",
+                        help="实时仿真：按真实时间推进数据写入（默认关，瞬间算完）")
+    common.add_argument("--speed", type=float, default=0.0,
+                        help="实时仿真倍速，默认 8（配 --realtime 用）")
 
     sp = ap.add_subparsers(dest="command")
 
     g = sp.add_parser("gui", parents=[common], help="打开桌面窗口（默认命令）")
     g.add_argument("--browser", action="store_true", help="不开窗口，改用本地 HTTP + 浏览器")
     g.add_argument("--debug", action="store_true", help="打开 webview 调试")
+    g.add_argument("--autorun", type=float, default=0.0, metavar="米",
+                   help="窗口加载后自动跑一次完整流程（调试/演示）")
     g.set_defaults(func=cmd_gui)
 
     i = sp.add_parser("info", parents=[common], help="打印环境信息")

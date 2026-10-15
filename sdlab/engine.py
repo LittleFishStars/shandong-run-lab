@@ -62,6 +62,38 @@ class RunEngine:
     def _run_cfg(self, key: str, default: Any) -> Any:
         return (self.cfg.get("run") or {}).get(key, default)
 
+    def _realtime_cfg(self) -> tuple:
+        """实时仿真开关与倍速。默认关：自检/批量跑需要的是快，不是看得见。"""
+        sc = self.cfg.get("sim") or {}
+        try:
+            speed = max(0.1, float(sc.get("speed", 8.0) or 8.0))
+        except (TypeError, ValueError):
+            speed = 8.0
+        return bool(sc.get("realtime", False)), speed
+
+    def _write_points_paced(self, run_code: str, pts: Sequence[Any],
+                            seconds: float, speed: float, steps: int = 20) -> None:
+        """实时模式：把轨迹分 20 批写入，批间按仿真时间休眠。
+
+        这样界面上能看到轨迹一笔一笔画出来、进度一格一格走（调“逐点行为”时比
+        一次性算完有用得多）。总耗时约 仿真时长 ÷ 倍速，跟真实跑步的节奏一致。
+        """
+        n = len(pts)
+        if n <= 1:
+            self.store.add_points(run_code, pts)
+            return
+        chunk = max(1, -(-n // max(1, steps)))          # 向上取整，保证不丢尾巴
+        per_sleep = (seconds / float(speed)) / max(1, -(-n // chunk))
+        written = 0
+        for i in range(0, n, chunk):
+            batch = list(pts[i:i + chunk])
+            self.store.add_points(run_code, batch)
+            written = min(n, i + chunk)
+            self._step(36 + int(9 * written / n),
+                       f"仿真推进：{written}/{n} 点（{speed:g} 倍速）")
+            if written < n:
+                time.sleep(max(0.0, min(5.0, per_sleep)))
+
     # ══════════════════ ① 准备：套餐 / 围栏 / 规则 ══════════════════
     def prepare(self, school_code: str = "", fence_index: int = 0,
                 semester_code: str = "") -> Dict[str, Any]:
@@ -241,8 +273,12 @@ class RunEngine:
         steps: List[IntervalStep] = gen.build_steps(timeline, start_ms=start_ms)
         paces: List[IntervalPace] = gen.generate_paces(start_ms=start_ms)
 
-        self._step(36, f"写入本地记录：{len(pts)} 点 / {len(steps)} 步频段 / {len(paces)} 配速段")
-        self.store.add_points(run_code, pts)
+        realtime, speed = self._realtime_cfg()
+        if realtime:
+            self._write_points_paced(run_code, pts, seconds, speed)
+        else:
+            self._step(36, f"写入本地记录：{len(pts)} 点 / {len(steps)} 步频段 / {len(paces)} 配速段")
+            self.store.add_points(run_code, pts)
         self.store.add_steps(run_code, steps)
         self.store.add_paces(run_code, paces)
 
