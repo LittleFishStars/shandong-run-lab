@@ -173,13 +173,15 @@ function renderStatus(st) {
 
   // 参数回填（仅首次）
   if (!S.paramsLoaded) {
-    const rc = st.run_cfg || {}, sc = st.sim_cfg || {};
+    const rc = st.run_cfg || {}, sc = st.sim_cfg || {}, wc = st.walk_cfg || {};
     if (rc.target_distance_m) $('in-distance').value = rc.target_distance_m;
     if (rc.stride_m) $('in-stride').value = rc.stride_m;
     if (sc.min_cadence) $('in-cad-lo').value = sc.min_cadence;
     if (sc.max_cadence) $('in-cad-hi').value = sc.max_cadence;
     $('in-realtime').checked = !!sc.realtime;
     if (sc.speed) $('in-speed').value = sc.speed;
+    // 摇杆速度（m/s）：从 walk 段回填，否则界面上的值只是默认值、与后端不一致
+    if (wc.speed_mps && $('in-walk-speed')) $('in-walk-speed').value = wc.speed_mps;
     S.paramsLoaded = true;
   }
 
@@ -202,23 +204,35 @@ function renderProgress(p) {
   $('btn-resume').disabled = busy;
 }
 
+function fmtDur(sec) {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  const mm = Math.floor(s / 60);
+  return `${mm}分${String(s % 60).padStart(2, '0')}秒`;
+}
+
+// 配速 = 每公里多少秒；实跑时是实时算出来的带小数秒，直接取整再格式化
+function fmtPace(secPerKm) {
+  const v = Number(secPerKm) || 0;
+  if (!v) return '--';
+  const s = Math.round(v);
+  return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"/公里`;
+}
+
 function renderRunInfo(last) {
   const v = last.valid || {};
-  const mm = Math.floor((last.duration_s || 0) / 60);
-  const ss = (last.duration_s || 0) % 60;
   $('run-code-label').textContent = last.run_code || '--';
   $('run-info').innerHTML = kv({
     '距离': `${(last.distance_m || 0).toFixed(1)} 米`,
-    '时长': `${mm}分${String(ss).padStart(2, '0')}秒`,
-    '配速': last.pace_s_per_km ? `${Math.floor(last.pace_s_per_km / 60)}'${String(Math.round(last.pace_s_per_km % 60)).padStart(2, '0')}"/公里` : '--',
+    '时长': fmtDur(last.duration_s),
+    '配速': fmtPace(last.pace_s_per_km),
     '总步数': last.total_step || 0,
-    '步幅': `${last.stride_m || 0} 米`,
+    '步幅': `${Number(last.stride_m || 0).toFixed(3)} 米`,
     '打卡点': `${last.checkpoints_done || 0}/${last.checkpoints_total || 0}`,
     '有效性': {
       html: v.isValid ? '✓ 有效' : '✗ ' + (v.reasons || []).map(x => x.name).join('、'),
       cls: v.isValid ? 'ok' : 'err',
     },
-    '计时': `${last.elapsed_s || last.total_elapsed_s || 0} 秒`,
+    '计时': fmtDur(last.elapsed_s || last.total_elapsed_s || 0),
   });
   drawMap();
 }
@@ -439,7 +453,12 @@ function drawMap(forceFit) {
   const st = S.status || {};
   const fence = st.fence_polygon || [];
   const pts = (S.detail && S.detail.points) || [];
-  const cps = (S.detail && S.detail.checkpoints) || st.checkpoints || [];
+  // 打卡点优先用实时快照：实跑时 walk_status.targets 会立刻翻转 passed，
+  // 而 S.detail 要等下一次 run_detail 回来才刷新，否则地图上绿点要晚好几秒
+  const liveCp = (S.walk && S.walk.targets) || [];
+  const cps = liveCp.length
+    ? liveCp
+    : ((S.detail && S.detail.checkpoints) || st.checkpoints || []);
 
   for (const k of Object.keys(MAP.layers)) MAP.layers[k].clearLayers();
   MAP.bounds = null;
@@ -540,7 +559,7 @@ function drawMap(forceFit) {
   if (!MAP.bounds) return;
   const key = MAP.bounds.toBBoxString() + '|' + pts.length + '|' + cps.length
     + '|' + (S.livePoints || []).length + '|' + (S.route || []).length
-    + '|' + (S.waypoints || []).length;
+    + '|' + (S.waypoints || []).length + '|' + cps.filter((c) => Number(c.passed) === 1).length;
   if (forceFit || S.fit || (key !== MAP.fitKey && !MAP.userMoved)) {
     MAP.fitKey = key;
     S.fit = false;
@@ -682,8 +701,11 @@ async function walkStart(mode) {
   try {
     const target = Number($('in-distance').value) || 0;
     const auto = $('in-auto-route').checked;
+    // 第 4 个参数是摇杆速度（m/s），第 7 个是时间倍速——实走固定 1 倍速，
+    // 传统上误把「仿真倍速」当摇杆速度传进去，会让实跑飙到 20 m/s
+    const mps = Number($('in-walk-speed') && $('in-walk-speed').value) || 0;
     const r = await Bridge.call('walk_start', mode, target, Number($('in-fence').value),
-      0, auto, true, 0);
+      mps, auto, true, 1);
     if (!r || r.code !== 0) { toast('启动失败：' + ((r && r.message) || '?'), 'err'); return; }
     S.walkSince = 0;
     S.livePoints = [];
@@ -744,11 +766,15 @@ async function pumpWalk() {
   }
   const st = r.state || {};
   const done = !r.running;
+  const segs = r.segments || {};
+  const stepLine = r.mode === 'real'
+    ? `　已落库 ${r.stored || 0} 点 / ${r.steps || 0} 个步频段 / ${r.paces || 0} 个配速段`
+    : `　（调试不落库；内存已切 ${segs.steps || 0} 个步频段）`;
   $('walk-info').textContent = `${r.mode === 'real' ? '实跑' : '干跑'} `
     + `${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 / `
-    + `配速 ${st.speed_mps ? Number(st.speed_mps).toFixed(2) : '0.00'} m/s / `
+    + `速度 ${st.speed_mps ? Number(st.speed_mps).toFixed(2) : '0.00'} m/s / `
     + `打卡 ${st.passed || 0}/${st.targets || 0}`
-    + (r.mode === 'real' ? `　已落库 ${r.stored || 0} 点` : '　（未落库）');
+    + stepLine;
   if (r.run_code) { S.currentRun = r.run_code; $('run-code-label').textContent = r.run_code; }
   // 跑步中“本次跑步”面板实时跟距离、步数、打卡
   renderRunInfo({
@@ -899,6 +925,10 @@ async function saveParams(silent) {
       max_cadence: Number($('in-cad-hi').value),
       realtime: $('in-realtime').checked,          // 实时推进仿真（调试时看轨迹一笔笔画）
       speed: Number($('in-speed').value) || 8,
+    },
+    walk: {
+      // 摇杆推满时的速度（m/s）；实走倍速固定 1，不在这里暴露
+      speed_mps: Number($('in-walk-speed') && $('in-walk-speed').value) || 2.5,
     },
     mock_fail_rate: Number($('in-failrate').value),
   };

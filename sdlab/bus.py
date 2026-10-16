@@ -134,6 +134,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "realtime": False,
         "speed": 8.0,              # 实时仿真的倍速（8 = 8 倍速，约 1/8 真实耗时）
     },
+    # 摇杆实走（手动控制路径）
+    "walk": {
+        "speed_mps": 2.5,        # 推满杆时的速度：正常慢跑 2.2~2.8，别再快了
+        "speed": 1.0,            # 时间倍速固定 1（真实时间）；绝不继承 sim.speed 的 8 倍
+        "sample_s": 3.0,         # 轨迹采样间隔，与客户端 stepInterval 3000ms 对齐
+        "seg_step_s": 3.0,       # 步频段时长
+        "seg_pace_m": 1000.0,    # 配速段距离，与 paceInterval 1000m 对齐
+    },
 }
 
 

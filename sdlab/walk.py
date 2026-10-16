@@ -21,8 +21,9 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
-from .constants import SPORT_TYPE_SUN
-from .protocol import RunLatLng
+from .constants import SPORT_TYPE_SUN, STATE_INIT
+from .protocol import (IntervalPace, IntervalStep, RunLatLng, evaluate_run)
+from .simulator import FuckRunSim
 from .store import RecordStore
 from .walker import (DEFAULT_SPEED_MPS, SAMPLE_INTERVAL_S, TICK_DEFAULT_S, Walker,
                      WalkState, route_from_checkpoints)
@@ -50,13 +51,23 @@ class WalkSession:
         self.speed = 1.0                     # 时间倍速（1 = 真实速度）
         self.tick_s = TICK_DEFAULT_S
         self.pending = 0                     # 尚未落库的点数
+        self.hits_total = 0                  # 已命中打卡点数（内存口径，与库同步）
+        self.steps_total = 0                 # 已落库的步频段数
+        self.paces_total = 0                 # 已落库的配速段数
+        self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
+        self._pace_buf = self._new_pace_buf(0)
+        self._step_buf: List[Dict[str, Any]] = []        # 正在累加的步频段
+        self._step_segments: List[IntervalStep] = []     # 已切好的步频段（含未落库的）
+        self._pace_segments: List[IntervalPace] = []     # 已切好的配速段（含未落库的）
+        self.seg_step_s = 3.0                # 步频段时长（与客户端 stepInterval 3000ms 对齐）
+        self.seg_pace_m = 1000.0             # 配速段距离（与 paceInterval 1000m 对齐）
 
-        self._points: List[RunLatLng] = []   # 全部点位（含未落库的，供预览与导出）
-        self._stored = 0                     # 已落库的点数
+        self._lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self._stop_flag = threading.Event()
-        self._lock = threading.Lock()
-        self._last_emit = 0.0
+        self._points: List[RunLatLng] = []   # 本次会话产生的全部轨迹点（内存镜像）
+        self._stored = 0                     # 已落库的点数（= _points 的前缀长度）
+        self._last_emit = 0.0                # 事件限频
         self._last_emit_m = 0.0
 
     # ══════════════════ 配置读取 ══════════════════
@@ -65,6 +76,10 @@ class WalkSession:
         walk_cfg = self.cfg.get("walk") or {}
         if key in walk_cfg:
             return walk_cfg[key]
+        # 倍速单独处理：绝不能回退到 sim.speed（那里默认 8 倍），
+        # 否则手动实走会以 8 倍速吞掉时间，体感就是“跑得飞快”
+        if key == "speed":
+            return default
         sim_cfg = self.cfg.get("sim") or {}
         return sim_cfg.get(key, default)
 
@@ -86,6 +101,12 @@ class WalkSession:
         c_lo = float(self._wcfg("min_cadence", 172.0) or 172.0)
         c_hi = float(self._wcfg("max_cadence", 182.0) or 182.0)
         sample_s = float(self._wcfg("sample_s", SAMPLE_INTERVAL_S) or SAMPLE_INTERVAL_S)
+        # 推满杆的速度默认取 walk.speed_mps（2.5 m/s ≈ 9 km/h，正常慢跑手感）；
+        # 以前直接接 Walker 的 2.78，配上误用的 8 倍速，体感就是“跑得飞快”
+        if not speed_mps:
+            speed_mps = float(self._wcfg("speed_mps", 0.0) or 0.0) or None
+        self.seg_step_s = float(self._wcfg("seg_step_s", self.seg_step_s) or self.seg_step_s)
+        self.seg_pace_m = float(self._wcfg("seg_pace_m", self.seg_pace_m) or self.seg_pace_m)
         if sim is None:
             from .simulator import FuckRunSim
             sim = FuckRunSim(min_cadence=c_lo, max_cadence=c_hi,
@@ -112,8 +133,17 @@ class WalkSession:
             self._points = []
             self._stored = 0
             self.pending = 0
-            self.speed = max(0.1, float(speed if speed is not None
-                                        else self._wcfg("speed", 1.0) or 1.0))
+            self.hits_total = 0
+            self.steps_total = 0
+            self.paces_total = 0
+            self.started_ms = int(start_ms or time.time() * 1000)
+            # 步频段缓冲用「起点零点」打底：采样点每 3 秒才来一个，
+            # 不播种的话第一段永远是空的，0~3 秒的步数会凭空消失
+            self._step_buf = [{"abs_sec": 0.0, "abs_dist_m": 0.0, "abs_steps": 0,
+                               "start_ms": self.started_ms}]
+            self._pace_buf = self._new_pace_buf(self.started_ms)
+            # 倍速只认 walk.speed；传 0 表示“按配置”，而配置默认就是 1.0（真实时间）
+            self.speed = max(0.1, float(speed if speed else self._wcfg("speed", 1.0) or 1.0))
             self.state = w.state()
 
         self._stop_flag.clear()
@@ -137,7 +167,16 @@ class WalkSession:
             self.state = self.walker.state()
         if self.walker:
             self.state = self.walker.state()
+        # 最后一步可能还没被循环 drain 到，补一次，否则停止时少一个采样点/少一段
+        self._drain(self.walker)
         self.pending = 0
+        # 尾段口径与一键跑一致：build_steps() 也会把不足 3 秒的尾巴切成最后一段，
+        # 但不能凭空造段——一点都没动过（step_buf 空）就不切
+        # 尾部只用「已走过的尾巴」补段：缓冲里只剩播种点时不算走过
+        if len(self._step_buf) > 1:
+            self._close_step_segment()
+        self._flush_pace()
+        self._persist_run_summary()
         if emit and self.started_at:
             self._emit("walk_stopped", f"手动实走已停止：{self.state.dist_m:.0f} 米 / "
                                        f"{self.state.steps} 步",
@@ -173,26 +212,42 @@ class WalkSession:
                 self._emit("walk_arrived", f"手动实走结束：{self.state.arrived}",
                            run_code=self.run_code, state=self.state.to_dict())
 
-    def _drain(self, w: Walker) -> None:
+    def _drain(self, w: Optional[Walker]) -> None:
         """取走新采样点：干跑只留内存，实跑同时落库"""
+        if w is None:
+            return
         new_pts = w.drain_points()
-        if not new_pts:
+        meta = w.drain_meta()
+        hits = w.drain_hits()
+        if hits:
+            self.hits_total += len(hits)
+            if self.mode == "real" and self.store and self.run_code:
+                for cp in hits:
+                    self.store.mark_checkpoint_hit(
+                        self.run_code, int(cp.get("index") or 0),
+                        float(cp.get("hit_lat") or w.lat),
+                        float(cp.get("hit_lng") or w.lng),
+                        int(cp.get("hit_ms") or 0))
+            self._emit("checkpoint",
+                       f"✓ 已打卡 {self.hits_total}/{w.state().targets}",
+                       run_code=self.run_code, hits=self.hits_total,
+                       points=[{"index": int(c.get("index") or 0),
+                                "lat": round(float(c.get("hit_lat") or 0), 6),
+                                "lng": round(float(c.get("hit_lng") or 0), 6)} for c in hits])
+        if not new_pts and not meta:
             return
         with self._lock:
             for p in new_pts:
                 p.run_code = self.run_code if self.mode == "real" else ""
                 self._points.append(p)
             if self.mode == "real" and self.store and self.run_code:
-                # 直接切片落库：walker 内部已按全局序号递增 lat_lng_index，
-                # 断点续传靠 idx 定位，保持与本地全量序号一致即可
                 batch = self._points[self._stored:]
-                if self.store.add_points(self.run_code, batch) > 0:
+                if batch and self.store.add_points(self.run_code, batch) > 0:
                     self._stored = len(self._points)
-                    self.pending = 0
-                else:
-                    self.pending = len(self._points) - self._stored
+                self.pending = len(self._points) - self._stored
             else:
                 self.pending = len(self._points)
+        self._record_segments(meta)
 
     def _maybe_emit(self, now: float) -> None:
         """限频发事件：每 1 秒或每 50 米一次，避免把事件流刷爆"""
@@ -265,6 +320,10 @@ class WalkSession:
             "points": len(self._points),
             "stored": self._stored,
             "pending": self.pending,
+            "hits": self.hits_total,
+            "steps": self.steps_total,
+            "paces": self.paces_total,
+            "segments": {"steps": len(self._step_segments), "paces": len(self._pace_segments)},
             "elapsed": round(time.time() - self.started_at, 2) if self.started_at else 0.0,
             "error": self.error,
             "finished": self.finished_result,
@@ -299,12 +358,151 @@ class WalkSession:
             self._points = []
             self._stored = 0
             self.pending = 0
+            self.hits_total = 0
+            self.steps_total = 0
+            self.paces_total = 0
+            self.started_ms = 0
+            self._pace_buf = self._new_pace_buf(0)
+            self._step_buf = []
+            self._step_segments = []
+            self._pace_segments = []
             self.started_at = 0.0
             self.stopped_at = 0.0
             self.finished_result = {}
             self.error = ""
             self.run_code = ""
         return self.status()
+
+    # ══════════════════ 分段切分（步频 3s / 配速 1000m） ══════════════════
+    def _new_pace_buf(self, start_ms: int) -> Dict[str, Any]:
+        return {"start_dist": 0.0, "start_sec": 0.0, "start_steps": 0, "start_ms": int(start_ms)}
+
+    def _record_segments(self, meta: Sequence[Dict[str, Any]]) -> None:
+        """把采样点的分段元数据切成步频段（3 秒）与配速段（1000 米）并落库
+
+        一键跑是一次性算完再切段；手动实走只能边跑边切，所以用每个采样点自带的
+        累计距离/运动时长/累计步数做差，切出来的段与客户端 stepInterval /
+        paceInterval 的口径一致。
+        """
+        if not meta:
+            return
+        items = list(meta)
+        for i, m in enumerate(items):
+            self._step_buf.append(m)
+            sec = float(m.get("abs_sec") or 0.0) - float(self._step_buf[0].get("abs_sec") or 0.0)
+            # 只在满 3 秒时切一刀；不足的留在缓冲里等下一次（收尾时 stop() 补切），
+            # 否则每个采样点都会被切成一段，等于把步频段打碎成 3 秒级碎片
+            if sec >= self.seg_step_s - 1e-9:
+                self._close_step_segment()
+            dist = float(m.get("abs_dist_m") or 0.0) - float(self._pace_buf.get("start_dist") or 0.0)
+            if dist >= self.seg_pace_m:
+                self._close_pace_segment(m)
+
+    def _close_step_segment(self) -> None:
+        buf = self._step_buf
+        if not buf:
+            return
+        first, last = buf[0], buf[-1]
+        s0 = int(first.get("abs_steps") or 0)
+        s1 = int(last.get("abs_steps") or 0)
+        t0 = float(first.get("abs_sec") or 0.0)
+        t1 = float(last.get("abs_sec") or 0.0)
+        seg = IntervalStep(
+            start_step=s0, end_step=s1,
+            start_time=self.started_ms + int(t0 * 1000),
+            end_time=self.started_ms + int(t1 * 1000),
+            step=max(0, s1 - s0),
+            time=max(1, int(round((t1 - t0) * 1000))),
+            step_index=len(self._step_segments),
+            run_code=self.run_code if self.mode == "real" else "",
+        )
+        self._step_segments.append(seg)
+        if self.mode == "real" and self.store and self.run_code:
+            if self.store.add_steps(self.run_code, [seg]) > 0:
+                self.steps_total += 1
+        # 与 build_steps() 同口径：切点就是下一段的起点（回填而不是清空），
+        # 采样点本来就是每 3 秒一个，清空会让段长被撑成 6 秒、段数减半
+        self._step_buf = [last]
+
+    def _close_pace_segment(self, m: Dict[str, Any]) -> None:
+        buf = self._pace_buf
+        end_dist = float(m.get("abs_dist_m") or 0.0)
+        end_sec = float(m.get("abs_sec") or 0.0)
+        end_steps = int(m.get("abs_steps") or 0)
+        seg = IntervalPace(
+            distance=int(round(end_dist)),
+            start_distance=int(round(float(buf.get("start_dist") or 0.0))),
+            end_distance=int(round(end_dist)),
+            step_count=end_steps,
+            start_step_count=int(buf.get("start_steps") or 0),
+            end_step_count=end_steps,
+            time=max(1, int(round((end_sec - float(buf.get("start_sec") or 0.0)) * 1000))),
+            start_time=self.started_ms + int(float(buf.get("start_sec") or 0.0) * 1000),
+            end_time=self.started_ms + int(end_sec * 1000),
+            pace_index=len(self._pace_segments),
+            run_code=self.run_code if self.mode == "real" else "",
+        )
+        self._pace_segments.append(seg)
+        if self.mode == "real" and self.store and self.run_code:
+            if self.store.add_paces(self.run_code, [seg]) > 0:
+                self.paces_total += 1
+        self._pace_buf = self._new_pace_buf(self.started_ms)
+        self._pace_buf.update({"start_dist": end_dist, "start_sec": end_sec,
+                               "start_steps": end_steps})
+    def _flush_pace(self) -> None:
+        """收尾：把不足 1000 米的尾段也补成一段（与一键跑的 generate_paces 一致）"""
+        w = self.walker
+        if not w:
+            return
+        start_dist = float(self._pace_buf.get("start_dist") or 0.0)
+        if w.dist_m - start_dist <= 0.5:
+            return
+        self._close_pace_segment({"abs_dist_m": w.dist_m, "abs_sec": w.move_sec,
+                                  "abs_steps": int(w.state().steps)})
+
+    def _stride_exceptions(self, steps: Sequence[IntervalStep], stride: float) -> int:
+        """按段统计步幅异常数（与 engine 同口径：等效速度越界就算异常）"""
+        bad = 0
+        for s in steps:
+            secs = max(0.001, s.time / 1000.0)
+            derived = (s.step * stride) / secs
+            if s.step <= 0 or derived < 0.6 or derived > 6.0:
+                bad += 1
+        return bad
+
+    def _persist_run_summary(self) -> None:
+        """实跑收尾：把距离/时长/步数/有效性写回 runs，干跑不碰库"""
+        if self.mode != "real" or not self.store or not self.run_code or not self.walker:
+            return
+        w = self.walker
+        s = w.summary()
+        duration = int(round(s.get("duration_s") or 0))
+        distance = float(s.get("distance_m") or 0)
+        total_step = int(s.get("total_step") or 0)
+        stride = float((self.cfg.get("run") or {}).get("stride_m", 0.85) or 0.85)
+        pace = (duration / (distance / 1000.0)) if distance > 0 else 0.0
+        validity: Optional[Dict[str, Any]] = None
+        try:
+            rule = self.engine.client.rule if self.engine is not None else None
+            validity = evaluate_run(
+                self.all_points(), duration, total_step, rule,
+                stride_exception_segments=self._stride_exceptions(self._step_segments, stride),
+                checkpoints_total=len(w.targets), checkpoints_done=self.hits_total,
+                sport_type=self.sport_type).to_dict()
+        except Exception as e:  # noqa: BLE001
+            self.error = self.error or f"有效性判定失败：{type(e).__name__}: {e}"
+        self.store.finish_run(
+            self.run_code, end_ms=self.started_ms + int(duration * 1000),
+            duration_s=duration, distance_m=round(distance, 2), total_step=total_step,
+            pace_s_per_km=round(pace, 2), source="walk",
+            **(({"status": int(validity["isValid"])}) if validity else {}),
+            **(({"valid": validity}) if validity else {}))
+        if validity is not None:
+            self._emit("state",
+                       f"手动实走记录完成：{distance:.0f} 米 / {total_step} 步 / "
+                       f"打卡 {self.hits_total}/{len(w.targets)} / "
+                       f"有效={validity.get('isValid')}",
+                       run_code=self.run_code, valid=validity)
 
     # ══════════════════ 内部 ══════════════════
     def _emit(self, kind: str, msg: str, **data: Any) -> None:

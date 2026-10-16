@@ -269,10 +269,10 @@ def main() -> int:
               js(window, "document.querySelector('.map-card').classList.contains('walking')") is True)
         # 直接调桥推杆（与拖动摇杆走同一条通路），然后看实时点是否在变多
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
-        time.sleep(2.0)
+        time.sleep(4.0)
         n1 = int(js(window, "(S.livePoints||[]).length") or 0)
         js(window, "Bridge.call('walk_joystick', 0, 1, 1)")   # 换个方向，验证真在跟摇杆
-        time.sleep(2.0)
+        time.sleep(4.0)
         n2 = int(js(window, "(S.livePoints||[]).length") or 0)
         check("摇杆推动后地图上出现实时轨迹点", n1 >= 1, f"推杆 2 秒后 {n1} 个点")
         check("轨迹随摇杆方向继续增长", n2 > n1, f"{n1} → {n2} 个点")
@@ -287,6 +287,53 @@ def main() -> int:
         check("干跑不落库（记录条数未变）", runs_after == runs_before,
               f"{runs_before} → {runs_after}")
 
+        # 实跑：摇杆驱动，轨迹/打卡/步频/配速都必须边跑边落库
+        print("\n[3.7] 实跑（摇杆驱动）：边跑边落库、实测并检测打卡点")
+        # 摇杆速度调高：默认 2.5 m/s 走完“中心→最近打卡点”要一分钟以上，
+        # 探针里没必要等那么久（这条链路的正确性与速度无关）
+        js(window, "document.querySelector('#in-walk-speed').value = 5.5")
+        js(window, "document.querySelector('#btn-walk-real').click()")
+        time.sleep(3.0)
+        rc_live = str(js(window, "(S.walk && S.walk.run_code) || ''") or "")
+        check("实跑已开跑并拿到记录号", bool(rc_live), rc_live)
+        js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
+        time.sleep(4.0)
+        stored = int(js(window, "(S.walk && S.walk.stored) || 0") or 0)
+        seg_steps = int(js(window, "((S.walk && S.walk.segments) || {}).steps || 0") or 0)
+        check("实跑中轨迹已实时写库", stored >= 1, f"已落库 {stored} 点")
+        check("实跑中步频段已实时写库", seg_steps >= 1, f"已切 {seg_steps} 个步频段")
+        # 沿规划路线自动走，等打卡点被刷到（地图上紫点转绿就是这条链路生效的直观证据）
+        # 注意：必须先把杆松回去，否则手动方向会盖掉“沿路线自动巡航”
+        js(window, "Bridge.call('walk_joystick', 0, 0, 0)")
+        js(window, "Bridge.call('walk_route', JSON.stringify(S.route || []), true, false)")
+        deadline = time.time() + 90
+        hits = 0
+        while time.time() < deadline:
+            time.sleep(2.0)
+            hits = int(js(window, "((S.walk && S.walk.state) || {}).passed || 0") or 0)
+            if hits >= 1:
+                break
+        check("实跑实时检测打卡点并写库", hits >= 1, f"已打卡 {hits} 个")
+        # 界面每 500ms 拉一次 walk_status 并重绘地图，刚命中时可能还没轮到下一帧，
+        # 等一拍再查 DOM，否则测的是“刷新时机”而不是“紫点会不会转绿”
+        time.sleep(1.5)
+        n_cp = int(js(window, "document.querySelectorAll('.cp-label').length") or 0)
+        n_green = int(js(window, "document.querySelectorAll('.cp-label.passed').length") or 0)
+        n_mapcp = int(js(window, "((S.walk && S.walk.targets) || []).filter(c => Number(c.passed) === 1).length") or 0)
+        check("地图上打卡点已变绿（实时快照生效）", n_green >= 1,
+              f"DOM 打卡点 {n_cp} 个 / 变绿 {n_green} 个 / 快照命中 {n_mapcp} 个")
+        shot(window, outdir, "gui-5-walk-real.png", full=args.full)
+        js(window, "Bridge.call('walk_joystick', 0, 0, 0)")
+        js(window, "document.querySelector('#btn-walk-stop').click()")
+        time.sleep(4.0)
+        check("实跑停止后本地轨迹与段仍在（未因停止而回滚）",
+              int(js(window, "(S.walk && S.walk.stored) || 0") or 0) >= stored and
+              int(js(window, "(S.walk && S.walk.steps) || 0") or 0) >= 1,
+              f"已落库 {js(window, '(S.walk && S.walk.stored) || 0')} 点 / "
+              f"{js(window, '(S.walk && S.walk.steps) || 0')} 个步频段")
+        runs_real = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        check("实跑确实多了一条本地记录（与干跑相反）", runs_real > runs_before,
+              f"{runs_before} → {runs_real}")
         print(f"\n[4] 一键跑 {args.distance:.0f} 米（点界面按钮，开实时仿真）")
         js(window, f"document.querySelector('#in-distance').value = {args.distance}")
         # 打开实时仿真：mock 模式下不算实时的话整场跑只要一两秒，界面上一瞬就过去了，

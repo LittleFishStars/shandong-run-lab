@@ -39,8 +39,9 @@ TICK_DEFAULT_S = 0.1
 WAYPOINT_REACH_M = 8.0
 # 沿路径自动走时最多绕几圈，防止路线闭合后被判成"永远到不了"
 MAX_LAPS = 4
-# 摇杆推到底时的默认速度（m/s）：2.78 ≈ 10 km/h，落在校园跑的合理区间
-DEFAULT_SPEED_MPS = 2.78
+# 摇杆推到底时的默认速度（m/s）：2.5 ≈ 9 km/h 的慢跑。原版 2.78（10 km/h）
+# 推满就顶到规则配速上沿，手动走的时候手感偏快，所以下调并允许界面自己调
+DEFAULT_SPEED_MPS = 2.5
 # 摇杆死区：小于这个量级视为没推（避免手指微抖把速度算出来）
 JOYSTICK_DEADZONE = 0.02
 
@@ -120,6 +121,11 @@ class Walker:
         # 采样与产出
         self.samples: List[Tuple[float, float]] = []      # (距离, 运动秒)
         self._pending: List[RunLatLng] = []              # 待调用方取走的轨迹点
+        self._hits: List[Dict[str, Any]] = []            # 本轮新命中的打卡点（调用方落库 + 界面提示）
+        self._pending_meta: List[Dict[str, Any]] = []    # 每个采样点的分段元数据（步频/配速）
+        self._last_sample_dist = 0.0
+        self._last_sample_at_prev_sec = 0.0
+        self._last_sample_steps = 0
         self._poi_index = 0
         self._last_sample_at = 0.0
         self._sensor: Dict[str, Any] = {}
@@ -167,6 +173,11 @@ class Walker:
             self.move_sec = 0.0
             self.samples.clear()
             self._pending.clear()
+            self._hits.clear()
+            self._pending_meta.clear()
+            self._last_sample_dist = 0.0
+            self._last_sample_at_prev_sec = 0.0
+            self._last_sample_steps = 0
             self.arrived = ""
             self.route_index = 0
             self._last_sample_at = 0.0
@@ -215,21 +226,28 @@ class Walker:
                                        max(1e-6, math.cos(math.radians(self.lat))))
             self.dist_m += move
             self.move_sec += dt
+            # 采样与打卡都读 _sensor（步数/步频），所以必须先把它推到当前帧，
+            # 否则分段步数会整体滞后一帧、与总步数对不上
+            self._refresh_sensor()
             self._check_targets()
             self._sample_if_due(speed)
 
         # 步数用「真实运动时长」而不是时间轴：站着不动就不计步，与暂停语义一致
+        self._refresh_sensor()
+        if self.target_distance_m > 0 and self.dist_m >= self.target_distance_m:
+            self.arrived = f"已达目标距离 {int(self.target_distance_m)} 米"
+            self.running = False
+            self.sim.stop()
+        return self.state()
+
+    def _refresh_sensor(self) -> None:
+        """把仿真器推进到当前运动时长，刷新加速度/步频/累计步数"""
         sample = self.sim.sample_at(self.move_sec, elapsed_s=self.move_sec)
         self._sensor = {
             "accel_z": sample.z, "cadence": sample.cadence,
             "steps": int(sample.steps_cum),   # 累计步数：base + 运动时长 × 步频
             "step_detected": bool(sample.step_detected),
         }
-        if self.target_distance_m > 0 and self.dist_m >= self.target_distance_m:
-            self.arrived = f"已达目标距离 {int(self.target_distance_m)} 米"
-            self.running = False
-            self.sim.stop()
-        return self.state()
 
     def state(self) -> WalkState:
         s = self._sensor or {}
@@ -292,6 +310,9 @@ class Walker:
                 cp["hit_lat"] = self.lat
                 cp["hit_lng"] = self.lng
                 cp["hit_ms"] = now
+                # 命中的桩必须立刻交给调用方：实跑时要落库（mark_checkpoint_hit），
+                # 否则本地库 checkpoints.passed 恒为 0，上传时等于一个都没打
+                self._hits.append(dict(cp))
 
     def _sample_if_due(self, speed: float) -> None:
         """每 sample_s 秒落一个采样点（同时进 samples 与待取走的 _pending）"""
@@ -313,12 +334,40 @@ class Walker:
             speed=round(speed, 2),
             satellites=self.rng.randint(8, 13),
         ))
+        # 采样点是「段」的载体：实跑时要把这段走了多少米/多少步/走了多久带上，
+        # 否则落库的步频段与配速段只能事后猜（一键跑是一次性算完，没有这个问题）
+        self._pending_meta.append({
+            "index": self._poi_index,
+            "seg_dist_m": self.dist_m - self._last_sample_dist,
+            "seg_sec": self.move_sec - self._last_sample_at_prev_sec,
+            "seg_steps": int(self._sensor.get("steps") or 0) - self._last_sample_steps,
+            "abs_dist_m": self.dist_m,
+            "abs_sec": self.move_sec,
+            "abs_steps": int(self._sensor.get("steps") or 0),
+            "cadence": float(self._sensor.get("cadence") or 0.0),
+            "start_ms": self.start_ms,
+        })
+        self._last_sample_dist = self.dist_m
+        self._last_sample_at_prev_sec = self.move_sec
+        self._last_sample_steps = int(self._sensor.get("steps") or 0)
         self._poi_index += 1
 
     def drain_points(self) -> List[RunLatLng]:
         """取走这一步新产生的轨迹点（调用方负责落库）"""
         out = self._pending
         self._pending = []
+        return out
+
+    def drain_hits(self) -> List[Dict[str, Any]]:
+        """取走刚命中的打卡点（命中一次只取到一次）"""
+        out = self._hits
+        self._hits = []
+        return out
+
+    def drain_meta(self) -> List[Dict[str, Any]]:
+        """取走与刚取走的轨迹点一一对应的分段元数据"""
+        out = self._pending_meta
+        self._pending_meta = []
         return out
 
     def points(self) -> List[RunLatLng]:

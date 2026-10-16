@@ -365,10 +365,10 @@ class 距离与状态测试(unittest.TestCase):
         self.assertAlmostEqual(w.target_speed_mps, 10.0)
         w.set_target_speed(0.01)             # 下限保护
         self.assertGreaterEqual(w.target_speed_mps, 0.3)
-
     def test_默认速度落在校园跑合理区间(self):
+        # 2.5 m/s = 9 km/h：正常慢跑。历史上是 2.78（顶满配速上沿），手感偏快
         self.assertGreater(DEFAULT_SPEED_MPS, 2.0)
-        self.assertLess(DEFAULT_SPEED_MPS, 4.0)
+        self.assertLess(DEFAULT_SPEED_MPS, 2.8)
 
 
 class 路线规划测试(unittest.TestCase):
@@ -517,6 +517,216 @@ class 会话落库测试(unittest.TestCase):
         s.walker.tick(10.0)                 # 50 米
         self.assertAlmostEqual(s.progress_percent(), 50, delta=2)
         s.stop(emit=False)
+
+
+def _推进(s: WalkSession, 秒: float, 步长: float = 0.1) -> None:
+    """手动推进一个会话（虚拟时间），每次 tick 后即时 drain（等价于后台线程的一轮）"""
+    for _ in range(int(round(秒 / 步长))):
+        if s.walker is None:
+            break
+        s.walker.tick(步长)
+        s._drain(s.walker)
+
+
+def _冻结后台线程(s: WalkSession) -> None:
+    """停掉后台推进线程，让测试里的 tick 完全决定时间轴（否则线程会抢着推进）"""
+    s._stop_flag.set()
+    t = s._thread
+    if t and t.is_alive():
+        t.join(timeout=2.0)
+    s._thread = None
+
+
+class 实时打卡与分段测试(unittest.TestCase):
+    """实跑必须边跑边落库：打卡命中、步频段、配速段、收尾统计都不能等到上传才算"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="sdlab-walk-rt-")
+        self.store = RecordStore(Path(self.tmp.name) / "rt.db")
+        self.store.create_run("REAL01", source="walk")
+        self.store.create_run("DRY01", source="walk")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _会话(self, mode: str, run_code: str, *, lng_off: float = 0.0002,
+             speed_mps: float = 3.0, 登记打卡: bool = True) -> WalkSession:
+        # 打卡桩放在起点东侧约 19 米，推杆向东几秒就能穿过 12 米半径
+        cps = [{"index": 0, "lat": LAT0, "lng": LNG0 + lng_off, "radius_m": 12.0}]
+        if 登记打卡:
+            self.store.add_checkpoints(run_code, [{"lat": LAT0, "lng": LNG0 + lng_off,
+                                                   "radius_m": 12.0}])
+        s = WalkSession(cfg={}, store=self.store)
+        s.start(mode, lat=LAT0, lng=LNG0, target_m=0.0, speed_mps=speed_mps,
+                targets=build_walk_targets(cps), run_code=run_code, speed=1.0)
+        _冻结后台线程(s)
+        s.joystick(1.0, 0.0, 1.0)
+        return s
+
+    # ── 打卡 ─────────────────────────────────
+    def test_实跑命中打卡点实时写库(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        self.assertEqual(s.hits_total, 1)
+        cps = self.store.get_checkpoints("REAL01")
+        self.assertEqual(len(cps), 1)
+        self.assertEqual(int(cps[0]["passed"]), 1)
+        self.assertGreater(int(cps[0]["hit_ms"]), 0)
+        self.assertNotEqual(float(cps[0]["hit_lat"] or 0), 0.0)
+        self.assertEqual(self.store.checkpoints_progress("REAL01"), (1, 1))
+        s.stop(emit=False)
+
+    def test_干跑命中打卡点不写库(self):
+        s = self._会话("dry", "DRY01")
+        _推进(s, 10.0)
+        self.assertEqual(s.hits_total, 1)
+        self.assertEqual(int(self.store.get_checkpoints("DRY01")[0]["passed"]), 0)
+        s.stop(emit=False)
+
+    def test_同一打卡点重复经过只计一次(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 6.0)
+        n = s.hits_total
+        # 反向推回去再推回来，来回穿过两次
+        s.joystick(-1.0, 0.0, 1.0)
+        _推进(s, 12.0)
+        s.joystick(1.0, 0.0, 1.0)
+        _推进(s, 12.0)
+        self.assertEqual(n, 1)
+        self.assertEqual(s.hits_total, 1)
+        s.stop(emit=False)
+
+    def test_未命中时进度为零(self):
+        s = self._会话("real", "REAL01", lng_off=0.01)   # 桩在 950 米外
+        _推进(s, 3.0)
+        self.assertEqual(s.hits_total, 0)
+        self.assertEqual(self.store.checkpoints_progress("REAL01"), (0, 1))
+        s.stop(emit=False)
+
+    def test_干跑不碰打卡表(self):
+        s = self._会话("dry", "DRY01", 登记打卡=False)
+        _推进(s, 5.0)
+        self.assertEqual(self.store.get_checkpoints("DRY01"), [])
+        s.stop(emit=False)
+
+    # ── 分段 ─────────────────────────────────
+    def test_实跑切出步频段并落库(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        self.assertGreaterEqual(s.steps_total, 2)
+        rows = self.store.get_steps("REAL01", only_pending=True)
+        self.assertEqual(len(rows), s.steps_total)
+        for seg in rows:
+            self.assertGreater(seg.time, 0)
+            self.assertGreaterEqual(seg.end_time, seg.start_time)
+        s.stop(emit=False)
+
+    def test_步频段约三秒一段(self):
+        s = self._会话("real", "REAL01", speed_mps=3.0)
+        _推进(s, 12.0)
+        s.stop(emit=False)
+        rows = self.store.get_steps("REAL01", only_pending=True)
+        self.assertGreaterEqual(len(rows), 3)
+        # 每段 3 秒（尾段可能不足，不参与断言）
+        for seg in rows[:-1]:
+            self.assertAlmostEqual(seg.time, 3000, delta=400)
+
+    def test_干跑分段不落库(self):
+        s = self._会话("dry", "DRY01")
+        _推进(s, 10.0)
+        # 干跑照样切段（内存里能看到），但不能写进 steps/paces 表
+        self.assertGreaterEqual(len(s._step_segments), 1)
+        self.assertEqual(s.steps_total, 0)
+        self.assertEqual(s.paces_total, 0)
+        self.assertEqual(self.store.get_steps("DRY01", only_pending=True), [])
+        self.assertEqual(self.store.get_paces("DRY01", only_pending=True), [])
+        s.stop(emit=False)
+
+
+    def test_实跑切出配速段(self):
+        s = self._会话("real", "REAL01", speed_mps=20.0)
+        _推进(s, 55.0)                       # 1100 米 > 1000 米，至少切一段
+        self.assertGreaterEqual(s.paces_total, 1)
+        rows = self.store.get_paces("REAL01", only_pending=True)
+        self.assertGreaterEqual(len(rows), 1)
+        self.assertGreater(rows[0].time, 0)
+        self.assertGreaterEqual(rows[0].end_distance, 1000)
+        s.stop(emit=False)
+
+    def test_配速段距离累计一致(self):
+        s = self._会话("real", "REAL01", speed_mps=20.0)
+        _推进(s, 110.0)                      # 2200 米，应切出两段以上
+        s.stop(emit=False)
+        rows = self.store.get_paces("REAL01", only_pending=True)
+        self.assertGreaterEqual(len(rows), 2)
+        # 段与段首尾相接，且最后一段覆盖到总距离
+        for a, b in zip(rows, rows[1:]):
+            self.assertEqual(a.end_distance, b.start_distance)
+        self.assertAlmostEqual(rows[-1].end_distance, rows[-1].distance, delta=2)
+
+    def test_收尾补切尾段(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 4.0)                        # 4 秒：不够 3 秒的整段也该在停止时补上
+        s.stop(emit=False)
+        rows = self.store.get_steps("REAL01", only_pending=True)
+        self.assertGreaterEqual(len(rows), 1)
+        self.assertGreater(rows[-1].step, 0)
+        self.assertEqual(len(rows), s.steps_total)
+
+    # ── 状态与收尾 ───────────────────────────
+    def test_status暴露落库计数(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        st = s.status()
+        for k in ("hits", "steps", "paces", "segments"):
+            self.assertIn(k, st)
+        self.assertEqual(st["hits"], s.hits_total)
+        self.assertEqual(st["segments"]["steps"], len(s._step_segments))
+        self.assertEqual(st["segments"]["paces"], len(s._pace_segments))
+        s.stop(emit=False)
+
+    def test_分段在增量拉点通道外不影响轨迹点(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        d = s.points_since(0)
+        self.assertEqual(len(d["points"]), s.status()["points"])
+        # 分段走独立通道：段的首尾必须相接，不能因为切段而丢点或重复计点
+        rows = self.store.get_steps("REAL01", only_pending=True)
+        self.assertEqual(len(rows), s.status()["steps"])
+        for a, b in zip(rows, rows[1:]):
+            self.assertEqual(a.end_time, b.start_time)
+            self.assertEqual(a.end_step, b.start_step)
+        self.assertEqual(rows[0].start_step, 0)
+        s.stop(emit=False)
+
+    def test_实跑收尾写回距离与时长(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        s.stop(emit=False)
+        run = self.store.get_run("REAL01")
+        self.assertEqual(run["source"], "walk")
+        self.assertGreater(float(run["distance_m"]), 0)
+        self.assertGreater(int(run["duration_s"]), 0)
+        self.assertGreater(int(run["total_step"]), 0)
+        self.assertIn("valid", run)
+
+    def test_干跑收尾不写runs(self):
+        s = self._会话("dry", "DRY01")
+        _推进(s, 10.0)
+        s.stop(emit=False)
+        self.assertEqual(self.store.get_run("DRY01")["source"], "walk")
+        # create_run 时就是 0；干跑不写回，距离仍为 0
+        self.assertFalse(float(self.store.get_run("DRY01")["distance_m"] or 0))
+
+    def test_收尾后可以原地上传打卡记录(self):
+        s = self._会话("real", "REAL01")
+        _推进(s, 10.0)
+        s.stop(emit=False)
+        done, total = self.store.checkpoints_progress("REAL01")
+        self.assertEqual((done, total), (1, 1))
+        pending = [c for c in self.store.get_checkpoints("REAL01") if int(c["passed"]) == 1]
+        self.assertEqual(len(pending), 1)
+        self.assertGreater(int(pending[0]["hit_ms"]), 0)
 
 
 class 目标装配测试(unittest.TestCase):

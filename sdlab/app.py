@@ -158,6 +158,9 @@ class App:
         self.engine.cfg = self.cfg
         self.client.cfg = self.cfg
         self.client.transport.cfg = self.cfg
+        # 实走会话持有的是配置字典的引用，重新赋值后必须同步，
+        # 否则改了「摇杆速度」要重启程序才生效
+        self.walk.cfg = self.cfg
         if "device" in patch or "device_id" in patch:
             self.client.transport.device_id = str(self.cfg.get("device_id", "")) or \
                 self.client.transport.device_id
@@ -186,6 +189,7 @@ class App:
             "device": self.cfg.get("device", {}),
             "run_cfg": self.cfg.get("run", {}),
             "sim_cfg": self.cfg.get("sim", {}),
+            "walk_cfg": self.cfg.get("walk", {}),
             "fences": c.fences,
             "fence": c.fence,
             "fence_polygon": c.fence_polygon(),

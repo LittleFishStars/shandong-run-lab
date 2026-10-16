@@ -92,6 +92,17 @@
           </label>
         </div>
         <div class="row2">
+          <label class="field" title="摇杆推到底时的速度（1 m/s = 3.6 km/h；正常慢跑 2.2~2.8）">
+            <span>摇杆速度（m/s）</span>
+            <input id="in-walk-speed" type="number" value="2.5" min="0.5" max="6" step="0.1">
+          </label>
+          <label class="field" title="实走只支持真实时间（1 倍速）：摇杆实走本来就是看手感的，不是跑完就走">
+            <span>实走倍速</span>
+            <input id="in-walk-rate" type="number" value="1" min="1" max="1" step="0" readonly
+                   title="固定 1 倍速：实走按真实时间推进">
+          </label>
+        </div>
+        <div class="row2">
           <label class="check" title="打开后按真实时间推进数据写入，能看到轨迹一笔笔画出来">
             <input id="in-realtime" type="checkbox"> 实时仿真（便于观察）
           </label>

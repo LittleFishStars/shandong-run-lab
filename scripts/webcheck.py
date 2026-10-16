@@ -243,6 +243,49 @@ def main() -> int:
         up = post_api(api_url, "walk_upload", True)
         check(up.get("code") != 0, "干跑没有可上传记录，walk_upload() 被正确拒绝")
 
+        # ── 6.5 实跑：轨迹/打卡/步频/配速必须边跑边落库 ──
+        section("6.5 实跑（摇杆驱动）：边跑边落库")
+        rs = post_api(api_url, "walk_start", "real", 0, 0, 3.0, True, True, 1.0)
+        rc_walk = ((rs.get("data") or {}).get("run_code")) or ""
+        check(rs.get("code") == 0 and bool(rc_walk),
+              f"walk_start(real) 已开跑并拿到记录号 {rc_walk}",
+              json.dumps((rs.get("data") or {}).get("state", {}), ensure_ascii=False)[:120])
+        post_api(api_url, "walk_joystick", 1.0, 0.0, 1.0)
+        time.sleep(4.0)
+        mid = post_api(api_url, "walk_status", -1) or {}
+        mid_detail = post_api(api_url, "run_detail", rc_walk) or {}
+        n_pts = len(mid_detail.get("points") or [])
+        check(n_pts >= 1, f"实跑中轨迹已实时写入本地库（{n_pts} 点）")
+        check(int(mid.get("steps") or 0) >= 1,
+              f"实跑中步频段已实时落库（{mid.get('steps')} 段）",
+              json.dumps(mid.get("segments"), ensure_ascii=False))
+        # 沿路线自动走，把打卡点蹭至（干跑的规划路线就是绕打卡点一圈）
+        post_api(api_url, "walk_route", json.dumps(pd.get("route") or []), True, False)
+        t0 = time.time()
+        hits = 0
+        while time.time() - t0 < 90:
+            st_now = post_api(api_url, "walk_status", -1) or {}
+            hits = int((st_now.get("state") or {}).get("passed") or 0)
+            if hits >= 1 or not st_now.get("running"):
+                break
+            time.sleep(1.0)
+        post_api(api_url, "walk_stop")
+        walk_detail = post_api(api_url, "run_detail", rc_walk) or {}
+        cps = walk_detail.get("checkpoints") or []
+        passed = [c for c in cps if int(c.get("passed") or 0) == 1]
+        check(hits >= 1 and len(passed) >= 1,
+              f"实跑实时检测打卡点并写库（{len(passed)}/{len(cps)} 已打卡）",
+              json.dumps([{"index": c.get("index"), "passed": c.get("passed")} for c in cps],
+                         ensure_ascii=False)[:160])
+        check(len(walk_detail.get("steps") or []) >= 1,
+              f"停止后步频段仍在（{len(walk_detail.get('steps') or [])} 段）")
+        wrun = walk_detail.get("run") or {}
+        check(wrun.get("source") == "walk" and float(wrun.get("distance_m") or 0) > 0,
+              f"实跑收尾已写回距离（{float(wrun.get('distance_m') or 0):.0f} 米）")
+        wup = post_api(api_url, "walk_upload", True)
+        check(wup.get("code") == 0, "实跑结果可原地上传结算",
+              json.dumps(wup.get("data") or wup, ensure_ascii=False)[:160])
+
         # ── 7. 删除记录 ──
         section("7. 删除记录")
         dr = post_api(api_url, "delete_run", code)
