@@ -56,7 +56,7 @@ class ShandongClient:
     """闪动校园业务客户端（mock / real 双模）"""
 
     def __init__(self, config: Dict[str, Any], bus=None, store: Optional[RecordStore] = None,
-                 base_url: Optional[str] = None):
+                 base_url: Optional[str] = None, local_mode: bool = False):
         self.cfg = config
         self.bus = bus
         self.store = store or RecordStore(_db_path(config))
@@ -71,7 +71,10 @@ class ShandongClient:
         self.common: Dict[str, Any] = {}     # 服务端 common/getConfig 原始返回
         self.user: Dict[str, Any] = {}
         self.logged_in = False
-        self.local_mode = False          # True = 走本地 Mock 服务端
+        # True = 走本地 Mock 服务端。会话按模式分开存，否则 Mock 的假 token
+        # 会被带到真实模式里发给 api.huachenjie.com，一直莫名其妙的 1516。
+        self.local_mode = bool(local_mode)
+        self.kv_token_key = KV_TOKEN + ("_mock" if self.local_mode else "")
         self._load_session()
 
     # ══════════════════ 会话 ══════════════════
@@ -83,7 +86,7 @@ class ShandongClient:
             self.cfg[key] = value
 
     def _load_session(self) -> None:
-        s = self.store.kv_get(KV_TOKEN) or {}
+        s = self.store.kv_get(self.kv_token_key) or {}
         if isinstance(s, dict) and s.get("token"):
             self.transport.token = str(s.get("token", ""))
             self.transport.satoken = str(s.get("satoken", ""))
@@ -110,7 +113,7 @@ class ShandongClient:
         self.transport.user_id = keep["userId"]
         self.logged_in = bool(keep["token"])
         self.user = keep
-        self.store.kv_set(KV_TOKEN, keep)
+        self.store.kv_set(self.kv_token_key, keep)
 
     def logout(self) -> None:
         try:
@@ -119,7 +122,7 @@ class ShandongClient:
         except Exception:
             pass
         self.transport.reset_session()
-        self.store.kv_delete(KV_TOKEN)
+        self.store.kv_delete(self.kv_token_key)
         self.logged_in = False
         self.user = {}
         if self.bus:

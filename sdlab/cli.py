@@ -16,8 +16,9 @@
     python -m sdlab mock --port 8899      # 只起 Mock 服务端，给别的工具联调
     python -m sdlab check                 # 离线自检 + 前端链路自检
 
-默认 **不碰真实服务端**：除非显式给出 --real，否则一切请求都打到内置
-Mock 服务端（127.0.0.1 随机端口）。
+默认走 **真实服务端**（api.huachenjie.com）：登录、开跑、上传都是真接口。
+想离线调试就加 --mode mock，一切请求改打内置 Mock 服务端（127.0.0.1 随机端口），
+两种模式的会话分开存，切换不会互相干扰。
 """
 from __future__ import annotations
 
@@ -58,11 +59,13 @@ def build_app(args: argparse.Namespace):
 
     data_dir = Path(args.data_dir).expanduser() if getattr(args, "data_dir", None) else None
     cfg_path = Path(args.config).expanduser() if getattr(args, "config", None) else None
-    app = App(data_dir=data_dir, config_path=cfg_path)
-
     mode = getattr(args, "mode", None)
-    if mode:
-        app.switch_mode(mode)
+    # 模式直接进构造函数：先建好再 switch 会白起一个 Mock 服务端再拆掉
+    app = App(data_dir=data_dir, config_path=cfg_path, mode=mode)
+    if mode and str(mode).lower() != str(app.cfg.get("mode", "")).lower():
+        # 命令行显式指定的模式写回配置，下次开界面/直接跑还是这个模式
+        app.cfg_store.set("mode", app.mode)
+        app.cfg_store.save()
     if getattr(args, "proxy", None):
         app.patch_config({"transport": "proxy", "proxy": args.proxy})
     sim_patch: Dict[str, Any] = {}
@@ -390,13 +393,13 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--data-dir", help="数据目录（默认 ~/.local/share/shandong-run-lab）")
     common.add_argument("--config", help="配置文件路径（默认 ~/.config/shandong-run-lab/config.json）")
-    common.add_argument("--mode", choices=["mock", "real"],
-                        help="运行模式；不给则沿用配置文件（默认 mock）")
+    common.add_argument("--mode", choices=["real", "mock"],
+                        help="运行模式：real 真实服务端（默认）/ mock 本地离线仿真")
     common.add_argument("--real", dest="mode", action="store_const", const="real",
                         help="等价于 --mode real")
     common.add_argument("--proxy", help="HTTP 代理，如 http://127.0.0.1:8080")
     common.add_argument("-p", "--phone", default="13800138000", help="手机号")
-    common.add_argument("-w", "--password", default="", help="密码（Mock 模式下任意值）")
+    common.add_argument("-w", "--password", default="", help="密码（真实登录必填；本地 Mock 任意值）")
     common.add_argument("-q", "--quiet", action="store_true", help="不打印事件流")
     common.add_argument("--realtime", action="store_true",
                         help="实时仿真：按真实时间推进数据写入（默认关，瞬间算完）")

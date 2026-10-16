@@ -136,9 +136,14 @@ function esc(s) {
 
 function renderStatus(st) {
   S.status = st;
-  const mode = st.mode === 'mock' ? '本地 Mock（离线）' : '真实服务端';
+  const mode = st.mode === 'mock' ? '本地 Mock（离线调试）' : '真实服务端';
   $('pill-mode').textContent = `模式：${mode}`;
   $('pill-mode').className = 'pill ' + (st.mode === 'mock' ? 'on' : 'warn');
+  const modeSel = $('in-login-mode');
+  // 永远跟后端对齐：下拉框的值只有 renderStatus 说了算，
+  // 不然 HTML 里的初值（real）会被当成用户选择，一点登录就把 Mock 会话切成真实模式。
+  if (modeSel && modeSel.value !== st.mode) modeSel.value = st.mode || 'real';
+  syncLoginHint(st.mode);
   $('pill-login').textContent = st.logged_in ? '已登录' : '未登录';
   $('pill-login').className = 'pill ' + (st.logged_in ? 'on' : '');
   $('pill-device').textContent = '设备：' + String(st.device_id || '--').slice(0, 12);
@@ -151,7 +156,7 @@ function renderStatus(st) {
     '学校': u.schoolName || '--',
     '学号': u.userId || '--',
     'token': { html: esc(String(u.token || '').slice(0, 18)) + '…', cls: 'mono' },
-  }) : '<span class="v">未登录（Mock 模式任意手机号可登录）</span>';
+  }) : `<span class="v">未登录${st.mode === 'mock' ? '（本地 Mock 模式任意手机号可登录）' : ''}</span>`;
 
   // 规则
   const r = st.rule || {};
@@ -795,6 +800,40 @@ async function pumpWalk() {
     }
   }
 }
+// 登录面板两个模式长相不同：真实登录要密码、提示说明验证码；本地登录随便填
+function syncLoginHint(mode) {
+  const mock = mode === 'mock';
+  const hint = $('login-hint');
+  if (hint) {
+    hint.textContent = mock ? '本地 Mock：任意手机号即可，不联网'
+                            : '真实服务端登录，验证码会自动求解';
+  }
+  const pwd = $('in-password');
+  if (pwd) pwd.placeholder = mock ? '任意（Mock 模式不校验）' : '账号密码（必填）';
+}
+
+// 下拉框的值是 renderStatus 按后端模式同步的，读早了只会拿到 HTML 里的初值，
+// 然后拿着它去切模式——所以先确保状态已拉取。
+async function currentModeChoice() {
+  if (!S.status) await refreshStatus();
+  const sel = $('in-login-mode');
+  return (sel && sel.value) || (S.status && S.status.mode) || 'real';
+}
+
+// 切模式：先问后端切没切成功再继续，否则会拿着旧连接去请求新服务端
+async function ensureMode(want) {
+  want = want || (await currentModeChoice());
+  const cur = (S.status && S.status.mode) || 'real';
+  if (!want || want === cur) return true;
+  const r = await Bridge.call('switch_mode', want);
+  if (!r || (r.mode !== want)) {
+    toast('切换登录方式失败：' + ((r && r.message) || '未知错误'), 'err');
+    return false;
+  }
+  toast(want === 'mock' ? '已切换到本地登录（离线）' : '已切换到真实登录', 'ok');
+  return true;
+}
+
 async function init() {
   await Bridge.waitReady();
   if (!(window.pywebview && window.pywebview.api) && !location.protocol.startsWith('http')) {
@@ -812,21 +851,37 @@ async function init() {
     toast('数据目录：' + (r.path || ''), 'ok');
   });
 
-  // 登录
-  $('btn-login').addEventListener('click', async () => {
-    const b = $('btn-login'); busy(b, true);
-    const phone = $('in-phone').value.trim();
-    if (!phone) {                       // 别把空手机号送进去，那样后端只会回“预检失败：手机号缺失”
-      busy(b, false);
-      toast('请先填手机号', 'err');
-      return;
-    }
-    try {
-      const res = await Bridge.call('login', phone, $('in-password').value, $('in-captcha').checked);
-      if (res && res.code === 0) toast('登录成功', 'ok');
-      else toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
-    } finally { busy(b, false); refreshStatus(); }
-  });
+
+$('in-login-mode').addEventListener('change', async () => {
+  const sel = $('in-login-mode');
+  if (!(await ensureMode(sel.value))) { sel.value = (S.status && S.status.mode) || 'real'; }
+  await refreshStatus();
+});
+
+$('btn-login').addEventListener('click', async () => {
+  const b = $('btn-login');
+  // 先切模式再登录；mock 取切完之后后端的真实模式，不信任下拉框
+  if (!(await ensureMode())) { busy(b, false); return; }
+  const mock = ((S.status || {}).mode === 'mock');
+  busy(b, true);
+  const phone = $('in-phone').value.trim();
+  const password = $('in-password').value;
+  if (!phone) {                       // 别把空手机号送进去，那样后端只会回“预检失败：手机号缺失”
+    busy(b, false);
+    toast('请先填手机号', 'err');
+    return;
+  }
+  if (!mock && !password) {           // 真实登录必须带密码，否则服务端只会回一个含糊的失败
+    busy(b, false);
+    toast('真实登录需要填密码', 'err');
+    return;
+  }
+  try {
+    const res = await Bridge.call('login', phone, password, $('in-captcha').checked);
+    if (res && res.code === 0) toast('登录成功', 'ok');
+    else toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
+  } finally { busy(b, false); refreshStatus(); }
+});
   $('btn-logout').addEventListener('click', async () => {
     await Bridge.call('logout'); toast('已退出登录'); refreshStatus();
   });

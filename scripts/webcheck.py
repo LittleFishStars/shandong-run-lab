@@ -78,7 +78,7 @@ def main() -> int:
     from sdlab.gui import build_http_server
 
     tmp = Path(tempfile.mkdtemp(prefix="sdlab-webcheck-"))
-    app = App(data_dir=tmp, config_path=tmp / "config.json")
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     events: list[dict] = []
     app.bus.subscribe(lambda ev: events.append(ev))
 

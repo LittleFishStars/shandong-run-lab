@@ -129,7 +129,7 @@ def test_full_chain(verbose: bool = False, fail_rate: float = 0.0) -> dict:
     section(f"3~5. 全链路（Mock 模式，注入失败率 {fail_rate:.0%}）")
 
     tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
-    app = App(data_dir=tmp, config_path=tmp / "config.yaml")
+    app = App(data_dir=tmp, config_path=tmp / "config.yaml", mode="mock")
     if fail_rate:
         app.cfg["mock_fail_rate"] = fail_rate
         app.world.fail_rate = fail_rate
@@ -209,7 +209,7 @@ def test_resume() -> None:
     from sdlab import App as _App
 
     tmp = Path(tempfile.mkdtemp(prefix="sdlab-resume-"))
-    app = _App(data_dir=tmp, config_path=tmp / "config.yaml")
+    app = _App(data_dir=tmp, config_path=tmp / "config.yaml", mode="mock")
     try:
         app.login("13800138000", "any", do_captcha=False)
         app.run_prepare()

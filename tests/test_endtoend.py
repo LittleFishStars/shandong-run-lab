@@ -22,7 +22,8 @@ class 全链路测试(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-"))
-        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json")
+        # 测试一律钉死本地 Mock：默认模式是真实服务端，单元测试不能去碰真实网络
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.错误 = []
         try:
             cls.app.login("13800138000", "any-password", False)
@@ -204,7 +205,7 @@ class 手动实走测试(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-walk-"))
-        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json")
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.app.login("13800138000", "any-password", False)
         cls.app.run_prepare()
 
@@ -284,7 +285,7 @@ class 错误处理测试(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-err-"))
-        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json")
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
 
     @classmethod
     def tearDownClass(cls):

@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .bus import ConfigStore, EventBus, default_data_dir
+from .bus import DEFAULT_MODE, ConfigStore, EventBus, default_data_dir
 from .client import ShandongClient
 from .engine import RunEngine
 from .protocol import haversine
@@ -31,7 +31,8 @@ class App:
     """桌面应用的运行时容器（单实例足够）"""
 
     def __init__(self, config_path: Optional[Path] = None,
-                 data_dir: Optional[Path] = None):
+                 data_dir: Optional[Path] = None,
+                 mode: Optional[str] = None):
         # 数据目录优先级：显式参数 > 环境变量 SDLAB_HOME > 用户数据目录
         # （环境变量是给便携/沙箱环境用的，避免往 HOME 写）
         if data_dir is None:
@@ -43,7 +44,9 @@ class App:
         self.cfg_store = ConfigStore(config_path)
         self.cfg: Dict[str, Any] = self.cfg_store.as_dict()
         self.store = RecordStore(self.data_dir / "records.db")
-        self.mode: str = str(self.cfg.get("mode", "mock"))
+        # 运行模式：显式参数 > 配置文件 > 默认（真实服务端，本地登录是可选开关）
+        _m = str(mode or self.cfg.get("mode") or DEFAULT_MODE).lower()
+        self.mode: str = "mock" if _m == "mock" else "real"
 
         self._mock: Optional[MockServer] = None
         self.world: Optional[MockWorld] = None
@@ -66,8 +69,8 @@ class App:
         if self.mode == "mock":
             base_url = self.start_mock()
         self.client = ShandongClient(self.cfg, bus=self.bus, store=self.store,
-                                     base_url=base_url)
-        self.client.local_mode = (self.mode == "mock")
+                                     base_url=base_url,
+                                     local_mode=(self.mode == "mock"))
         self.engine = RunEngine(self.client, self.cfg, self.bus)
         # 摇杆实走会话与引擎共用同一个 store/bus：实跑模式落的库就是 engine 后续要上传的库
         self.walk = WalkSession(self.cfg, bus=self.bus, store=self.store, engine=self.engine)
@@ -126,7 +129,10 @@ class App:
         mode = "mock" if str(mode).lower() == "mock" else "real"
         if mode == self.mode:
             return {"mode": self.mode}
-        self.client.logout()
+        # 只丢掉当前客户端对象，不主动 logout：真实模式的会话按模式分开存在库里，
+        # 切回来就不用重新登录；Mock 每次都重建世界，它的假 token 留着只会添乱。
+        if self.is_local and getattr(self.client, "kv_token_key", ""):
+            self.store.kv_delete(self.client.kv_token_key)
         self.client = None  # type: ignore[assignment]
         if mode == "real":
             self.stop_mock()
@@ -137,8 +143,7 @@ class App:
             self._build()
         self.cfg_store.set("mode", mode)
         self.cfg_store.save()
-        self.bus.emit("state", f"已切换到{'本地 Mock' if mode == 'mock' else '真实服务端'}模式"
-                              f"（会话已重置，请重新登录）")
+        self.bus.emit("state", f"已切换到{'本地 Mock（离线调试）' if mode == 'mock' else '真实服务端'}模式")
         return {"mode": self.mode}
 
     # ══════════════════ 配置 ══════════════════

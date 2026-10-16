@@ -31,9 +31,16 @@
     <div class="card">
       <div class="card-head">
         <h2>① 登录</h2>
-        <span class="hint" id="login-hint">本地 Mock 模式下任意手机号即可</span>
+        <span class="hint" id="login-hint">真实服务端登录</span>
       </div>
       <div class="card-body">
+        <label class="field">
+          <span>登录方式</span>
+          <select id="in-login-mode" class="mini">
+            <option value="real">真实登录（api.huachenjie.com）</option>
+            <option value="mock">本地登录（离线调试，不联网）</option>
+          </select>
+        </label>
         <label class="field">
           <span>手机号 / 学号</span>
           <input id="in-phone" type="text" value="13800138000" placeholder="13800138000" autocomplete="off">

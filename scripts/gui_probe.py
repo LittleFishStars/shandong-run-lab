@@ -174,7 +174,8 @@ def main() -> int:
     args = ap.parse_args()
 
     outdir = Path(args.shots)
-    app = App()
+    # 探针一律跑本地 Mock：默认模式是真实服务端，冒烟测试不该打真实接口
+    app = App(mode="mock")
     api = JsApi(app)
     # 截图模式下让窗口占满屏（这样整屏截图里就只有应用，不会把桌面上的其它窗口拍进去；
     # 而且不用去猜窗口的逻辑坐标——pywebview 在不同缩放下给的位置并不一致）

@@ -87,8 +87,11 @@ class EventBus:
 
 
 # ══════════════════ 配置存储 ══════════════════
+# 运行模式默认值：真实登录为默认；本地 Mock 登录是可选开关（界面/CLI 可切）
+DEFAULT_MODE = "real"
+
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "mode": "mock",                 # mock 离线仿真 / real 真实服务端
+    "mode": DEFAULT_MODE,          # real 真实服务端 / mock 本地离线仿真
     "base_url": "https://api.huachenjie.com/run-front",
     "transport": "direct",          # direct / proxy
     "proxy": "",
