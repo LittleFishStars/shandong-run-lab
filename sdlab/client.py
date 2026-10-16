@@ -18,7 +18,7 @@ import math
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from . import crypto, protocol
+from . import protocol
 from .captcha import CaptchaSolver
 from .constants import (
     CHECKPOINT_HIT_RADIUS_M,
@@ -170,7 +170,9 @@ class ShandongClient:
                                   level="warn")
         payload = self.transport.base_payload({
             "loginName": phone,
-            "password": crypto.encrypt_password(password),
+            # 明文交传输层：login_password 标了 encrypt=True，由 net 层按
+            # ENCRYPT_FIELDS 加密（与原版 EncryptInterceptor 一致，避免双重加密）
+            "password": password,
             "captchaPoint": captcha_point or "",
         })
         res = self.transport.post("login_password", payload)

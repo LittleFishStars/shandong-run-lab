@@ -35,6 +35,7 @@ from .constants import (
     H5_ORIGIN,
     HEADER_APP,
     HEADER_E,
+    HEADER_E_ENC,
     HEADER_PV,
     USER_AGENT_PREFIX,
     EP,
@@ -110,12 +111,13 @@ class Transport:
         return f"{USER_AGENT_PREFIX}/{APP_VERSION} ({brand};Android {dev.get('system_version', DEFAULT_SYS_VER)})"
 
     def headers(self, v: Optional[str] = None, api: Optional[str] = None,
-                h5: bool = False) -> Dict[str, str]:
+                h5: bool = False, encrypt: bool = False) -> Dict[str, str]:
         h = {
             "Content-Type": "application/json; charset=utf-8",
             "User-Agent": self.user_agent(),
             "app": HEADER_APP,
-            "e": HEADER_E,
+            # e=1 的接口：服务端会解密 ENCRYPT_FIELDS 里的字段（见 constants.py）
+            "e": HEADER_E_ENC if encrypt else HEADER_E,
             "pv": HEADER_PV,
             "Accept": "*/*",
         }
@@ -151,18 +153,22 @@ class Transport:
             return self.get(name_or_path, body, v=ep.v, api=ep.api, path=ep.path)
         sign_it = ep.need_sign if need_sign is None else need_sign
         return self._do_post(ep.path, body, ep.v, ep.api, sign_it,
-                             raw_url=raw_url, h5=h5, env=env)
+                             raw_url=raw_url, h5=h5, env=env, encrypt=ep.encrypt)
 
     def post_raw(self, url: str, payload: Dict[str, Any], v: str = "",
-                 api: str = "", h5: bool = True) -> Dict[str, Any]:
-        return self._do_post(url, payload, v, api, False, raw_url=url, h5=h5)
+                 api: str = "", h5: bool = True, encrypt: bool = False) -> Dict[str, Any]:
+        """直连完整 URL（不走 EP 表）；encrypt=True 时发 e:1 并加密 ENCRYPT_FIELDS"""
+        return self._do_post(url, payload, v, api, False, raw_url=url, h5=h5, encrypt=encrypt)
 
     def _do_post(self, path: str, body: Dict[str, Any], v: str, api: str,
                  sign_it: bool, raw_url: Optional[str] = None, h5: bool = False,
-                 env: int = 0) -> Dict[str, Any]:
+                 env: int = 0, encrypt: bool = False) -> Dict[str, Any]:
+        # e:1 接口：先把 ENCRYPT_FIELDS 里的字段加密再序列化（原版 EncryptInterceptor 同位置）
+        if encrypt:
+            body = crypto.encrypt_body_fields(body)
         url = raw_url or f"{self.base_url}/{path.lstrip('/')}"
         text = json.dumps(body, separators=(",", ":"), ensure_ascii=False)
-        headers = self.headers(v=v, api=api, h5=h5)
+        headers = self.headers(v=v, api=api, h5=h5, encrypt=encrypt)
         sign_value = ""
         if sign_it:
             sign_value = crypto.get_sign(text, env=env)

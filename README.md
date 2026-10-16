@@ -96,7 +96,7 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 #### 真实接口已实测到的行为
 
-`scripts/realcheck.py` 会把下面这些逐条跑一遍（当前 **9/9 通过**）：
+`scripts/realcheck.py` 会把下面这些逐条跑一遍（当前 **12/12 通过**）：
 
 | 环节 | 实测结果 |
 | --- | --- |
@@ -105,9 +105,13 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 | `common/getConfig`（**GET**） | `runFilterAccuracy=30`（APK 默认 50）、`gpsFilterAccuracy=150`、`paceInterval=50`、`validDistance=25`、`poiInterval=15`、`stepInterval=20` |
 | 未登录调 `run/*` | `code=1516 请登录后操作！`（路由存在，只缺 token） |
 | 滑块验证码 | `captcha/get` → 本地求解 → `captcha/check`，**一次挑战内通过 5/5** |
+| `e` 头 / 字段加密对照 | `e=0 + 明文` 与 `e=1 + 密文` 送 `school/firstPageSchoolList`，返回逐条一致；响应 `schoolName` 解出「山东轻工职业学院」 |
 
-两个必须知道的服务端口径：
+三个必须知道的服务端口径：
 
+- **标了 `e:1` 的接口必须真发 `e:1`，并把字段加密后再送**。登录恒定 `code=1604 密码不正确`
+  （密码明明是对的）就是踩在这里：发成 `e=0` 时服务端不解密，把 Base64 密文当明文密码比对。
+ 修法见 `constants.EP` 里登录四接口的 `encrypt=True` 与 `sdlab/crypto.py` 的 `encrypt_body_fields()`。
 - **`v` / `api` 请求头不能少**。少了会被当成参数不合法（`code=1002`），很容易误判成「接口不可用」。
 - **滑块 `captcha/check` 是一次性的**：调一次就消费掉该 token。所以求解失败要**重新 `captcha/get` 拿新挑战**，不能在同一个 token 上换坐标重试（早期就是在这里踩了坑，全 x 扫描零命中）。
 

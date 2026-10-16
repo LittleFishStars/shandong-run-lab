@@ -64,7 +64,23 @@ DEFAULT_PLATFORM = "2"
 DEFAULT_CHANNEL = "other"
 HEADER_APP = "run-front"
 HEADER_PV = "2"
-HEADER_E = "0"
+HEADER_E = "0"              # 请求体字段不加密（原样上送）
+HEADER_E_ENC = "1"          # 请求体字段按 ENCRYPT_FIELDS 加密后上送
+
+# ══════════════════ 请求体字段加密（e 头）══════════════════
+# APK：EncryptInterceptor 只在「请求头 e 存在且不等于 "0"」时加密请求体字段，
+# 字段表由 com/zj/adlib/r24.java:104 的 h33.d(...) 注册（列表见下），
+# 每个字段走 cq.c(value, key)：AES-256-CBC(PKCS7) + Base64，密钥 = FIELD_KEY。
+#
+# ★ 服务端实测（2026-10-17，school/firstPageSchoolList 三组对照）：
+#     e=0 + 明文  → 按明文检索（正常）
+#     e=1 + 明文  → 服务端解密失败，检索条件丢失（结果与明文检索不同）
+#     e=1 + 密文  → 与「e=0 + 明文」逐条一致 ⇒ 密文被服务端正确解出
+#   ⇒ 服务端**只看 e 头决定是否解密**。因此 @Headers({"e:1"}) 的接口
+#     必须发 e=1，否则 password 会被当成明文与真实密码比对 → 1604「密码不正确」。
+ENCRYPT_FIELDS: Tuple[str, ...] = (
+    "terminalType", "password", "userName", "schoolName", "studentNumber",
+)
 
 # ══════════════════ 上传状态位（report/07 §4.2）══════════════════
 STATE_INIT = 1        # 待上传
@@ -144,6 +160,8 @@ class Endpoint(NamedTuple):
     api: str
     need_sign: bool = False
     method: str = "POST"
+    # True = APK 里标了 @Headers({"e:1"})：发 e:1 并加密 ENCRYPT_FIELDS 中的字段
+    encrypt: bool = False
 
 
 # fmt: off
@@ -154,10 +172,10 @@ EP = {
     "sync_time":        Endpoint("common/syncTime",          "syncTime",         "common", method="GET"),
 
     # ── 登录（均为 POST）──
-    "login_check":      Endpoint("auth/loginCheck",          "loginCheck",        "auth"),
-    "login_password":   Endpoint("auth/loginPassword",       "loginPassword",     "auth"),
-    "login_sms_send":   Endpoint("account/sendAuthCode",     "sendAuthCode",      "account"),
-    "login_sms":        Endpoint("account/login_v3",         "login_v3",          "account"),
+    "login_check":      Endpoint("auth/loginCheck",          "loginCheck",        "auth", encrypt=True),
+    "login_password":   Endpoint("auth/loginPassword",       "loginPassword",     "auth", encrypt=True),
+    "login_sms_send":   Endpoint("account/sendAuthCode",     "sendAuthCode",      "account", encrypt=True),
+    "login_sms":        Endpoint("account/login_v3",         "login_v3",          "account", encrypt=True),
     "login_oneclick":   Endpoint("account/oneClick/login",   "login",             "account/oneClick"),
     "logout":           Endpoint("account/logout",           "logout",            "account"),
 

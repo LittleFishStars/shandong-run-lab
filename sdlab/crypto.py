@@ -27,6 +27,7 @@ from .constants import (
     APP_VERSION,
     BUILD_VERSION,
     DES_KEYS,
+    ENCRYPT_FIELDS,
     FIELD_KEY,
     RUN_IMG_RECORD_KEY,
     SIGN_ENV_TEST,
@@ -145,6 +146,24 @@ def decrypt_field(cipher_b64: str) -> str:
 
 encrypt_password = encrypt_field
 decrypt_password = decrypt_field
+
+
+def encrypt_body_fields(body: Dict[str, Any]) -> Dict[str, Any]:
+    """按 APK 的 EncryptInterceptor 语义加密请求体字段（e:1 接口专用）。
+
+    只处理顶层且出现在 `ENCRYPT_FIELDS` 里的键；值先转 str 再 AES，
+    与原版 `map.get(k).toString()` 一致。空值（None/""）不加密。
+    返回新 dict，不修改入参。
+    """
+    out = dict(body)
+    for key in ENCRYPT_FIELDS:
+        if key not in out:
+            continue
+        value = out[key]
+        if value is None or value == "":
+            continue
+        out[key] = encrypt_field(str(value))
+    return out
 
 
 # ══════════════════ 滑块验证码 ══════════════════

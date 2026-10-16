@@ -92,7 +92,32 @@ def main() -> int:
         check(echoed == crypto.encrypt_field(phone),
               "服务端回显 phone 密文与本地加密逐字节一致", f"server={echoed}")
     else:
-        note("服务端未回显 phone（该账号未注册或字段隐藏）")
+            note("服务端未回显 phone（该账号未注册或字段隐藏）")
+
+    section("2.5 e 头 / 字段加密语义（school/firstPageSchoolList 对照）")
+    # loginPassword 会把 password 加密后放在 e:1 的请求里；这里用同一套字段加密
+    # （schoolName 同在 ENCRYPT_FIELDS）验证服务端确实按 e 头解密：
+    #   e=0 + 明文 与 e=1 + 密文 必须解出同一个检索词，返回结果逐条一致。
+    url = f"{tr.base_url}/school/firstPageSchoolList"   # base_url 已含 /run-front
+    kw = "山东"
+    base = {"schoolName": kw, "pageNum": 1, "pageSize": 5}
+    r0 = tr.post_raw(url, tr.base_payload(base), v="firstPageSchoolList", api="login",
+                     h5=False, encrypt=False)
+    # 注意：encrypt=True 时传输层会自己对 ENCRYPT_FIELDS 加密，这里必须传明文
+    r1 = tr.post_raw(url, tr.base_payload(base), v="firstPageSchoolList", api="login",
+                     h5=False, encrypt=True)
+    codes = (r0.get("code"), r1.get("code"))
+    check(codes == (C.CODE_OK, C.CODE_OK), "e=0 明文 / e=1 密文 两种发法都返回 code 0",
+          f"codes={codes}")
+    l0 = (r0.get("data") or {}).get("list") or []
+    l1 = (r1.get("data") or {}).get("list") or []
+    check(bool(l0) and l0 == l1, "e=0 明文与 e=1 密文的检索结果逐条一致（密文被正确解密）",
+          f"{len(l0)} 条 vs {len(l1)} 条，首条 schoolCode="
+          f"{(l0[0] if l0 else {}).get('schoolCode', '-')}")
+    if l1:
+        plain_name = crypto.decrypt_field(str(l1[0].get("schoolName") or ""))
+        check(kw in plain_name, "响应 schoolName 可用 FIELD_KEY 解出明文",
+              f"{l1[0].get('schoolName')} → {plain_name}")
 
     section("3. 服务端运行参数 common/getConfig")
     r = tr.post("common_config", tr.base_payload({}))
