@@ -129,24 +129,37 @@ CODE_NEED_LOGIN = 1516       # 未登录 / 未知路径
 CODE_MISSING_PARAM = 1002    # 参数缺失
 
 # ══════════════════ 接口表 ══════════════════
+# ══════════════════ 接口表 ══════════════════
+# 路径/方法均取自 v8.7.7 反编译（work/jadx_FULL/sources/com/huachenjie/**/*Api.java）
+# 而非早期报告，避免打到不存在的路由。
+#
+# 传输编码：原版源码里大量接口标了 @FormUrlEncoded，但拦截器会统一改写成 JSON 体；
+# 实测（auth/loginCheck）JSON 体返回 code 0，表单体返回 1004「网络可能异常」，
+# 因此本项目对所有 POST 一律发 JSON。
 class Endpoint(NamedTuple):
-    """一个业务接口：路径 + 请求头 v/api + 是否需要 sign"""
+    """一个业务接口：路径 + 请求头 v/api + 是否需要 sign + HTTP 方法"""
 
     path: str
     v: str
     api: str
     need_sign: bool = False
+    method: str = "POST"
 
 
 # fmt: off
 EP = {
-    # ── 登录 ──
+    # ── 系统 / 全局配置 ──
+    "common_config":    Endpoint("common/getConfig",        "getConfig",        "common", method="GET"),
+    "detect_config":    Endpoint("detect/configV2",          "configV2",         "detect", method="GET"),
+    "sync_time":        Endpoint("common/syncTime",          "syncTime",         "common", method="GET"),
+
+    # ── 登录（均为 POST）──
     "login_check":      Endpoint("auth/loginCheck",          "loginCheck",        "auth"),
     "login_password":   Endpoint("auth/loginPassword",       "loginPassword",     "auth"),
-    "login_sms_send":   Endpoint("auth/sendLoginSms",        "sendLoginSms",      "auth"),
-    "login_sms":        Endpoint("auth/loginSms",            "loginSms",          "auth"),
-    "logout":           Endpoint("auth/logout",              "logout",            "auth"),
-    "sync_time":        Endpoint("syncTime",                 "syncTime",          "sync"),
+    "login_sms_send":   Endpoint("account/sendAuthCode",     "sendAuthCode",      "account"),
+    "login_sms":        Endpoint("account/login_v3",         "login_v3",          "account"),
+    "login_oneclick":   Endpoint("account/oneClick/login",   "login",             "account/oneClick"),
+    "logout":           Endpoint("account/logout",           "logout",            "account"),
 
     # ── 用户 / 学校 ──
     "user_info":        Endpoint("account/queryCommonUserInfo", "queryCommonUserInfo", "account"),
@@ -156,13 +169,15 @@ EP = {
     # ── 围栏 / 规则 ──
     "fence_list":       Endpoint("school/querySchoolFences", "querySchoolFences", "school"),
     "fence_filter":     Endpoint("school/filterUsableFence", "filterUsableFence", "school"),
-    "sunrun_rule":      Endpoint("run/querySunRunRule",      "querySunRunRule",   "run"),
     "sunrun_abstract":  Endpoint("run/querySunRunAbstractInfoV2", "querySunRunAbstractInfoV2", "run"),
     "sunrun_config":    Endpoint("run/checkSunRunConfig",    "checkSunRunConfig", "run"),
+    "precheck_in":      Endpoint("run/getPreRunCheckIn",     "getPreRunCheckIn",  "run"),
     "plan_list":        Endpoint("run/plan/selectList",      "selectList",        "run/plan"),
 
     # ── 跑步主链路 ──
     "start_sun_run":    Endpoint("run/startSunRun_v2",       "startSunRun_v2",    "run"),
+    "start_free_run":   Endpoint("run/startFreeRun",         "startFreeRun",      "run"),
+    "resume_run":       Endpoint("run/resume",               "resume",            "run"),
     "upload_record":    Endpoint("run/uploadRunRecord",      "uploadRunRecord",   "run", True),
     "upload_pace":      Endpoint("run/uploadPaceRecord",     "uploadPaceRecord",  "run"),
     "upload_step":      Endpoint("run/uploadStepsRecord",    "uploadStepsRecord", "run"),
@@ -170,17 +185,22 @@ EP = {
     "upload_passpoint": Endpoint("run/uploadPassPoint",      "uploadPassPoint",   "run"),
     "finish_sun_run":   Endpoint("run/finishSunRun_v2",      "finishSunRun_v2",   "run"),
     "finish_free_run":  Endpoint("run/finishFreeRun",        "finishFreeRun",     "run"),
+    "abnormal_finish":  Endpoint("run/abnormalFinishSunRun", "abnormalFinishSunRun", "run"),
     "unfinish_run":     Endpoint("run/queryUnFinishRun",     "queryUnFinishRun",  "run"),
-    "nfc_status":       Endpoint("nfc/verification-status",  "verification-status", "nfc"),
+    "nfc_status":       Endpoint("run/nfc/verification-status", "verification-status", "run"),
 
     # ── 记录 / 排行 ──
-    "run_summary":      Endpoint("run/queryRunSummary",      "queryRunSummary",   "run"),
-    "sunrun_list":      Endpoint("run/querySunRunList",      "querySunRunList",   "run"),
-    "freerun_list":     Endpoint("run/queryFreeRunList",     "queryFreeRunList",  "run"),
+    "run_summary":      Endpoint("run/querySchoolRunSummary", "querySchoolRunSummary", "run"),
+    "run_count":        Endpoint("run/queryRunRecordCount",  "queryRunRecordCount", "run"),
+    "run_detail":       Endpoint("run/runRecordDetail",      "runRecordDetail",   "run"),
+    "free_detail":      Endpoint("run/free/detail",          "detail",            "run/free"),
+    "sunrun_list":      Endpoint("run/pageSunRunRecord",     "pageSunRunRecord",  "run"),
+    "freerun_list":     Endpoint("run/pageFreeRunRecordList", "pageFreeRunRecordList", "run"),
+    "reward_list":      Endpoint("run/listUserReward",       "listUserReward",    "run"),
     "rank_distance":    Endpoint("rank/distance",            "distance",          "rank"),
     "rank_progress":    Endpoint("rank/runProgress",         "runProgress",       "rank"),
 
-    # ── 验证码（不经 run-front 前缀，见 captcha 模块）──
+    # ── 验证码（H5 同源，JSON 直连）──
     "captcha_get":      Endpoint("captcha/get",              "get",               "captcha"),
     "captcha_check":    Endpoint("captcha/check",            "check",             "captcha"),
 }

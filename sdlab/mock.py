@@ -21,6 +21,7 @@ import json
 import random
 import threading
 import time
+import urllib.parse
 import uuid
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -510,33 +511,86 @@ def _rank_distance(w: MockWorld, path: str, h, b):
     }}
 
 
-def _not_found(w, path, h, b):
+# ── 新增：真实服务端已有的辅助接口 ──
+def _get_config(w: MockWorld, path: str, h, b):
+    """GET common/getConfig：返回与真实服务端同结构的运行参数。
+
+    数值取自 2026-10 对 api.huachenjie.com 的实测响应。
+    """
+    return {"code": 0, "message": "成功", "data": {
+        "runFilterAccuracy": 30, "freeRunFilterAccuracy": 75, "startRunAccuracy": 50,
+        "poiInterval": 15, "validDistance": 25, "sensitiveDistance": 45,
+        "paceInterval": 50, "paceAbnormalTime": 120, "autoStopDuration": 120,
+        "singlePointAward": 20, "amapGPSLevel": 3, "strideStatisticsInterval": 200,
+        "materialToEnergy": 2, "adIntervalDuration": 5, "gpsAbnormalMaxTimes": 3,
+        "gpsFilterAccuracy": 150, "captchaEnable": True, "kyyShieldSwitch": True,
+        "slogan": "一起闪动，为自己想要的样子",
+    }}
+
+
+def _sync_time(w: MockWorld, path: str, h, b):
+    """GET common/syncTime：真实响应 data.serverTime 为毫秒字符串"""
+    return {"code": 0, "message": "成功",
+            "data": {"serverTime": str(int(time.time() * 1000))}}
+
+
+def _mock_nfc_status(w: MockWorld, path: str, h, b):
+    return {"code": 0, "message": "成功", "data": {"status": 0}}
+
+
+def _logout(w: MockWorld, path: str, h, b):
+    return {"code": 0, "message": "成功", "data": None}
+
+
+def _not_found(w, path: str, h, b):
     return {"code": CODE_NEED_LOGIN, "message": f"Mock 未实现该接口：{path}", "data": None}
 
 
+# 路由表键 = 真实路径（已剔掉 run-front/ 前缀）；同时保留早期报告里的旧路径作别名，
+# 兼容历史脚本与旧版客户端。
 _ROUTES = {
     "captcha/get": _captcha_get,
     "captcha/check": _captcha_check,
     "auth/loginCheck": _login_check,
     "auth/loginPassword": _login_password,
+    "account/sendAuthCode": _login_check,          # 短信下发（Mock 用同一套语义）
+    "account/login_v3": _login_password,
+    "account/logout": _logout,
+    "common/getConfig": _get_config,
+    "common/syncTime": _sync_time,
     "account/queryCommonUserInfo": _user_info,
     "attend/semesterSelector": _semesters,
     "school/querySchoolFences": _fence_list,
     "school/filterUsableFence": _fence_filter,
-    "run/querySunRunRule": _sunrun_rule,
     "run/querySunRunAbstractInfoV2": _run_abstract,
     "run/checkSunRunConfig": _sunrun_config,
+    "run/getPreRunCheckIn": _sunrun_config,
     "run/plan/selectList": _plan_list,
     "run/startSunRun_v2": _start_sun_run,
+    "run/startFreeRun": _start_sun_run,
+    "run/resume": _start_sun_run,
+    "run/queryUnFinishRun": _not_found,
     "run/uploadRunRecord": _upload_record,
     "run/uploadPassPoint": _upload_passpoint,
     "run/uploadPaceRecord": _upload_pace,
     "run/uploadStepsRecord": _upload_step,
     "run/uploadStrideRecord": _upload_stride,
     "run/finishSunRun_v2": _finish_sun_run,
+    "run/finishFreeRun": _finish_sun_run,
+    "run/nfc/verification-status": _mock_nfc_status,
+    "run/querySchoolRunSummary": _query_summary,
+    "run/queryRunRecordCount": _query_summary,
+    "run/runRecordDetail": _query_summary,
+    "run/free/detail": _query_summary,
+    "run/pageSunRunRecord": _query_sunrun_list,
+    "run/pageFreeRunRecordList": _query_sunrun_list,
+    "run/listUserReward": _not_found,
+    "rank/distance": _rank_distance,
+    "rank/runProgress": _rank_distance,
+    # ── 旧路径别名（早期报告，已不存在于 v8.7.7）──
+    "run/querySunRunRule": _sunrun_rule,
     "run/querySunRunList": _query_sunrun_list,
     "run/queryRunSummary": _query_summary,
-    "rank/distance": _rank_distance,
 }
 
 
@@ -566,8 +620,17 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_GET(self) -> None:  # noqa: N802
-        self.send_response(404)
+        """GET 接口（common/getConfig、common/syncTime）走同一套路由。"""
+        path, _, query = self.path.lstrip("/").partition("?")
+        body = {k: v[0] for k, v in urllib.parse.parse_qs(query).items()} if query else {}
+        headers = {k: v for k, v in self.headers.items()}
+        res = self.world.handle(path, headers, body)
+        payload = json.dumps(res, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
+        self.wfile.write(payload)
 
 
 class MockServer:

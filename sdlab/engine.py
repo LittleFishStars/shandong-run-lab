@@ -118,6 +118,9 @@ class RunEngine:
         idx = max(0, min(int(fence_index), len(c.fences) - 1))
         c.fence = dict(c.fences[idx])
 
+        self._step(7, "拉取服务端运行参数…")
+        c.load_common_config()
+
         self._step(8, "拉取学校规则…")
         c.load_rule(semester_code=sem_code)
         c.load_sunrun_abstract(semester_code=sem_code)

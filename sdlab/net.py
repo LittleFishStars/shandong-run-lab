@@ -37,6 +37,7 @@ from .constants import (
     HEADER_E,
     HEADER_PV,
     USER_AGENT_PREFIX,
+    EP,
     Endpoint,
     endpoint,
 )
@@ -136,7 +137,7 @@ class Transport:
              ep: Optional[Endpoint] = None, need_sign: Optional[bool] = None,
              raw_url: Optional[str] = None, h5: bool = False,
              env: int = 0) -> Dict[str, Any]:
-        """发送业务 POST 请求
+        """发送业务请求（按 EP.method 自动选 GET / POST）
 
         name_or_path 可以是 `EP` 里的接口名，也可以是完整路径。
         """
@@ -145,8 +146,10 @@ class Transport:
         if ep is None:
             ep = Endpoint(name_or_path, name_or_path.split("/")[-1],
                           name_or_path.split("/")[0] if "/" in name_or_path else "")
-        sign_it = ep.need_sign if need_sign is None else need_sign
         body = payload if payload is not None else self.base_payload()
+        if ep.method == "GET":
+            return self.get(name_or_path, body, v=ep.v, api=ep.api, path=ep.path)
+        sign_it = ep.need_sign if need_sign is None else need_sign
         return self._do_post(ep.path, body, ep.v, ep.api, sign_it,
                              raw_url=raw_url, h5=h5, env=env)
 
@@ -205,8 +208,8 @@ class Transport:
         return {"code": -1, "message": last_err or "网络请求失败", "data": None}
 
     def get(self, name_or_path: str, params: Optional[Dict[str, Any]] = None,
-            v: str = "", api: str = "") -> Dict[str, Any]:
-        path = name_or_path
+            v: str = "", api: str = "", path: str = "") -> Dict[str, Any]:
+        path = path or name_or_path
         if path in _EP_NAMES:
             ep = endpoint(path)
             path, v, api = ep.path, ep.v, ep.api
@@ -214,14 +217,22 @@ class Transport:
         if params:
             url += "?" + urllib.parse.urlencode(params)
         headers = self.headers(v=v, api=api)
+        t0 = time.monotonic()
         try:
             status, text = self._send(url, headers, None)
+            elapsed = int((time.monotonic() - t0) * 1000)
             data = _parse_json(text)
             if not isinstance(data, dict):
                 data = {"code": -1, "message": "响应不是 JSON", "data": None}
+            data.setdefault("_http_status", status)
+            data["_elapsed_ms"] = elapsed
             if self.bus:
                 self.bus.emit("response", f"← [{status}] {_brief(text)}", path=path,
                               code=int(data.get("code", -1)), status=status)
+            if self.store:
+                self.store.log_api("GET", path, v, api, False,
+                                   json.dumps(params or {}, ensure_ascii=False),
+                                   text, int(data.get("code", -1)), elapsed)
             return data
         except Exception as e:
             return {"code": -1, "message": f"{type(e).__name__}: {e}", "data": None}
@@ -291,12 +302,5 @@ def _brief(text: str, limit: int = 400) -> str:
     return t[:limit] + ("…" if len(t) > limit else "")
 
 
-_EP_NAMES = {
-    "login_check", "login_password", "login_sms_send", "login_sms", "logout",
-    "sync_time", "user_info", "school_details", "semesters", "fence_list",
-    "fence_filter", "sunrun_rule", "sunrun_abstract", "sunrun_config", "plan_list",
-    "start_sun_run", "upload_record", "upload_pace", "upload_step", "upload_stride",
-    "upload_passpoint", "finish_sun_run", "finish_free_run", "unfinish_run",
-    "nfc_status", "run_summary", "sunrun_list", "freerun_list", "rank_distance",
-    "rank_progress", "captcha_get", "captcha_check",
-}
+# 从 EP 直接派生，避免手写名单与实际接口漂移
+_EP_NAMES = set(EP)

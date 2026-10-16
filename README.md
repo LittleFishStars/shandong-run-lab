@@ -84,6 +84,28 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 .venv/bin/python -m sdlab --proxy http://127.0.0.1:8080 gui
 ```
 
+#### 真实接口已实测到的行为
+
+`scripts/realcheck.py` 会把下面这些逐条跑一遍（当前 **9/9 通过**）：
+
+| 环节 | 实测结果 |
+| --- | --- |
+| `common/syncTime`（**GET**，路径就带 common，不是 run-front/syncTime） | `code=0` |
+| `auth/loginCheck` | `code=0`，回显 `data.phone` 与本地 `crypto.encrypt_field()` **逐字节相同** |
+| `common/getConfig`（**GET**） | `runFilterAccuracy=30`（APK 默认 50）、`gpsFilterAccuracy=150`、`paceInterval=50`、`validDistance=25`、`poiInterval=15`、`stepInterval=20` |
+| 未登录调 `run/*` | `code=1516 请登录后操作！`（路由存在，只缺 token） |
+| 滑块验证码 | `captcha/get` → 本地求解 → `captcha/check`，**一次挑战内通过 5/5** |
+
+两个必须知道的服务端口径：
+
+- **`v` / `api` 请求头不能少**。少了会被当成参数不合法（`code=1002`），很容易误判成「接口不可用」。
+- **滑块 `captcha/check` 是一次性的**：调一次就消费掉该 token。所以求解失败要**重新 `captcha/get` 拿新挑战**，不能在同一个 token 上换坐标重试（早期就是在这里踩了坑，全 x 扫描零命中）。
+
+服务端 `captchaEnable=true`，所以真实登录流程是：`loginCheck` → `captcha/get` → 本地求解 → `captcha/check` → `loginPassword(captchaPoint)`。
+
+#### 接口的编码方式不统一
+
+反编译 `com/huachenjie/**/*Api.java` 的结果：**上传/结算四个接口是 JSON，而登录/围栏/规则/榜单是表单（`@FormUrlEncoded`）**。实测 JSON 文体也能被接受，所以本项目统一用 JSON；需要时可在 `constants.EP` 的 `Endpoint` 上加 `content_type` 单独覆盖。
 ### 界面速览
 
 ![桌面工作台](docs/screenshots/gui-2-running.png)
@@ -159,6 +181,9 @@ export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 
 # 桌面外壳自检（真的开窗口、点界面按钮，断言中栏布局/地图几何，并验证只规划不跑、摇杆干跑与实跑实时写库）
 .venv/bin/python scripts/gui_probe.py --distance 1200 --speed 8
+
+# 真实服务端连通性自检（不需要账号；会真的去 api.huachenjie.com 打请求，并实测滑块验证码）
+.venv/bin/python scripts/realcheck.py --captcha-trials 5
 
 .venv/bin/python -m sdlab check      # 两个自检一起跑
 ```

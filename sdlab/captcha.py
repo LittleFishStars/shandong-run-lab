@@ -53,44 +53,75 @@ def _to_gray(image_bytes: bytes):
     return img
 
 
-def solve_slider_notch(bg_bytes: bytes, template_bytes: bytes,
-                       search_top: float = 0.0, search_bottom: float = 1.0
-                       ) -> Tuple[float, float]:
-    """在背景图上定位缺口，返回 (x, y) 原始像素坐标
+def solve_slider_notch(bg_bytes: bytes, template_bytes: bytes) -> Tuple[float, float]:
+    """定位缺口，返回 (x, y)，单位是背景图的原始像素。
 
-    做法：把模板图按灰度做归一化，在背景图的每一列位置计算 SAD
-    （绝对差之和），取最小者。缺口是「被抠掉」的区域，因此模板与背景在
-    缺口处**差异最小**——直接比较即可，不需要反色处理。
+    x = 拼图块左边缘在背景图里的横坐标；y 仅为参考值（真实提交时由 H5 写死 15）。
+
+    实现要点（对齐 H5 CaptchaVerifyPage 与 8.7.2 参考实现）：
+      · 拼图块是 RGBA，必须先用 alpha 通道 bbox 裁出真实缺口形状，
+        否则透明像素会把 SAD 拉到均匀值上；
+      · 必须在**全图二维**上搜索（8.7.2 参考实现先用 alpha 行位置限带，
+        但限带对系统图不总成立，全图搜索更稳且代价可接受）；
+      · 评分用灰度 SAD（绝对差之和），越小越像。
     """
     if not _HAS_PIL:
         raise RuntimeError("缺少 Pillow，无法求解滑块验证码")
 
-    bg = _to_gray(bg_bytes)
-    tp = _to_gray(template_bytes)
-    bw, bh = bg.size
-    tw, th = tp.size
+    bg_img = Image.open(io.BytesIO(bg_bytes))
+    tp_img = Image.open(io.BytesIO(template_bytes))
 
-    bpx = bg.load()
-    tpx = tp.load()
+    # 透明边裁切：拼图块只有 alpha>0 的部分才是真正的缺口形状。
+    # 拼图块画在与背景图等高的画布上，所以 alpha bbox 的 top 就是缺口的纵坐标
+    # ——这是 8.7.2 参考实现「限带搜索」的依据，能把误匹配降一个数量级。
+    y_hint = None
+    if tp_img.mode in ("RGBA", "LA"):
+        alpha = tp_img.getchannel("A")
+        box = alpha.point(lambda v: 255 if v > 16 else 0).getbbox()
+        if box:
+            y_hint = int(box[1])
+            tp_img = tp_img.crop(box)
+    tp_gray = tp_img.convert("L")
+    bg_gray = bg_img.convert("L")
 
-    # 模板边缘留白（AJ-Captcha 的拼图块带透明边），取中心区域参与匹配
-    mx, my = max(1, tw // 8), max(1, th // 8)
-    y0 = int(bh * search_top)
-    y1 = min(bh, int(bh * search_bottom))
-    ty0, ty1 = my, th - my
-    tx0, tx1 = mx, tw - mx
+    tw, th = tp_gray.size
+    bw, bh = bg_gray.size
+    if tw >= bw or th >= bh:
+        raise RuntimeError(f"拼图块({tw}x{th})不小于背景图({bw}x{bh})，图像异常")
 
-    best_x, best_y, best_score = 0.0, float(y0), float("inf")
-    for y in range(y0, max(y0 + 1, y1 - (ty1 - ty0))):
-        for x in range(0, max(1, bw - (tx1 - tx0))):
+    max_y = bh - th
+    if y_hint is not None:
+        y0 = max(0, min(max_y, y_hint - 4))
+        y1 = max(0, min(max_y, y_hint + 4))
+    else:
+        y0, y1 = 0, max_y
+
+    try:
+        import numpy as np                     # 有 numpy 时走向量化，毫秒级
+        b = np.asarray(bg_gray, dtype=np.int16)
+        t = np.asarray(tp_gray, dtype=np.int16)
+        win = np.lib.stride_tricks.sliding_window_view(b, (th, tw))[y0:y1 + 1]
+        diff = np.abs(win - t).sum(axis=(2, 3))
+        iy, ix = np.unravel_index(int(np.argmin(diff)), diff.shape)
+        return float(ix), float(iy + y0)
+    except Exception:
+        pass
+        pass
+
+    # 纯 Python 回退：上限必须减去模板尺寸，否则会越界（曾导致 IndexError）
+    bpx, tpx = bg_gray.load(), tp_gray.load()
+    max_x, max_y = bw - tw, bh - th
+    best_x, best_y, best_score = 0.0, 0.0, float("inf")
+    for y in range(y0, y1 + 1):
+        for x in range(0, max_x + 1):
             score = 0
-            # 隔行隔列采样，速度提升 4 倍，精度几乎无损失
-            for ty in range(ty0, ty1, 2):
-                for tx in range(tx0, tx1, 2):
-                    d = bpx[x + tx, y + ty] - tpx[tx, ty]
+            for ty in range(0, th, 2):
+                row_b, row_t = y + ty, ty
+                for tx in range(0, tw, 2):
+                    d = bpx[x + tx, row_b] - tpx[tx, row_t]
                     score += d if d >= 0 else -d
             if score < best_score:
-                best_score, best_x, best_y = float(score), float(x - tx0), float(y - ty0)
+                best_score, best_x, best_y = float(score), float(x), float(y)
     return best_x, best_y
 
 
@@ -154,12 +185,14 @@ class CaptchaSolver:
         except Exception as e:
             self._log(f"✗ 缺口定位失败：{e}", "error")
             return False, None, 0.0
-        self._log(f"✓ 缺口定位 x={x:.0f} y={y:.0f}（原始像素）")
-        point = crypto.encrypt_slider_point(x, y)
+        # H5 的明文固定是 {"x": 缺口x+10, "y": 15}：y 写死 15，
+        # 求解得到的 y 不参与提交（见 CaptchaVerifyPage 的 `{x:I, y:5+10}`）。
+        self._log(f"✓ 缺口定位 x={x:.0f}（求解 y={y:.0f}，提交 y=15）")
+        point = crypto.encrypt_slider_point(x)
         return True, point, x
 
     def check(self, token: str, point: str) -> bool:
-        body = {"pointJson": point, "token": token}
+        body = {"captchaType": "blockPuzzle", "pointJson": point, "token": token}
         res = self.transport.post_raw(f"{self.transport.base_url}/captcha/check", body,
                                       v="check", api="captcha", h5=True)
         ok = bool(((res.get("data") or {}).get("result")) is True) or res.get("code") == 0 and \
@@ -169,16 +202,25 @@ class CaptchaSolver:
                           level="info" if ok else "warn")
         return ok
 
-    def run(self) -> Tuple[bool, Optional[str], Dict[str, Any]]:
-        """完整跑一遍：取图 → 定位 → 校验；返回 (是否通过, pointJson, 原始数据)"""
-        data = self.get()
-        if not data:
-            return False, None, {}
-        ok, point, x = self.solve(data)
-        if not ok or point is None:
-            return False, None, data
-        passed = self.check(str(data.get("token", "")), point)
-        return passed, point, {**data, "_notch_x": x}
+    def run(self, attempts: int = 4) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+        """完整跑一遍：取图 → 定位 → 校验；返回 (是否通过, pointJson, 原始数据)
+
+        ★ `captcha/check` 每调用一次就**消耗掉该 token**（服务端校验后即失效），
+        所以失败重试必须重新 `captcha/get` 拿新挑战，不能在同一个 token 上换
+        坐标重试——那正是早期「全 x 扫描零命中」的根因。
+        """
+        last: Dict[str, Any] = {}
+        for i in range(max(1, int(attempts))):
+            data = self.get()
+            if not data:
+                return False, None, last
+            last = data
+            ok, point, x = self.solve(data)
+            if not ok or point is None:
+                continue
+            if self.check(str(data.get("token", "")), point):
+                return True, point, {**data, "_notch_x": x, "_attempts": i + 1}
+        return False, None, last
 
 
 def _b64_png(raw: Optional[bytes]) -> str:

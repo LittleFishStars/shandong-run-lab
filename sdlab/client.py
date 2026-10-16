@@ -68,12 +68,20 @@ class ShandongClient:
         self.semesters: List[Dict[str, Any]] = []
         self.run_plans: List[Dict[str, Any]] = []
         self.abstract: Dict[str, Any] = {}
+        self.common: Dict[str, Any] = {}     # 服务端 common/getConfig 原始返回
         self.user: Dict[str, Any] = {}
         self.logged_in = False
         self.local_mode = False          # True = 走本地 Mock 服务端
         self._load_session()
 
     # ══════════════════ 会话 ══════════════════
+    def _cfg_set(self, key: str, value: Any) -> None:
+        """写配置——兼容 ConfigStore 与普通 dict 两种 cfg 载体"""
+        if hasattr(self.cfg, "set"):
+            self.cfg.set(key, value)
+        else:
+            self.cfg[key] = value
+
     def _load_session(self) -> None:
         s = self.store.kv_get(KV_TOKEN) or {}
         if isinstance(s, dict) and s.get("token"):
@@ -130,16 +138,13 @@ class ShandongClient:
     def solve_captcha(self, data: Optional[Dict[str, Any]] = None
                       ) -> Tuple[bool, Optional[str]]:
         """③ 求解并校验滑块；返回 (是否通过, pointJson)"""
-        data = data or self.captcha.last
-        if not data:
-            data = self.get_captcha() or {}
-        if not data:
-            return False, None
-        ok, point, _x = self.captcha.solve(data)
-        if not ok or point is None:
-            return False, None
-        passed = self.captcha.check(str(data.get("token", "")), point)
-        return passed, point
+        if data:
+            ok, point, _x = self.captcha.solve(data)
+            if ok and point and self.captcha.check(str(data.get("token", "")), point):
+                return True, point
+        # 单次失败后用 run() 重取挑战重试（check 会消耗 token，不能原地重试坐标）
+        ok, point, _d = self.captcha.run(attempts=3)
+        return bool(ok and point), point
 
     def login(self, phone: str, password: str, captcha_point: str = "",
               do_captcha: bool = True) -> Dict[str, Any]:
@@ -227,12 +232,44 @@ class ShandongClient:
         return res
 
     def load_sunrun_rule(self, run_plan_code: str = "", semester_code: str = "") -> Dict[str, Any]:
-        res = self.transport.post("sunrun_rule", self.transport.base_payload({
+        """阳光跑规则。
+
+        v8.7.7 里**没有** `run/querySunRunRule`；规则参数由 `common/getConfig`
+        （见 load_common_config）与 `run/querySunRunAbstractInfoV2` 提供，
+        这里改走 abstract 接口，并先刷新全局配置。
+        """
+        self.load_common_config()
+        res = self.transport.post("sunrun_abstract", self.transport.base_payload({
             "runPlanCode": run_plan_code, "semesterCode": semester_code,
         }))
         data = res.get("data")
-        if isinstance(data, dict):
+        if isinstance(data, dict) and data:
             self.rule = RuleSet.from_rule(data)
+        return res
+
+    def load_common_config(self) -> Dict[str, Any]:
+        """拉取服务端真实运行参数（GET common/getConfig）并写入 cfg。
+
+        服务端实测值（2026-10 拉取）：runFilterAccuracy=30（APK 默认 50）、
+        gpsFilterAccuracy=150、gpsAbnormalMaxTimes=3（默认 4）、
+        strideStatisticsInterval=200（默认 100）、poiInterval=15、
+        validDistance=25、sensitiveDistance=45、paceInterval=50、
+        paceAbnormalTime=120、captchaEnable=true、kyyShieldSwitch=true。
+        注意：响应里**没有** stepInterval，故步频段周期仍取 APK 默认 20 秒。
+        """
+        res = self.transport.post("common_config")
+        data = res.get("data")
+        if isinstance(data, dict) and data:
+            self.common = data
+            keep = dict(self.cfg.get("common", {}) or {})
+            keep.update(data)
+            self._cfg_set("common", keep)
+            if self.bus:
+                self.bus.emit("log", "服务端运行参数：精度过滤 "
+                              f"{data.get('runFilterAccuracy')}m、打卡半径 "
+                              f"{data.get('validDistance')}m、配速段 "
+                              f"{data.get('paceInterval')}m、"
+                              f"验证码 {'开' if data.get('captchaEnable') else '关'}")
         return res
 
     def load_sunrun_abstract(self, semester_code: str = "") -> Dict[str, Any]:

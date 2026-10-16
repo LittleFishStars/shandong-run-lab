@@ -157,6 +157,10 @@ class Walker:
         self.step_interval_s = STEP_INTERVAL_S    # CommonConfig.stepInterval（秒）
         self.pace_interval_m = PACE_INTERVAL_M    # CommonConfig.paceInterval（米）
         self.gps_white_flag = False               # D1()：GPS 白名单模式
+        # ── 阈值：默认取 APK 常量，运行时可由服务端 common/getConfig 覆盖 ──
+        self.run_filter_accuracy = RUN_FILTER_ACCURACY   # 服务端实测 30（APK 默认 50）
+        self.gps_filter_accuracy = GPS_FILTER_ACCURACY   # 服务端实测 150
+        self.max_speed_mps = MAX_SPEED_MPS               # 原版硬编码 10.438
         self.dropped_outside = 0                  # 因不在围栏内被整点丢弃的点数
         self._pace_seq = 0
         self._reset_chain()
@@ -476,21 +480,22 @@ class Walker:
                       ts: int) -> Optional[RunLatLng]:
         """照抄 DataComponent.H0()：点有效性闸门
 
-        白名单模式只看 GPS_FILTER_ACCURACY；常规模式看 RUN_FILTER_ACCURACY，
+        白名单模式只看 gps_filter_accuracy；常规模式看 run_filter_accuracy，
         再叠加「连续两点速度为负」「点间等效速度 > 10.438 m/s」两条瞬移判定。
+        三个阈值默认取 APK 常量，可由服务端 common/getConfig 覆盖。
         """
         if self.gps_white_flag:
-            if point.accuracy > GPS_FILTER_ACCURACY:
+            if point.accuracy > self.gps_filter_accuracy:
                 return None
         else:
-            if point.accuracy > RUN_FILTER_ACCURACY:
+            if point.accuracy > self.run_filter_accuracy:
                 return None
             if (point.speed < 0.0 and self._last_valid is not None
                     and self._last_valid.speed < 0.0):
                 return None
             if self._last_valid is not None:
                 dt = ts - self._last_valid.collect_time
-                if dt > 0 and (sub_distance * 1000.0) / dt > MAX_SPEED_MPS:
+                if dt > 0 and (sub_distance * 1000.0) / dt > self.max_speed_mps:
                     return None
         point.is_valid = True
         return point

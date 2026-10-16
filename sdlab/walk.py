@@ -112,6 +112,14 @@ class WalkSession:
         w = Walker(sim=sim, sample_s=sample_s)
         w.step_interval_s = step_interval_s
         w.pace_interval_m = pace_interval_m
+        # 服务端 common/getConfig 的真实阈值优先（实测 runFilterAccuracy=30）
+        common_cfg = self.cfg.get("common", {}) or {}
+        if common_cfg.get("runFilterAccuracy"):
+            w.run_filter_accuracy = float(common_cfg["runFilterAccuracy"])
+        if common_cfg.get("gpsFilterAccuracy"):
+            w.gps_filter_accuracy = float(common_cfg["gpsFilterAccuracy"])
+        if common_cfg.get("paceInterval"):
+            w.pace_interval_m = float(common_cfg["paceInterval"])
         w.set_polygon(polygon or [])
         if speed_mps:
             w.set_target_speed(float(speed_mps))
