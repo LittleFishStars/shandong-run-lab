@@ -109,17 +109,22 @@ class 报文构造测试(unittest.TestCase):
         self.assertNotIn("accuracy", 第一, "精度字段只留本地，不上报")
 
     def test_步频段字段与序号(self):
-        timeline = [(0, 0), (3000, 9), (6000, 18)]
-        # 最后一个时间戳只是区间终点，不单独成段：3 个时刻 → 2 段
+        # 原版按 stepInterval（默认 20 秒）切段：时间轴用相对毫秒，段的时间字段是跑步内秒
+        timeline = [(0, 0), (10000, 30), (20000, 60), (40000, 120)]
         steps = build_step_list(self.gen.build_steps(timeline, start_ms=self.t0))
+        # 20 秒一刀：t=20s 封第 1 段、t=40s 封第 2 段
         self.assertEqual(len(steps), 2)
         for i, s in enumerate(steps):
             self.assertEqual(s["index"], i)
-        self.assertEqual(steps[0]["startTime"], self.t0)
+        self.assertEqual(steps[0]["startTime"], 0)
+        self.assertEqual(steps[0]["endTime"], 20)
+        self.assertEqual(steps[0]["time"], 20)
+        self.assertEqual(steps[1]["startTime"], 20)
+        self.assertEqual(steps[1]["startStep"], steps[0]["endStep"])
         self.assertLessEqual(steps[0]["startStep"], steps[0]["endStep"])
 
     def test_步幅段由步频段推导(self):
-        timeline = [(0, 0), (3000, 9), (6000, 18)]
+        timeline = [(0, 0), (20000, 60), (40000, 120)]
         steps = self.gen.build_steps(timeline, start_ms=self.t0)
         strides = build_stride_list(steps, stride_m=0.85)
         self.assertEqual(len(strides), len(steps))

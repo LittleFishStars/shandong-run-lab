@@ -138,9 +138,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "walk": {
         "speed_mps": 2.5,        # 推满杆时的速度：正常慢跑 2.2~2.8，别再快了
         "speed": 1.0,            # 时间倍速固定 1（真实时间）；绝不继承 sim.speed 的 8 倍
-        "sample_s": 3.0,         # 轨迹采样间隔，与客户端 stepInterval 3000ms 对齐
-        "seg_step_s": 3.0,       # 步频段时长
-        "seg_pace_m": 1000.0,    # 配速段距离，与 paceInterval 1000m 对齐
+        "sample_s": 3.0,        # 定位回调间隔（原版 lj0.m(...,3000L,...)）
+        "step_interval_s": 20,  # CommonConfig.stepInterval（秒）：Q0() % 20 == 0 切步频段
+        "pace_interval_m": 50,  # CommonConfig.paceInterval（米）：超 50 米封一段配速
+        "poi_interval_s": 15,   # CommonConfig.poiInterval（秒）：轨迹点上报节流
     },
 }
 

@@ -96,13 +96,28 @@ INVALID_REASON_NAME = {
 # ══════════════════ 暂停类型（report/07 §4.6）══════════════════
 PAUSE_TYPES = ("AUTO", "REST", "FACE_RECOGNITION", "NFC_CHECK")
 
-# ══════════════════ 采集与判定参数 ══════════════════
-GPS_STALE_MS = 15_000     # LocationService 定位失效阈值
-DEFAULT_SAMPLE_S = 3.0    # 轨迹采样间隔（与客户端一致）
-DEFAULT_UPLOAD_BATCH = 50  # 轨迹分批上传粒度（与客户端一致）
+# ══════════════════ 采集与判定参数（CommonConfig 默认值，report/07 §4.5）══════════════════
+# 以下阈值与闪动校园 com.huachenjie.common.bean.CommonConfig 构造器默认值一致。
+# 服务端下发 commonConfig 时会覆盖这些值，运行时以接口返回为准。
+RUN_FILTER_ACCURACY = 50.0    # 常规模式精度上限（米），超出即丢弃该点
+GPS_FILTER_ACCURACY = 150.0   # GPS 白名单模式精度上限（米）
+MAX_SPEED_MPS = 10.438        # 点间等效速度上限（≈37.6 km/h），超出判为瞬移丢弃
+VALID_DISTANCE_M = 25.0       # 打卡点判定半径（米），DataComponent 用它可以算 20 点
+SENSITIVE_DISTANCE_M = 45.0   # 敏感点位半径（米）
+POI_INTERVAL_S = 15           # 轨迹点上传节流间隔（秒）
+STEP_INTERVAL_S = 20          # 步频分段时长（秒），Q0() % stepInterval == 0 时切段
+PACE_INTERVAL_M = 50          # 配速分段距离（米），超出即封口新起一段
+GPS_ABNORMAL_MAX_TIMES = 4    # GPS 异常容忍次数
+GPS_STALE_MS = 15_000         # LocationService 定位失效阈值
+DEFAULT_SAMPLE_S = 3.0        # 定位回调间隔（与客户端 lj0.m(...,3000L,...) 一致）
+DEFAULT_UPLOAD_BATCH = 200    # 轨迹分批上传粒度（原版按 200 个一组置状态）
+STRIDE_STATISTICS_M = 100     # 步幅统计间隔（米），DataComponent 每满这段就上报一次
+POI_UPLOAD_MIN_POINTS = 4     # 轨迹点上传门槛：原版 size<=3 直接 onCompleted
+SEGMENT_UPLOAD_MIN = 3        # 步频/配速段上传门槛：原版 size<3 不上传
 
-# 打卡点判定半径（米）：进入该半径内视为打卡成功
-CHECKPOINT_HIT_RADIUS_M = 12.0
+# 打卡点判定半径（米）：DataComponent 用 validDistance 判定 isInFence
+CHECKPOINT_HIT_RADIUS_M = VALID_DISTANCE_M
+
 
 # ══════════════════ 易盾风控常量（report/07）══════════════════
 HT_PROTECT_PRODUCT_ID = "YD00717730319426"
@@ -192,8 +207,8 @@ def finish_payload_skeleton() -> Dict[str, Any]:
         "duration": 0,
         "totalStep": 0,
         "sportType": SPORT_TYPE_SUN,
-        "stepInterval": 60,
-        "paceInterval": 1000,
+        "stepInterval": STEP_INTERVAL_S,
+        "paceInterval": PACE_INTERVAL_M,
         "alignType": 3,
         "status": 1,
         "runImgRecord": "",

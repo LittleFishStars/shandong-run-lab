@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import protocol
 from .constants import (
+    CHECKPOINT_HIT_RADIUS_M,
     CODE_OK,
     DEFAULT_SAMPLE_S,
     SPORT_TYPE_SUN,
@@ -183,11 +184,11 @@ class RunEngine:
                 pts.append({"index": i,
                             "lat": clat + (v[0] - clat) * 0.55,
                             "lng": clng + (v[1] - clng) * 0.55,
-                            "radius_m": 12.0})
+                            "radius_m": CHECKPOINT_HIT_RADIUS_M})
         else:
             lat, lng = c.fence_center()
             for i in range(n):
-                pts.append({"index": i, "lat": lat, "lng": lng, "radius_m": 12.0})
+                pts.append({"index": i, "lat": lat, "lng": lng, "radius_m": CHECKPOINT_HIT_RADIUS_M})
         return pts
 
     # ══════════════════ ② 开跑 ══════════════════
@@ -327,12 +328,14 @@ class RunEngine:
                        f"有效={vd.get('isValid')}")
         self._emit("simulated", "轨迹与步频已生成并入库", **summary)
         return summary
-
     def _stride_exceptions(self, steps: Sequence[IntervalStep], stride: float) -> int:
-        """按段统计步幅异常数（对齐客户端 segmentStrideExceptionNum 口径）"""
+        """按段统计步幅异常数（对齐客户端 segmentStrideExceptionNum 口径）
+
+        段的时间字段是秒，所以直接当秒用。
+        """
         bad = 0
         for s in steps:
-            secs = max(0.001, s.time / 1000.0)
+            secs = max(0.001, float(s.time))
             if secs <= 0:
                 continue
             derived = (s.step * stride) / secs          # 该段等效速度 m/s
@@ -366,7 +369,7 @@ class RunEngine:
                 continue
             best = min(pts, key=lambda p: haversine(p.lat, p.lng, cp["lat"], cp["lng"]))
             d = haversine(best.lat, best.lng, cp["lat"], cp["lng"])
-            if d <= float(cp.get("radius_m") or 12.0):
+            if d <= float(cp.get("radius_m") or CHECKPOINT_HIT_RADIUS_M):
                 self.store.mark_checkpoint_hit(run_code, int(cp["index"]),
                                                best.lat, best.lng, best.collect_time)
                 hits += 1

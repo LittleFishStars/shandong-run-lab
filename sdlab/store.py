@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from .constants import (
+    CHECKPOINT_HIT_RADIUS_M,
     SPORT_TYPE_SUN,
     STATE_FAIL,
     STATE_INIT,
@@ -65,9 +66,13 @@ CREATE TABLE IF NOT EXISTS points (
     accuracy     REAL DEFAULT 0,
     speed        REAL DEFAULT 0,
     satellites   INTEGER DEFAULT 0,
+    is_valid     INTEGER DEFAULT 1,      -- 过 H0 闸门才为 1；被拒点也落库但为 0
+    is_uploaded  INTEGER DEFAULT 0,
+    create_time  INTEGER DEFAULT 0,
     UNIQUE(run_code, idx)
 );
 CREATE INDEX IF NOT EXISTS idx_points_run ON points(run_code, state);
+CREATE INDEX IF NOT EXISTS idx_points_valid ON points(run_code, is_valid);
 
 CREATE TABLE IF NOT EXISTS steps (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,7 +111,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     idx          INTEGER NOT NULL,
     lat          REAL NOT NULL,
     lng          REAL NOT NULL,
-    radius_m     REAL DEFAULT 12.0,
+    radius_m     REAL DEFAULT 25.0,
     hit_ms       INTEGER DEFAULT 0,
     hit_lat      REAL DEFAULT 0,
     hit_lng      REAL DEFAULT 0,
@@ -165,6 +170,7 @@ class RecordStore:
         """
         con = sqlite3.connect(str(self.path), timeout=15.0)
         con.row_factory = sqlite3.Row
+        _ensure_columns(con)
         try:
             with con:                       # 事务边界
                 yield con
@@ -275,29 +281,37 @@ class RecordStore:
     def add_points(self, run_code: str, pts: Sequence[RunLatLng]) -> int:
         if not pts:
             return 0
+        now = int(time.time() * 1000)
         rows = [(run_code, p.lat_lng_index, p.lat, p.lng, p.run_time, p.collect_time,
-                 p.state, p.off_fence_dis_m, p.accuracy, p.speed, p.satellites)
+                 p.state, p.off_fence_dis_m, p.accuracy, p.speed, p.satellites,
+                 1 if p.is_valid else 0, 1 if p.is_uploaded else 0, now)
                 for p in pts]
         with self._lock, self._connect() as con:
             con.executemany(
                 """INSERT INTO points(run_code,idx,lat,lng,run_time,collect_time,state,
-                                      off_fence_dis_m,accuracy,speed,satellites)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                                      off_fence_dis_m,accuracy,speed,satellites,
+                                      is_valid,is_uploaded,create_time)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(run_code,idx) DO UPDATE SET
                      lat=excluded.lat, lng=excluded.lng, run_time=excluded.run_time,
                      collect_time=excluded.collect_time, state=excluded.state,
-                     off_fence_dis_m=excluded.off_fence_dis_m""", rows)
+                     off_fence_dis_m=excluded.off_fence_dis_m, accuracy=excluded.accuracy,
+                     speed=excluded.speed, satellites=excluded.satellites,
+                     is_valid=excluded.is_valid""", rows)
             con.commit()
         return len(rows)
 
     def get_points(self, run_code: str,
-                   states: Optional[Iterable[int]] = None) -> List[RunLatLng]:
+                   states: Optional[Iterable[int]] = None,
+                   valid_only: bool = False) -> List[RunLatLng]:
         sql = "SELECT * FROM points WHERE run_code=?"
         params: List[Any] = [run_code]
         if states is not None:
             state_list = list(states)
             sql += f" AND state IN ({','.join('?' * len(state_list))})"
             params.extend(state_list)
+        if valid_only:
+            sql += " AND is_valid=1"
         sql += " ORDER BY idx"
         with self._lock, self._connect() as con:
             rows = con.execute(sql, params).fetchall()
@@ -405,7 +419,7 @@ class RecordStore:
     def add_checkpoints(self, run_code: str, points: Sequence[Dict[str, Any]]) -> int:
         if not points:
             return 0
-        rows = [(run_code, i, float(p["lat"]), float(p["lng"]), float(p.get("radius_m", 12.0)))
+        rows = [(run_code, i, float(p["lat"]), float(p["lng"]), float(p.get("radius_m", CHECKPOINT_HIT_RADIUS_M)))
                 for i, p in enumerate(points)]
         with self._lock, self._connect() as con:
             con.executemany(
@@ -511,6 +525,30 @@ def _row_to_run(row: sqlite3.Row) -> Dict[str, Any]:
     return d
 
 
+def _try_col(row: sqlite3.Row, name: str, default: Any = 0) -> Any:
+    """读一行里可能不存在的列（旧库迁移期间兼容）"""
+    try:
+        return row[name]
+    except (IndexError, KeyError):
+        return default
+
+
+def _ensure_columns(con: sqlite3.Connection) -> None:
+    """轻量迁移：为旧库补上 points 的 is_valid / is_uploaded / create_time 列"""
+    try:
+        cols = {r[1] for r in con.execute("PRAGMA table_info(points)")}
+    except sqlite3.Error:
+        return
+    if not cols:
+        return
+    for name, ddl in (("is_valid", "INTEGER DEFAULT 1"),
+                      ("is_uploaded", "INTEGER DEFAULT 0"),
+                      ("create_time", "INTEGER DEFAULT 0")):
+        if name not in cols:
+            con.execute(f"ALTER TABLE points ADD COLUMN {name} {ddl}")
+    con.commit()
+
+
 def _row_to_point(row: sqlite3.Row, run_code: str) -> RunLatLng:
     return RunLatLng(
         lat=float(row["lat"]), lng=float(row["lng"]),
@@ -519,6 +557,7 @@ def _row_to_point(row: sqlite3.Row, run_code: str) -> RunLatLng:
         state=int(row["state"]), off_fence_dis_m=int(row["off_fence_dis_m"]),
         accuracy=float(row["accuracy"] or 0.0), speed=float(row["speed"] or 0.0),
         satellites=int(row["satellites"] or 0),
+        is_valid=bool(int(_try_col(row, "is_valid", 1))),
         is_uploaded=int(row["state"]) == STATE_SUCC,
         run_code=run_code,
     )

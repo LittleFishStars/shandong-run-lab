@@ -26,7 +26,9 @@ from .constants import (
     INVALID_PACE,
     INVALID_REASON_NAME,
     INVALID_STRIDE,
+    PACE_INTERVAL_M,
     SPORT_TYPE_SUN,
+    STEP_INTERVAL_S,
     STATE_FAIL,
     STATE_INIT,
     STATE_SUCC,
@@ -647,23 +649,25 @@ class TrackGenerator:
                     start_ms: Optional[int] = None) -> List[IntervalStep]:
         """把 (相对毫秒, 累计步数) 时间线切成固定时长段
 
-        客户端按 stepInterval 切段上传，这里保持同样的语义。
+        原版按 `Q0() % stepInterval == 0` 切（Q0() 是跑步内整秒），
+        所以段长恒为 STEP_INTERVAL_S 秒、起止时间也是「跑步内秒」。
         """
-        t0 = int(start_ms if start_ms is not None else time.time() * 1000)
         out: List[IntervalStep] = []
-        seg_ms = int(self.sample_s * 1000)
+        seg_ms = int(STEP_INTERVAL_S * 1000)
         buf_start_t, buf_start_s = None, 0
         for idx, (rel_ms, cum_step) in enumerate(step_timeline):
             if buf_start_t is None:
                 buf_start_t, buf_start_s = rel_ms, cum_step
             if rel_ms - buf_start_t >= seg_ms or idx == len(step_timeline) - 1:
+                t_start = int(buf_start_t // 1000)
+                t_end = int(rel_ms // 1000)
                 out.append(IntervalStep(
                     start_step=buf_start_s,
                     end_step=cum_step,
-                    start_time=t0 + buf_start_t,
-                    end_time=t0 + rel_ms,
+                    start_time=t_start,
+                    end_time=t_end,
                     step=max(0, cum_step - buf_start_s),
-                    time=max(1, rel_ms - buf_start_t),
+                    time=max(1, t_end - t_start),
                     step_index=len(out),
                 ))
                 buf_start_t, buf_start_s = rel_ms, cum_step
@@ -671,31 +675,36 @@ class TrackGenerator:
 
     # ── 配速段 ──
     def generate_paces(self, start_ms: Optional[int] = None) -> List[IntervalPace]:
-        """按 1000 米分段生成配速（paceInterval 默认 1000）"""
-        t0 = int(start_ms if start_ms is not None else time.time() * 1000)
+        """按 PACE_INTERVAL_M（原版 CommonConfig.paceInterval，默认 50 米）分段
+
+        对齐 ApiDataComponent.T()：`distance` 是段内距离（endDistance - startDistance），
+        时间字段是「跑步内秒」。
+        """
         per_km_s = self.seconds / (self.distance / 1000.0)
         out: List[IntervalPace] = []
-        cum_d, cum_s, cum_t = 0.0, 0, 0
+        cum_d, cum_s, cum_t = 0.0, 0, 0.0
         idx = 0
-        while cum_d < self.distance and idx < 200:
-            seg_d = min(1000.0, self.distance - cum_d)
+        while cum_d < self.distance and idx < 2000:
+            seg_d = min(float(PACE_INTERVAL_M), self.distance - cum_d)
             seg_s = per_km_s * (seg_d / 1000.0) * self.rng.uniform(0.98, 1.02)
             seg_step = int(round(seg_d / self.stride))
+            t_start = int(round(cum_t))
+            t_end = int(round(cum_t + seg_s))
             out.append(IntervalPace(
-                distance=int(round(cum_d + seg_d)),
+                distance=int(round(seg_d)),
                 start_distance=int(round(cum_d)),
                 end_distance=int(round(cum_d + seg_d)),
-                step_count=cum_s + seg_step,
+                step_count=seg_step,
                 start_step_count=cum_s,
                 end_step_count=cum_s + seg_step,
-                time=int(round(seg_s * 1000)),
-                start_time=t0 + cum_t,
-                end_time=t0 + cum_t + int(round(seg_s * 1000)),
+                time=max(1, t_end - t_start),
+                start_time=t_start,
+                end_time=t_end,
                 pace_index=idx,
             ))
             cum_d += seg_d
             cum_s += seg_step
-            cum_t += int(round(seg_s * 1000))
+            cum_t += seg_s
             idx += 1
         return out
 

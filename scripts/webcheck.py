@@ -256,6 +256,10 @@ def main() -> int:
         mid_detail = post_api(api_url, "run_detail", rc_walk) or {}
         n_pts = len(mid_detail.get("points") or [])
         check(n_pts >= 1, f"实跑中轨迹已实时写入本地库（{n_pts} 点）")
+        if int(mid.get("steps") or 0) < 1:
+            # 步频段每 20 秒切一刀（原版 CommonConfig.stepInterval）
+            time.sleep(20.0)
+            mid = post_api(api_url, "walk_status", -1) or {}
         check(int(mid.get("steps") or 0) >= 1,
               f"实跑中步频段已实时落库（{mid.get('steps')} 段）",
               json.dumps(mid.get("segments"), ensure_ascii=False))

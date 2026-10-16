@@ -250,7 +250,7 @@ def main() -> int:
         # 布局与「只规划不动」：先把路径画出来，不升跑。
         # 用户要求：加入摇杆便于自行控制路径 + 加入仅渲染路径点但不一键跑完的功能。
         print("\n[3.5] 只规划路径（不升跑、不落库）与摇杆干跑")
-        runs_before = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        runs_before = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         js(window, "document.querySelector('#btn-plan').click()")
         time.sleep(1.5)
         check("规划已画出路线（S.route 非空）",
@@ -258,7 +258,7 @@ def main() -> int:
               f"route={js(window, '((S.route)||[]).length')} 个点")
         check("规划未升跑（run_code 仍为空）",
               not str(js(window, "(S.walk && S.walk.run_code) || ''") or ''))
-        runs_now = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        runs_now = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         check("规划后本地记录条数不变（只画不写）", runs_now == runs_before,
               f"{runs_before} → {runs_now}")
 
@@ -283,7 +283,7 @@ def main() -> int:
         time.sleep(1.5)
         check("干跑已停止（按钮回到禁用）",
               js(window, "document.querySelector('#btn-walk-stop').disabled") is True)
-        runs_after = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        runs_after = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         check("干跑不落库（记录条数未变）", runs_after == runs_before,
               f"{runs_before} → {runs_after}")
 
@@ -299,8 +299,15 @@ def main() -> int:
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
         time.sleep(4.0)
         stored = int(js(window, "(S.walk && S.walk.stored) || 0") or 0)
-        seg_steps = int(js(window, "((S.walk && S.walk.segments) || {}).steps || 0") or 0)
         check("实跑中轨迹已实时写库", stored >= 1, f"已落库 {stored} 点")
+        # 步频段每 20 秒才切一刀（原版 CommonConfig.stepInterval），轮询等它出现
+        seg_steps = 0
+        seg_deadline = time.time() + 30.0
+        while time.time() < seg_deadline:
+            seg_steps = int(js(window, "((S.walk && S.walk.segments) || {}).steps || 0") or 0)
+            if seg_steps >= 1:
+                break
+            time.sleep(1.0)
         check("实跑中步频段已实时写库", seg_steps >= 1, f"已切 {seg_steps} 个步频段")
         # 沿规划路线自动走，等打卡点被刷到（地图上紫点转绿就是这条链路生效的直观证据）
         # 注意：必须先把杆松回去，否则手动方向会盖掉“沿路线自动巡航”
@@ -331,7 +338,7 @@ def main() -> int:
               int(js(window, "(S.walk && S.walk.steps) || 0") or 0) >= 1,
               f"已落库 {js(window, '(S.walk && S.walk.stored) || 0')} 点 / "
               f"{js(window, '(S.walk && S.walk.steps) || 0')} 个步频段")
-        runs_real = int(js(window, "document.querySelector('#runs').childElementCount") or 0)
+        runs_real = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         check("实跑确实多了一条本地记录（与干跑相反）", runs_real > runs_before,
               f"{runs_before} → {runs_real}")
         print(f"\n[4] 一键跑 {args.distance:.0f} 米（点界面按钮，开实时仿真）")

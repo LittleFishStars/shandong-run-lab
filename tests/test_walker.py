@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from sdlab import constants as C
 from sdlab.protocol import EARTH_M_PER_DEG_LAT
 from sdlab.store import RecordStore
 from sdlab.walk import WalkSession, build_walk_targets
@@ -56,8 +57,11 @@ class 摇杆推进测试(unittest.TestCase):
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
         走(w, 10.0)
-        self.assertAlmostEqual(w.dist_m, 20.0, places=3)
+        # 原版口径：dist_m 只按相邻有效采样点折线累加（DataComponent.W1），
+        # 3 秒采样一次 ⇒ 10 秒只有 3 个点、折线 12 米（首点距离为 0）。
+        self.assertAlmostEqual(w.dist_m, 12.0, places=3)
         self.assertAlmostEqual(w.move_sec, 10.0, places=3)
+        self.assertAlmostEqual(w.elapsed_sec, 10.0, places=3)
 
     def test_推杆幅度线性缩速度(self):
         a = Walker(sim=FuckRunSim(seed=1))
@@ -341,8 +345,9 @@ class 距离与状态测试(unittest.TestCase):
         w.set_joystick(1.0, 0.0, 1.0)
         走(w, 100.0)
         s = w.summary()
-        self.assertAlmostEqual(s["distance_m"], 250.0, places=1)
-        self.assertAlmostEqual(s["pace_s_per_km"], 400.0, places=0)
+        # 原版口径：dist_m 按有效点折线累加，实测 v=2.5、100 秒 ≈ 249 米
+        self.assertAlmostEqual(s["distance_m"], 249.0, delta=3.0)
+        self.assertAlmostEqual(s["pace_s_per_km"], 401.0, delta=8.0)
         self.assertGreater(s["total_step"], 0)
         self.assertGreater(s["stride_m"], 0)
 
@@ -514,8 +519,9 @@ class 会话落库测试(unittest.TestCase):
         s = WalkSession(cfg={}, store=self.store)
         s.start("dry", lat=LAT0, lng=LNG0, target_m=100.0, speed_mps=5.0, speed=1.0)
         s.joystick(1.0, 0.0, 1.0)
-        s.walker.tick(10.0)                 # 50 米
-        self.assertAlmostEqual(s.progress_percent(), 50, delta=2)
+        _推进(s, 10.0)                  # 原版口径：3 秒采样一次，10 秒只落 3 个点
+        # 首个采样点距离为 0，之后两段各 15 米 ⇒ 折线 30 米，进度 30%
+        self.assertAlmostEqual(s.progress_percent(), 30, delta=3)
         s.stop(emit=False)
 
 
@@ -612,7 +618,7 @@ class 实时打卡与分段测试(unittest.TestCase):
     # ── 分段 ─────────────────────────────────
     def test_实跑切出步频段并落库(self):
         s = self._会话("real", "REAL01")
-        _推进(s, 10.0)
+        _推进(s, 45.0)                    # 原版口径：20 秒一段，45 秒应切 2 段
         self.assertGreaterEqual(s.steps_total, 2)
         rows = self.store.get_steps("REAL01", only_pending=True)
         self.assertEqual(len(rows), s.steps_total)
@@ -621,48 +627,49 @@ class 实时打卡与分段测试(unittest.TestCase):
             self.assertGreaterEqual(seg.end_time, seg.start_time)
         s.stop(emit=False)
 
-    def test_步频段约三秒一段(self):
+    def test_步频段约二十秒一段(self):
         s = self._会话("real", "REAL01", speed_mps=3.0)
-        _推进(s, 12.0)
+        _推进(s, 45.0)
         s.stop(emit=False)
         rows = self.store.get_steps("REAL01", only_pending=True)
-        self.assertGreaterEqual(len(rows), 3)
-        # 每段 3 秒（尾段可能不足，不参与断言）
+        self.assertGreaterEqual(len(rows), 2)
+        # 每段 20 秒（原版 stepInterval，段的时间字段单位为秒；尾段可能不足不参与断言）
         for seg in rows[:-1]:
-            self.assertAlmostEqual(seg.time, 3000, delta=400)
-
+            self.assertEqual(seg.time, 20)
     def test_干跑分段不落库(self):
         s = self._会话("dry", "DRY01")
-        _推进(s, 10.0)
+        _推进(s, 25.0)                   # 原版口径：Q0()=20 秒时刻切第一段
         # 干跑照样切段（内存里能看到），但不能写进 steps/paces 表
         self.assertGreaterEqual(len(s._step_segments), 1)
+        # 原版口径：干跑也照切段（内存里能看到），但不写库；steps_total/paces_total
+        # 仅记「已落库」段数，所以干跑必须是 0
         self.assertEqual(s.steps_total, 0)
         self.assertEqual(s.paces_total, 0)
         self.assertEqual(self.store.get_steps("DRY01", only_pending=True), [])
         self.assertEqual(self.store.get_paces("DRY01", only_pending=True), [])
         s.stop(emit=False)
 
-
     def test_实跑切出配速段(self):
-        s = self._会话("real", "REAL01", speed_mps=20.0)
-        _推进(s, 55.0)                       # 1100 米 > 1000 米，至少切一段
+        s = self._会话("real", "REAL01", speed_mps=9.0)   # 低于 10.438 m/s 瞬移闸门
+        _推进(s, 30.0)                       # 9 m/s × 30 s ≈ 265 米，50 米一段应切多段
         self.assertGreaterEqual(s.paces_total, 1)
         rows = self.store.get_paces("REAL01", only_pending=True)
         self.assertGreaterEqual(len(rows), 1)
         self.assertGreater(rows[0].time, 0)
-        self.assertGreaterEqual(rows[0].end_distance, 1000)
+        self.assertGreaterEqual(rows[0].end_distance, 50)
         s.stop(emit=False)
 
     def test_配速段距离累计一致(self):
-        s = self._会话("real", "REAL01", speed_mps=20.0)
-        _推进(s, 110.0)                      # 2200 米，应切出两段以上
+        s = self._会话("real", "REAL01", speed_mps=9.0)
+        _推进(s, 40.0)                      # 9 m/s × 40 s ≈ 350 米，50 米一段应切多段
         s.stop(emit=False)
         rows = self.store.get_paces("REAL01", only_pending=True)
         self.assertGreaterEqual(len(rows), 2)
-        # 段与段首尾相接，且最后一段覆盖到总距离
+        # 段与段首尾相接；distance 是段内距离（原版 setEndDistance 联动 endDistance - startDistance）
         for a, b in zip(rows, rows[1:]):
             self.assertEqual(a.end_distance, b.start_distance)
-        self.assertAlmostEqual(rows[-1].end_distance, rows[-1].distance, delta=2)
+        last = rows[-1]
+        self.assertEqual(last.distance, last.end_distance - last.start_distance)
 
     def test_收尾补切尾段(self):
         s = self._会话("real", "REAL01")
@@ -687,7 +694,7 @@ class 实时打卡与分段测试(unittest.TestCase):
 
     def test_分段在增量拉点通道外不影响轨迹点(self):
         s = self._会话("real", "REAL01")
-        _推进(s, 10.0)
+        _推进(s, 45.0)
         d = s.points_since(0)
         self.assertEqual(len(d["points"]), s.status()["points"])
         # 分段走独立通道：段的首尾必须相接，不能因为切段而丢点或重复计点
@@ -737,8 +744,9 @@ class 目标装配测试(unittest.TestCase):
         self.assertEqual(out[0]["index"], 1)
 
     def test_默认半径补齐(self):
+        # 原版打卡用 CommonConfig.validDistance（默认 25 米）
         out = build_walk_targets([{"index": 0, "lat": 1.0, "lng": 2.0}])
-        self.assertEqual(out[0]["radius_m"], 12.0)
+        self.assertEqual(out[0]["radius_m"], C.CHECKPOINT_HIT_RADIUS_M)
 
     def test_打卡状态被重置(self):
         out = build_walk_targets([{"index": 0, "lat": 1.0, "lng": 2.0, "passed": 1}])
