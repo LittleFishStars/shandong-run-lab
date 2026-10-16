@@ -24,7 +24,7 @@ from .constants import (
     STATE_SUCC,
     STATE_UPLOADING,
 )
-from .protocol import IntervalPace, IntervalStep, RunLatLng
+from .protocol import IntervalPace, IntervalStep, RunLatLng, StrideSegment
 
 
 SCHEMA = """
@@ -101,6 +101,18 @@ CREATE TABLE IF NOT EXISTS paces (
     time_ms      INTEGER DEFAULT 0,
     start_time   INTEGER DEFAULT 0,
     end_time     INTEGER DEFAULT 0,
+    is_uploaded  INTEGER DEFAULT 0,
+    UNIQUE(run_code, idx)
+);
+
+CREATE TABLE IF NOT EXISTS strides (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_code     TEXT NOT NULL,
+    idx          INTEGER NOT NULL,
+    time_s       INTEGER DEFAULT 0,
+    stride_cm    REAL DEFAULT 0,
+    distance_m   INTEGER DEFAULT 0,
+    step_count   INTEGER DEFAULT 0,
     is_uploaded  INTEGER DEFAULT 0,
     UNIQUE(run_code, idx)
 );
@@ -415,6 +427,43 @@ class RecordStore:
             con.execute("UPDATE paces SET is_uploaded=1 WHERE run_code=?", (run_code,))
             con.commit()
 
+    # ── 步幅段（原版无表，本项目额外落库以便重放/导出）──
+    def add_strides(self, run_code: str, strides: Sequence["StrideSegment"]) -> int:
+        if not strides:
+            return 0
+        with self._lock, self._connect() as con:
+            for s in strides:
+                con.execute(
+                    "INSERT INTO strides(run_code, idx, time_s, stride_cm, distance_m,"
+                    " step_count, is_uploaded) VALUES(?,?,?,?,?,?,?)"
+                    " ON CONFLICT(run_code, idx) DO UPDATE SET time_s=excluded.time_s,"
+                    " stride_cm=excluded.stride_cm, distance_m=excluded.distance_m,"
+                    " step_count=excluded.step_count",
+                    (run_code, int(s.stride_index), int(s.time_s), float(s.stride_cm),
+                     int(s.distance_m), int(s.step_count), 1 if s.is_uploaded else 0))
+            con.commit()
+        return len(strides)
+
+    def get_strides(self, run_code: str,
+                    only_pending: bool = True) -> List["StrideSegment"]:
+        sql = "SELECT * FROM strides WHERE run_code=?"
+        if only_pending:
+            sql += " AND is_uploaded=0"
+        sql += " ORDER BY idx"
+        with self._lock, self._connect() as con:
+            rows = con.execute(sql, (run_code,)).fetchall()
+        return [StrideSegment.from_dict({
+            "index": r["idx"], "time": r["time_s"], "stride": r["stride_cm"],
+            "distance": r["distance_m"], "stepCount": r["step_count"],
+            "isUploaded": bool(r["is_uploaded"]),
+        }, run_code) for r in rows]
+
+    def mark_stride_uploaded(self, run_code: str, idx: int) -> None:
+        with self._lock, self._connect() as con:
+            con.execute("UPDATE strides SET is_uploaded=1 WHERE run_code=? AND idx=?",
+                        (run_code, int(idx)))
+            con.commit()
+
     # ══════════════════ 打卡点 ══════════════════
     def add_checkpoints(self, run_code: str, points: Sequence[Dict[str, Any]]) -> int:
         if not points:
@@ -455,6 +504,54 @@ class RecordStore:
                 "SELECT COUNT(*) total, SUM(passed) done FROM checkpoints WHERE run_code=?",
                 (run_code,)).fetchone()
         return int(row["done"] or 0), int(row["total"] or 0)
+
+    def checkpoint_targets(self, run_code: str) -> List[Dict[str, Any]]:
+        """构造结算/打卡用的 targetPoints
+
+        原版 `StartRunEntity.getTargetPoints()` 的字段与序列化名：
+            code(long) lat(double) lng(double) passStatus(bool)
+            clockTime(long) sort(int) nfcEnable(bool)
+        其余（pointName/simpleName/type/isClosingStatus/isInFence/
+        isSensitiveFenceAdded）都标了 @JSONField(serialize=false)，不上传。
+        """
+        out: List[Dict[str, Any]] = []
+        for i, c in enumerate(self.get_checkpoints(run_code)):
+            passed = int(c.get("passed") or 0) == 1
+            out.append({
+                "code": int(c.get("idx", i)),
+                "lat": round(float(c.get("hit_lat") or c.get("lat") or 0.0), 6),
+                "lng": round(float(c.get("hit_lng") or c.get("lng") or 0.0), 6),
+                "passStatus": bool(passed),
+                "clockTime": int(c.get("hit_ms") or 0),
+                "sort": int(c.get("idx", i)),
+                "nfcEnable": False,
+            })
+        return out
+
+    def invalid_reasons(self, run_code: str) -> List[Dict[str, Any]]:
+        """原版 t1() 的 invalidReasons: [{invalidType, invalidDetail}]
+
+        本地校验只给得出类型码（与 constants 的无效码表一致），细节留空。
+        """
+        run = self.get_run(run_code) or {}
+        valid = run.get("valid") or {}
+        codes = valid.get("invalidCodes") or valid.get("codes") or []
+        if isinstance(codes, int):
+            codes = [codes]
+        out: List[Dict[str, Any]] = []
+        for c in codes or []:
+            try:
+                out.append({"invalidType": int(c), "invalidDetail": ""})
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    def mark_strides_uploaded(self, run_code: str) -> int:
+        with self._lock, self._connect() as con:
+            cur = con.execute("UPDATE strides SET is_uploaded=1 WHERE run_code=?",
+                              (run_code,))
+            con.commit()
+            return int(cur.rowcount or 0)
 
     # ══════════════════ 上传 / 接口日志 ══════════════════
     def log_upload(self, run_code: str, endpoint: str, ok: bool, message: str = "",

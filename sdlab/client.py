@@ -14,6 +14,7 @@ GUI 与 CLI 都只跟这一层打交道。
 """
 from __future__ import annotations
 
+import math
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -382,12 +383,14 @@ class ShandongClient:
     # ══════════════════ 数据上传（断点续传） ══════════════════
     def upload_points(self, run_code: str, batch: int = DEFAULT_UPLOAD_BATCH,
                       only_pending: bool = True) -> Dict[str, Any]:
-        """★ 分批上传轨迹（唯一带 sign 的接口），按 indexList 标记状态
+        """上传轨迹（唯一带 sign 的接口），按 indexList 标记状态
 
-        照抄 ApiDataComponent.c0() 的两道门：
+        照抄 ApiDataComponent.c0() 的三道门（已对反编译逐行核实）：
           · 只取 state ∈ {1 INIT, 4 FAIL} 且 isValid=1 的点（被 H0 拒过的点不上传）
-          · 总数 <= 3 时整批不发（原版 size<=3 直接 onCompleted）
-        发送前把全部 id 按 batch（原版 200）一组置 UPLOADING，成功置 SUCC、
+          · 总数 <= 3 时整批不发（原版 listB.size() <= 3 → onCompleted）
+          · **整表一次 POST**（原版 onNext(listB) 把全部点一把给订阅者），
+            batch=200 只用于**状态回写**的分片（原版 subList(i, i+200)）
+        发送前把全部 id 置 UPLOADING，成功置 SUCC、
         失败置 FAIL —— 与原版 class a 的 Subscriber 回调一致。
         """
         states = [STATE_INIT, STATE_FAIL] if only_pending else None
@@ -398,47 +401,43 @@ class ShandongClient:
             return {"code": CODE_OK,
                     "message": f"待上传轨迹 {len(pts)} 点，不足 {POI_UPLOAD_MIN_POINTS} 点暂不发",
                     "data": {"uploaded": 0, "pending": len(pts)}}
-        total_ok = 0
-        batches = 0
-        for i in range(0, len(pts), batch):
-            chunk = pts[i:i + batch]
-            self.store.set_point_states(run_code, [p.lat_lng_index for p in chunk],
-                                        STATE_UPLOADING)
-            res = self.transport.post("upload_record", self.transport.base_payload({
-                "pois": protocol.build_upload_pois(chunk),
-                "runRecordCode": run_code,
-            }))
-            batches += 1
-            if res.get("code") == CODE_OK:
-                data = res.get("data") or {}
-                idx_list = data.get("indexList")
-                if isinstance(idx_list, list) and idx_list:
-                    # indexList 是**本批次内**的索引（与客户端一致）
-                    accepted = [chunk[j].lat_lng_index for j in idx_list if j < len(chunk)]
-                    accepted += [p.lat_lng_index for p in chunk]
-                else:
-                    accepted = [p.lat_lng_index for p in chunk]
-                self.store.set_point_states(run_code, sorted(set(accepted)), STATE_SUCC)
-                total_ok += len(chunk)
-                self.store.log_upload(run_code, "run/uploadRunRecord", True,
-                                      f"批次 {batches}：{len(chunk)} 点", {"count": len(chunk)}, res)
+        # 原版先把全部 id 置 UPLOADING（subList 每 200 一段），再整表一次 POST
+        all_ids = [p.lat_lng_index for p in pts]
+        for i in range(0, len(all_ids), batch):
+            self.store.set_point_states(run_code, all_ids[i:i + batch], STATE_UPLOADING)
+        res = self.transport.post("upload_record", self.transport.base_payload({
+            "pois": protocol.build_upload_pois(pts),
+            "runRecordCode": run_code,
+        }))
+        batches = math.ceil(len(pts) / max(1, batch))
+        if res.get("code") == CODE_OK:
+            data = res.get("data") or {}
+            idx_list = data.get("indexList")
+            if isinstance(idx_list, list) and idx_list:
+                # indexList 是本次请求内的下标（与客户端一致）
+                accepted = [pts[j].lat_lng_index for j in idx_list if j < len(pts)]
             else:
-                self.store.set_point_states(run_code, [p.lat_lng_index for p in chunk],
-                                            STATE_FAIL)
-                self.store.log_upload(run_code, "run/uploadRunRecord", False,
-                                      str(res.get("message")), {"count": len(chunk)}, res)
-                if self.bus:
-                    self.bus.emit("log", f"✗ 轨迹批次 {batches} 上传失败：{res.get('message')}",
-                                  level="error")
-                return {"code": res.get("code", -1), "message": res.get("message"),
-                        "data": {"uploaded": total_ok, "batches": batches}}
+                accepted = list(all_ids)
+            for i in range(0, len(accepted), batch):
+                self.store.set_point_states(run_code, sorted(set(accepted[i:i + batch])),
+                                            STATE_SUCC)
+            self.store.log_upload(run_code, "run/uploadRunRecord", True,
+                                  f"单请求 {len(pts)} 点", {"count": len(pts)}, res)
+        else:
+            for i in range(0, len(all_ids), batch):
+                self.store.set_point_states(run_code, all_ids[i:i + batch], STATE_FAIL)
+            self.store.log_upload(run_code, "run/uploadRunRecord", False,
+                                  str(res.get("message")), {"count": len(pts)}, res)
+            if self.bus:
+                self.bus.emit("log", f"✗ 轨迹上传失败：{res.get('message')}", level="error")
+            return {"code": res.get("code", -1), "message": res.get("message"),
+                    "data": {"uploaded": 0, "batches": 0}}
+        total_ok = len(pts)
         done = self.store.count_points(run_code, STATE_SUCC)
         if self.bus:
-            self.bus.emit("state", f"轨迹上传完成：{done}/{self.store.count_points(run_code)} 点"
-                                   f"（{batches} 批）")
+            self.bus.emit("state", f"轨迹上传完成：{done}/{self.store.count_points(run_code)} 点")
         return {"code": CODE_OK, "message": "成功",
                 "data": {"uploaded": total_ok, "batches": batches, "confirmed": done}}
-
     @staticmethod
     def _with_count(res: Dict[str, Any], uploaded: int, total: int) -> Dict[str, Any]:
         """给服务端响应补上本次实际上传条数（界面需要展示，服务端不返回）"""
@@ -497,31 +496,45 @@ class ShandongClient:
                               str(res.get("message")), None, res)
         return self._with_count(res, len(paces) if res.get("code") == CODE_OK else 0, len(paces))
 
-    def upload_strides(self, run_code: str, stride_m: float = 0.85,
+    def upload_strides(self, run_code: str,
                        interval_m: int = STRIDE_STATISTICS_M) -> Dict[str, Any]:
-        """上传步幅段：原版 strideInterval 取 CommonConfig.strideStatisticsInterval（100 米）"""
-        steps = self.store.get_steps(run_code, only_pending=False)
-        if not steps:
-            return {"code": CODE_OK, "message": "无步频段可推导步幅", "data": None}
-        res = self.transport.post("upload_stride", self.transport.base_payload({
-            "strideList": build_stride_list(steps, stride_m),
-            "strideInterval": interval_m,
-            "runRecordCode": run_code,
-        }))
-        self.store.log_upload(run_code, "run/uploadStrideRecord", res.get("code") == CODE_OK,
-                              str(res.get("message")), None, res)
-        return self._with_count(res, len(steps) if res.get("code") == CODE_OK else 0, len(steps))
+        """上传步幅段：照搬原版 DataComponent.E0() → uploadStrideRecord
 
+        原版**不是**从步频段反推步幅，而是每浨 strideStatisticsInterval 米
+        （服务端实测 200）就用 `S0() - lastSegmentStrideDistance` 与同步数
+        现算一段，然后 `strideList` 只装**一个**元素的数组、立即上传。
+        所以这里逐段发，每段成功就标 is_uploaded。
+        """
+        strides = self.store.get_strides(run_code, only_pending=True)
+        if not strides:
+            return {"code": CODE_OK, "message": "无待上传步幅", "data": None}
+        ok = 0
+        last: Dict[str, Any] = {"code": CODE_OK, "message": "成功"}
+        for s in strides:
+            res = self.transport.post("upload_stride", self.transport.base_payload({
+                "strideList": build_stride_list(s),
+                "strideInterval": interval_m,
+                "runRecordCode": run_code,
+            }))
+            last = res
+            good = res.get("code") == CODE_OK
+            self.store.log_upload(run_code, "run/uploadStrideRecord", good,
+                                  str(res.get("message")), build_stride_list(s), res)
+            if good:
+                self.store.mark_stride_uploaded(run_code, int(s.stride_index))
+                ok += 1
+            else:
+                break
+        return self._with_count(last, ok, len(strides))
     def upload_checkpoints(self, run_code: str, pts: Sequence[RunLatLng]) -> Dict[str, Any]:
-        """上传打卡点：把已通过的打卡点坐标提交"""
-        passed = [c for c in self.store.get_checkpoints(run_code) if int(c.get("passed") or 0) == 1]
-        if not passed:
+        """上传打卡点：原版 p0(targetPoints, runRecordCode) → run/uploadPassPoint
+
+        字段与结算里的 targetPoints 完全一致（code/lat/lng/passStatus/
+        clockTime/sort/nfcEnable），统一走 store.checkpoint_targets 构造。
+        """
+        targets = [t for t in self.store.checkpoint_targets(run_code) if t["passStatus"]]
+        if not targets:
             return {"code": CODE_OK, "message": "无已通过打卡点", "data": None}
-        targets = [{"index": i,
-                    "lat": round(float(c["hit_lat"] or c["lat"]), 6),
-                    "lng": round(float(c["hit_lng"] or c["lng"]), 6),
-                    "runTime": 0, "collectTime": int(c.get("hit_ms") or 0)}
-                   for i, c in enumerate(passed)]
         res = self.transport.post("upload_passpoint", self.transport.base_payload({
             "targetPoints": targets,
             "runRecordCode": run_code,
@@ -532,12 +545,13 @@ class ShandongClient:
 
     def finish_run(self, run_code: str, sport_type: int = SPORT_TYPE_SUN,
                    sun: bool = True) -> Dict[str, Any]:
-        """结算：聚合三类未上传数据一次性提交（客户端 finishSunRun_v2 语义）"""
+        """结算：完整照搬原版 DataComponent.t1()/StopRunUtils.q() 的报文
+
+        原版报文里**没有** pois / stepList / paceList / runImgRecord / timestamp：
+        轨迹走 run/uploadRunRecord、步频走 uploadStepsRecord、配速走
+        uploadPaceRecord，结算只交聚合摘要。
+        """
         run = self.store.get_run(run_code) or {}
-        pts_all = self.store.get_points(run_code, None, valid_only=True)
-        # 原版结算组装 J()：pois 取 state ∈ {1,4} **且 isValid=1** 的点
-        pending_pts = self.store.get_points(
-            run_code, [STATE_INIT, STATE_FAIL, STATE_UPLOADING], valid_only=True)
         pending_steps = self.store.get_steps(run_code, only_pending=True)
         pending_paces = self.store.get_paces(run_code, only_pending=True)
         done_cp, total_cp = self.store.checkpoints_progress(run_code)
@@ -546,31 +560,27 @@ class ShandongClient:
         distance = float(run.get("distance_m") or valid.get("distanceM") or 0)
         duration = int(run.get("duration_s") or valid.get("durationS") or 0)
         total_step = int(run.get("total_step") or valid.get("totalStep") or 0)
-        ts = str(self.transport.clock())
+        common_cfg = self.cfg.get("common", {}) or {}
+        align_type = int(common_cfg.get("amapGPSLevel") or 3)
+        is_valid = bool(run.get("status", 1 if valid.get("isValid", True) else 0))
 
         payload = self.transport.base_payload({
             "runRecordCode": run_code,
-            "distance": int(round(distance)),
-            "dis": int(round(distance)),                  # 双写，兼容不同版本
+            "distance": int(round(distance)),          # 原版 key 是 distance（x 常量）
             "duration": str(duration),
-            "totalStep": str(total_step),
-            "sportType": sport_type,
-            "status": int(run.get("status", 1 if valid.get("isValid", True) else 0)),
-            "stepInterval": STEP_INTERVAL_S,
-            "paceInterval": PACE_INTERVAL_M,
-            "alignType": 3,
-            "runImgRecord": crypto.run_img_record(run_code, ts),
-            "timestamp": ts,
-            "targetPoints": [{"index": i,
-                              "lat": round(float(c["lat"]), 6), "lng": round(float(c["lng"]), 6),
-                              "passed": int(c.get("passed") or 0)}
-                             for i, c in enumerate(self.store.get_checkpoints(run_code))],
-            "pois": tail_points(pts_all, 4),
+            "totalStep": str(max(0, total_step)),
+            "status": int(is_valid),
+            "stepInterval": int(common_cfg.get("stepInterval") or STEP_INTERVAL_S),
+            "paceInterval": int(common_cfg.get("paceInterval") or PACE_INTERVAL_M),
+            "targetPoints": self.store.checkpoint_targets(run_code),
+            "alignType": align_type,
             "pauseCount": 0,
             "pauseTimes": 0,
+            "sportType": sport_type,
         })
-        if pending_pts:
-            payload["pois"] = protocol.build_upload_pois(pending_pts)
+        reasons = self.store.invalid_reasons(run_code)
+        if reasons:
+            payload["invalidReasons"] = reasons
         if pending_steps:
             payload["stepList"] = build_step_list(pending_steps)
         if pending_paces:
@@ -585,9 +595,11 @@ class ShandongClient:
                 self.store.mark_steps_uploaded(run_code)
             if pending_paces:
                 self.store.mark_paces_uploaded(run_code)
-            if pending_pts:
-                self.store.set_point_states(run_code,
-                                            [p.lat_lng_index for p in pending_pts], STATE_SUCC)
+            self.store.mark_strides_uploaded(run_code)
+            # 原版结算成功后所有点置 SUCC（轨迹已由 uploadRunRecord 托底）
+            all_pts = self.store.get_points(run_code, None, valid_only=False)
+            self.store.set_point_states(
+                run_code, [p.lat_lng_index for p in all_pts], STATE_SUCC)
         self.store.log_upload(run_code, EP[endpoint].path if endpoint in EP else endpoint, ok,
                               str(res.get("message")),
                               {"checkpoints": f"{done_cp}/{total_cp}"}, res)

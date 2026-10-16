@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .constants import (CHECKPOINT_HIT_RADIUS_M, PACE_INTERVAL_M,
                         SPORT_TYPE_SUN, STATE_INIT, STEP_INTERVAL_S)
-from .protocol import (IntervalPace, IntervalStep, RunLatLng, evaluate_run)
+from .protocol import (IntervalPace, IntervalStep, RunLatLng, StrideSegment,
+                       evaluate_run)
 from .simulator import FuckRunSim
 from .store import RecordStore
 from .walker import (DEFAULT_SPEED_MPS, SAMPLE_INTERVAL_S, TICK_DEFAULT_S, Walker,
@@ -55,9 +56,11 @@ class WalkSession:
         self.hits_total = 0                  # 已命中打卡点数（内存口径，与库同步）
         self.steps_total = 0                 # 已落库的步频段数
         self.paces_total = 0                 # 已落库的配速段数
+        self.strides_total = 0               # 已落库的步幅段数
         self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
         self._step_segments: List[IntervalStep] = []     # 已从 Walker 取走的步频段
         self._pace_segments: List[IntervalPace] = []     # 已从 Walker 取走的配速段
+        self._stride_segments: List[StrideSegment] = []  # 已从 Walker 取走的步幅段
 
         self._lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
@@ -120,6 +123,9 @@ class WalkSession:
             w.gps_filter_accuracy = float(common_cfg["gpsFilterAccuracy"])
         if common_cfg.get("paceInterval"):
             w.pace_interval_m = float(common_cfg["paceInterval"])
+        # 服务端实测 strideStatisticsInterval=200（APK 默认 100）
+        if common_cfg.get("strideStatisticsInterval"):
+            w.stride_interval_m = float(common_cfg["strideStatisticsInterval"])
         w.set_polygon(polygon or [])
         if speed_mps:
             w.set_target_speed(float(speed_mps))
@@ -146,11 +152,14 @@ class WalkSession:
             self.hits_total = 0
             self.steps_total = 0
             self.paces_total = 0
+            self.strides_total = 0
             self.started_ms = int(start_ms or time.time() * 1000)
             # 段全部由 Walker 按原版口径切好（Q0() % stepInterval 切步频、
-            # 超 paceInterval 封配速），会话层只保留已取走段的镜像用于计数与结算
+            # 超 paceInterval 封配速、满 strideStatisticsInterval 封步幅），
+            # 会话层只保留已取走段的镜像用于计数与结算
             self._step_segments = []
             self._pace_segments = []
+            self._stride_segments = []
             # 倍速只认 walk.speed；传 0 表示“按配置”，而配置默认就是 1.0（真实时间）
             self.speed = max(0.1, float(speed if speed else self._wcfg("speed", 1.0) or 1.0))
             self.state = w.state()
@@ -311,8 +320,12 @@ class WalkSession:
         with self._lock:
             pts = self._points[int(since):]
             total = len(self._points)
-        out = [p.to_upload_dict(index=i + int(since))
-               for i, p in enumerate(pts[-int(limit):])] if pts else []
+        out = []
+        for i, p in enumerate(pts[-int(limit):]):
+            d = p.to_upload_dict()
+            # 界面按 index 画点，index 要跟本地真实序号一致（原版 index = Room 自增 id）
+            d["index"] = i + int(since)
+            out.append(d)
         return {"points": out, "total": total, "from": int(since)}
 
     def status(self, since: Optional[int] = None) -> Dict[str, Any]:
@@ -329,7 +342,10 @@ class WalkSession:
             "hits": self.hits_total,
             "steps": self.steps_total,
             "paces": self.paces_total,
-            "segments": {"steps": len(self._step_segments), "paces": len(self._pace_segments)},
+            "strides": self.strides_total,
+            "segments": {"steps": len(self._step_segments),
+                         "paces": len(self._pace_segments),
+                         "strides": len(self._stride_segments)},
             "elapsed": round(time.time() - self.started_at, 2) if self.started_at else 0.0,
             "error": self.error,
             "finished": self.finished_result,
@@ -420,6 +436,22 @@ class WalkSession:
                 self.paces_total = len(self._pace_segments)
         if self.mode == "real" and self.store and self.run_code:
             self.store.add_paces(self.run_code, fresh)
+
+        # 步幅段：原版 E0() 每次封段就立即上传，这里先落库（上传在 client 层）
+        strides = w.drain_stride_segments()
+        if strides:
+            with self._lock:
+                known = {int(x.stride_index): i for i, x in enumerate(self._stride_segments)}
+                for x in strides:
+                    i = known.get(int(x.stride_index))
+                    if i is None:
+                        known[int(x.stride_index)] = len(self._stride_segments)
+                        self._stride_segments.append(x)
+                    else:
+                        self._stride_segments[i] = x
+                self.strides_total = len(self._stride_segments)
+            if self.mode == "real" and self.store and self.run_code:
+                self.store.add_strides(self.run_code, strides)
 
     def _drain_tail_segments(self) -> None:
         """收尾补段：照抄原版结算组装 J()

@@ -773,8 +773,8 @@ async function pumpWalk() {
   const done = !r.running;
   const segs = r.segments || {};
   const stepLine = r.mode === 'real'
-    ? `　已落库 ${r.stored || 0} 点 / ${r.steps || 0} 个步频段 / ${r.paces || 0} 个配速段`
-    : `　（调试不落库；内存已切 ${segs.steps || 0} 个步频段）`;
+    ? `　已落库 ${r.stored || 0} 点 / ${r.steps || 0} 个步频段 / ${r.paces || 0} 个配速段 / ${r.strides || 0} 个步幅段`
+    : `　（调试不落库；内存已切 ${segs.steps || 0} 个步频段 / ${segs.strides || 0} 个步幅段）`;
   $('walk-info').textContent = `${r.mode === 'real' ? '实跑' : '干跑'} `
     + `${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 / `
     + `速度 ${st.speed_mps ? Number(st.speed_mps).toFixed(2) : '0.00'} m/s / `

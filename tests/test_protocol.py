@@ -106,7 +106,12 @@ class 报文构造测试(unittest.TestCase):
         第一 = pois[0]
         for 字段 in ("index", "lat", "lng", "runTime", "collectTime", "state"):
             self.assertIn(字段, 第一)
-        self.assertNotIn("accuracy", 第一, "精度字段只留本地，不上报")
+        # 原版 RunLatLng 的 fastjson 序列化：accuracy/satellites/createTime 都是默认序列化的
+        for 字段 in ("accuracy", "satellites", "createTime", "offFenceDisM"):
+            self.assertIn(字段, 第一)
+        # 带 @JSONField(serialize=false) 的才不上传
+        for 字段 in ("speed", "isValid", "isUploaded", "runCode"):
+            self.assertNotIn(字段, 第一)
 
     def test_步频段字段与序号(self):
         # 原版按 stepInterval（默认 20 秒）切段：时间轴用相对毫秒，段的时间字段是跑步内秒
@@ -123,11 +128,20 @@ class 报文构造测试(unittest.TestCase):
         self.assertEqual(steps[1]["startStep"], steps[0]["endStep"])
         self.assertLessEqual(steps[0]["startStep"], steps[0]["endStep"])
 
-    def test_步幅段由步频段推导(self):
+    def test_步幅段按米数切且每次只发一段(self):
+        from sdlab.protocol import build_stride_entry
         timeline = [(0, 0), (20000, 60), (40000, 120)]
-        steps = self.gen.build_steps(timeline, start_ms=self.t0)
-        strides = build_stride_list(steps, stride_m=0.85)
-        self.assertEqual(len(strides), len(steps))
+        strides = self.gen.build_strides(timeline, interval_m=100)
+        self.assertGreater(len(strides), 0, "至少切出一段步幅")
+        # 每段都是整数米间距
+        for s in strides:
+            self.assertEqual(s.distance_m, 100)
+            self.assertGreater(s.step_count, 0)
+        # strideList 恒为单元素数组（原版 ArrayList(1)）
+        self.assertEqual(len(build_stride_list(strides[0])), 1)
+        entry = build_stride_entry(strides[0])
+        for 字段 in ("time", "stride", "distance", "stepCount", "index"):
+            self.assertIn(字段, entry)
 
     def test_配速段覆盖全程(self):
         paces = self.gen.generate_paces(start_ms=self.t0)
@@ -145,10 +159,15 @@ class 报文构造测试(unittest.TestCase):
     def test_默认打卡点按四分位取(self):
         目标 = build_target_points(self.pts)
         self.assertEqual(len(目标), 3)
-        self.assertEqual([p["index"] for p in 目标], [0, 1, 2])
-        序号 = [int(p["runTime"]) // 3000 for p in 目标]
-        self.assertEqual(序号, sorted(序号))
-        self.assertTrue(all(0 <= i < len(self.pts) for i in 序号))
+        # 字段名照搬原版 TargetPoints 的 fastjson 序列化
+        for p in 目标:
+            for 字段 in ("code", "lat", "lng", "passStatus", "clockTime", "sort", "nfcEnable"):
+                self.assertIn(字段, p)
+            self.assertNotIn("index", p, "原版字段名是 code/sort，不是 index")
+        self.assertEqual([p["sort"] for p in 目标], [0, 1, 2])
+        时间 = [int(p["clockTime"]) for p in 目标]
+        self.assertEqual(时间, sorted(时间))
+        self.assertTrue(all(p["passStatus"] in (True, False) for p in 目标))
 
 
 class 有效性判定测试(unittest.TestCase):

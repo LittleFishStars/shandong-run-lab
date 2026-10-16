@@ -181,7 +181,7 @@ class 记录层测试(unittest.TestCase):
         self.store.add_points("RUN070", [造点(0)])
         p = self.store.get_points("RUN070")[0]
         self.assertAlmostEqual(p.lat, 36.6615, places=7)
-        self.assertTrue(json.dumps(p.to_upload_dict(0), ensure_ascii=False))
+        self.assertTrue(json.dumps(p.to_upload_dict(), ensure_ascii=False))
 
 
 if __name__ == "__main__":

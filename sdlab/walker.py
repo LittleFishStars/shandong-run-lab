@@ -40,6 +40,7 @@ from .constants import (
     RUN_FILTER_ACCURACY,
     STATE_INIT,
     STEP_INTERVAL_S,
+    STRIDE_STATISTICS_M,
 )
 from .protocol import (
     EARTH_M_PER_DEG_LAT,
@@ -48,6 +49,7 @@ from .protocol import (
     RunLatLng,
     distance_to_polygon_edge,
     haversine,
+    StrideSegment,
     point_in_polygon,
 )
 from .simulator import FuckRunSim
@@ -156,6 +158,7 @@ class Walker:
         self.run_code = ""
         self.step_interval_s = STEP_INTERVAL_S    # CommonConfig.stepInterval（秒）
         self.pace_interval_m = PACE_INTERVAL_M    # CommonConfig.paceInterval（米）
+        self.stride_interval_m = STRIDE_STATISTICS_M  # strideStatisticsInterval（服务端实测 200）
         self.gps_white_flag = False               # D1()：GPS 白名单模式
         # ── 阈值：默认取 APK 常量，运行时可由服务端 common/getConfig 覆盖 ──
         self.run_filter_accuracy = RUN_FILTER_ACCURACY   # 服务端实测 30（APK 默认 50）
@@ -191,6 +194,15 @@ class Walker:
         self._step_dirty: List[int] = []                 # 自上次取走后变化的段序号
         self._pace_dirty: List[int] = []
         self.step_upload_due = False                     # 每 60 秒的步频上传节拍
+        # ── 步幅段（原版 DataComponent.E0() 的 lastSegment* 四个基准）──
+        self._stride_out: Dict[int, StrideSegment] = {}
+        self._stride_seq = 0
+        self._stride_dirty: List[int] = []
+        self._last_stride_distance = 0.0                 # runData.lastSegmentStrideDistance
+        self._last_stride_step = 0                       # runData.lastSegmentStep
+        self._last_stride_time_ms = 0                    # runData.lastSegmentStepTime
+        self._last_stride_index = 0                      # runData.lastSegmentStepIndex
+        self._stride_exception_num = 0                   # runData.lastSegmentStepExceptionNum
         self._km_marks: List[int] = []
         self._last_km = 0
 
@@ -454,6 +466,9 @@ class Walker:
         self._last_sample_steps = int(self.total_steps)
         self._poi_index += 1
 
+        # 原版 E0(callBack)：每满 strideStatisticsInterval 米封一段步幅
+        self._maybe_stride_segment(ts)
+
         # 原版 y2(S0()) → X1(distance)：5 万米以内持续推进配速段
         if self.dist_m < 50000:
             self._pace_update(self._clock_sec, int(self.dist_m), int(self.total_steps))
@@ -607,6 +622,64 @@ class Walker:
         if km > self._last_km and km <= 10:
             self._km_marks.append(km)
             self._last_km = km
+
+    def _maybe_stride_segment(self, now_ms: int) -> Optional[StrideSegment]:
+        """原版 DataComponent.E0(callBack) 逐行
+
+        · 基准为 0 时只立基准不发（原版 `return`）
+        · `S0() - lastSegmentStrideDistance >= strideStatisticsInterval` 才封段
+        · 段内步数 <= 0 不算也不发，但基准照样前移
+        · stride = floor((段距离 * 100.0 / 段步数) * 10) / 10 —— 厘米，1 位小数
+        · R1 回调里的步幅异常：段距离 >= 200 且段步幅 > 全局平均步幅 → 计数 +1
+        """
+        if self._last_stride_time_ms <= 0:
+            # 原版：lastSegmentStrideDistance == 0 时只立基准
+            self._last_stride_distance = self.dist_m
+            self._last_stride_step = int(self.total_steps)
+            self._last_stride_time_ms = int(now_ms)
+            return None
+
+        if self.dist_m - self._last_stride_distance < float(self.stride_interval_m):
+            return None
+
+        seg_dist = self.dist_m - self._last_stride_distance
+        seg_steps = int(self.total_steps) - self._last_stride_step
+        seg_sec = max(0.0, (int(now_ms) - self._last_stride_time_ms) / 1000.0)
+        seg: Optional[StrideSegment] = None
+        if seg_steps > 0:
+            stride_cm = math.floor((seg_dist * 100.0 / seg_steps) * 10.0) / 10.0
+            seg = StrideSegment(
+                stride_index=self._last_stride_index,
+                time_s=int(seg_sec),
+                stride_cm=float(stride_cm),
+                distance_m=int(seg_dist),
+                step_count=int(seg_steps),
+                run_code=self.run_code,
+            )
+            self._stride_seq = max(self._stride_seq, self._last_stride_index)
+            self._stride_out[self._last_stride_index] = seg
+            self._stride_dirty.append(self._last_stride_index)
+            # R1：段距离 >= 200 且段步幅超过全局平均 → 步幅异常计数
+            avg_cm = (self.dist_m * 100.0 / self.total_steps) if self.total_steps else 0.0
+            if seg_dist >= 200 and stride_cm > avg_cm:
+                self._stride_exception_num += 1
+
+        self._last_stride_index += 1
+        self._last_stride_distance = self.dist_m
+        self._last_stride_step = int(self.total_steps)
+        self._last_stride_time_ms = int(now_ms)
+        return seg
+
+    def drain_stride_segments(self) -> List[StrideSegment]:
+        seen: Dict[int, StrideSegment] = {}
+        for i in self._stride_dirty:
+            if i in self._stride_out:
+                seen[i] = self._stride_out[i]
+        self._stride_dirty = []
+        return [seen[k] for k in sorted(seen)]
+
+    def stride_segments(self) -> List[StrideSegment]:
+        return [self._stride_out[k] for k in sorted(self._stride_out)]
 
     def drain_step_segments(self) -> List[IntervalStep]:
         """取走自上次以来变动的步频段（按 index 去重，保留最后状态）"""

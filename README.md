@@ -20,9 +20,9 @@
 | 登录 | `loginCheck` → 滑块验证码（内置不依赖 OpenCV 的缺口求解）→ `loginPassword`；会话与 deviceId 持久化 |
 | 备跑 | 拉学期、围栏列表（多边形）、阳光跑规则（配速/距离/打卡/步幅阈值）、跑量计划，解析成规则对象 |
 | 开跑 | 九参数开跑报文，写入本地 SQLite（记录号、打卡点、围栏） |
-| 记录 | 轨迹点（3 秒一采）、分段步数（3 秒一段）、分段配速、步幅、打卡点命中，全部落库 |
-| 上传 | `uploadRunRecord`（★唯一需要签名的接口，分批 50 点）→ 分段步数/配速/步幅 → 打卡点 |
-| 结算 | 一次性提交 `pois + stepList + paceList + runRecordCode`，服务端回 `status / invalidReasons` |
+| 记录 | 轨迹点（3 秒一采）、步频段（20 秒一段）、配速段（50 米一段）、步幅段（100/200 米一段）、打卡点命中，全部落库 |
+| 上传 | `uploadRunRecord`（★唯一需签名的接口：整表一次 POST，`state∈{1,4} 且 isValid=1`，总数 ≤ 3 不发）→ 步频段（20 秒一段）/配速段（50 米一段）/步幅段（`strideStatisticsInterval` 米一段，每次只发 1 段）→ 打卡点 |
+| 结算 | 完全照搬原版 `DataComponent.t1()` 的 Map：`runRecordCode / duration / distance / totalStep / status / stepInterval / paceInterval / targetPoints / alignType / pauseCount / pauseTimes / sportType`（非空时加 `invalidReasons`）；**不含** pois/stepList/paceList |
 | 调试 | Mock 服务端（可注入延迟与随机失败率）、传感器仿真器（步频/抖动/丢包/暂停）、实时仿真（逐点推进，可在界面上看轨迹长出来）、事件流面板、本地记录浏览、JSON/GPX 导出 |
 | 地图 | Leaflet 真实底图（高德路网/卫星、OSM、或关闭底图），围栏、打卡点、轨迹、规划路线矢量叠加；UI 自动验证布局与几何 |
 | 手控 | **摇杆实走**（拖动摇杆 / 方向键逐帧推进位置与传感器；推满杆默认 2.5 m/s，可调）；**只规划不动**（按打卡点最近邻连成闭环、或地图上点选路点，只画出来不升跑）；**实跑边跑边落库**（完全按原 App 记录链路：定位回调 3 秒一条、精度/速度过滤、有效点折线累距、步频段 20 秒一段、配速段 50 米一段、打卡半径 25 米），干跑/实跑结束后可一键上传结算 |
@@ -170,8 +170,18 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 | 数据目录（SQLite / 导出） | `~/.local/share/shandong-run-lab/` （记录库 `records.db`） |
 | 环境变量覆盖 | `SDLAB_HOME=/some/dir` 或 `--data-dir`（沙箱/便携场景用） |
 
-数据库表：`runs`（记录头）、`points`（轨迹点）、`steps` / `paces`（分段）、`checkpoints`（打卡点）、
+数据库表：`runs`（记录头）、`points`（轨迹点，带 `is_valid/is_uploaded/state`）、`steps`（步频段）、`paces`（配速段）、`strides`（步幅段）、`checkpoints`（打卡点）、
 `upload_log` / `api_log`（上传与接口日志）、`kv`（会话与配置缓存）。WAL 模式，短连接，线程安全。
+
+### 四个上传接口与原版的一一对应
+
+| 接口 | 原版方法 | 取数条件 | 发送门限 |
+| --- | --- | --- | --- |
+| `run/uploadRunRecord` | `ApiDataComponent.c0()` | `state ∈ {1,4}` **且** `isValid=1` | `size <= 3` 不发；**整表一次 POST**（200 只是状态回写分片） |
+| `run/uploadStepsRecord` | `d0()` | `is_uploaded=0`（**不过滤 isValid**） | `size >= 3` 才发 |
+| `run/uploadPaceRecord` | `b0()` | `is_uploaded=0` 且 `isValid=1` | `size < 3` 不发 |
+| `run/uploadStrideRecord` | `n0()` | 每段即时发（`E0()` 每满 `strideStatisticsInterval` 米封一段） | 无门限，`strideList` **恒为单元素数组** |
+| `run/uploadPassPoint` | `p0()` | 打卡点 | 无已通过点时跳过 |
 
 ---
 

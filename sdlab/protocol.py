@@ -31,6 +31,7 @@ from .constants import (
     STEP_INTERVAL_S,
     STATE_FAIL,
     STATE_INIT,
+    STRIDE_STATISTICS_M,
     STATE_SUCC,
     STATE_UPLOADING,
 )
@@ -118,24 +119,31 @@ class RunLatLng:
     collect_time: int = 0             # @JSONField("collectTime") 采集绝对 ms
     state: int = STATE_INIT           # @JSONField("state")
     off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+    create_time: int = 0              # 建表时 System.currentTimeMillis()（会上传）
+
+    # 会上传的物理量（原版无 serialize=false）
+    accuracy: float = 6.0
+    satellites: int = 10
 
     # 仅本地（serialize=false）
-    accuracy: float = 6.0
     speed: float = 0.0
-    satellites: int = 10
     is_valid: bool = True
     is_uploaded: bool = False
     run_code: str = ""
 
-    def to_upload_dict(self, index: Optional[int] = None) -> Dict[str, Any]:
+
+    def to_upload_dict(self) -> Dict[str, Any]:
         return {
-            "index": index if index is not None else self.lat_lng_index,
+            "index": self.lat_lng_index,
             "lat": round(self.lat, 6),
             "lng": round(self.lng, 6),
             "runTime": self.run_time,
             "collectTime": self.collect_time,
+            "createTime": self.create_time,
             "state": self.state,
             "offFenceDisM": self.off_fence_dis_m,
+            "accuracy": round(self.accuracy, 2),
+            "satellites": self.satellites,
         }
 
     @classmethod
@@ -148,6 +156,7 @@ class RunLatLng:
             collect_time=int(d.get("collectTime", 0)),
             state=int(d.get("state", STATE_INIT)),
             off_fence_dis_m=int(d.get("offFenceDisM", 0)),
+            create_time=int(d.get("createTime", 0)),
             accuracy=float(d.get("accuracy", 6.0)),
             speed=float(d.get("speed", 0.0)),
             satellites=int(d.get("satellites", 10)),
@@ -252,9 +261,38 @@ class IntervalPace:
         )
 
 
+# ══════════════════ 步幅段（原版是内存态，不是 Room 表）══════════════════
+@dataclass
+class StrideSegment:
+    """对应原版 DataComponent.E0() 里现构的那个 HashMap
+
+    原版不在本地建表：每跑满 strideStatisticsInterval 米就现算一段、立即上传。
+    但 stride 段的 is_uploaded 在 Room 里没有对应列，所以原版实际上靠
+    `lastSegmentStrideDistance` 基准推进——本项目落库只是为了能重放与导出。
+    """
+
+    stride_index: int = 0
+    time_s: int = 0                # 段内耗时（秒，基点是上次切分的墙钟）
+    stride_cm: float = 0.0         # 步幅（厘米，1 位小数）
+    distance_m: int = 0            # 段内距离（米）
+    step_count: int = 0            # 段内步数
+    run_code: str = ""
+    is_uploaded: bool = False
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any], run_code: str = "") -> "StrideSegment":
+        return cls(
+            stride_index=int(d.get("index", 0)),
+            time_s=int(d.get("time", 0)),
+            stride_cm=float(d.get("stride", 0.0)),
+            distance_m=int(d.get("distance", 0)),
+            step_count=int(d.get("stepCount", 0)),
+            run_code=d.get("runCode", run_code),
+            is_uploaded=bool(d.get("isUploaded", False)),
+        )
 # ══════════════════ 上传报文构造 ══════════════════
 def build_upload_pois(pts: Sequence[RunLatLng]) -> List[Dict[str, Any]]:
-    return [p.to_upload_dict(i) for i, p in enumerate(pts)]
+    return [p.to_upload_dict() for p in pts]
 
 
 def build_pace_list(paces: Sequence[IntervalPace]) -> List[Dict[str, Any]]:
@@ -265,22 +303,39 @@ def build_step_list(steps: Sequence[IntervalStep]) -> List[Dict[str, Any]]:
     return [s.to_upload_dict(i) for i, s in enumerate(steps)]
 
 
-def build_stride_list(steps: Sequence[IntervalStep], stride_m: float = 0.85) -> List[Dict[str, Any]]:
-    """由步频段推导步幅段（stride 以厘米整数上传）"""
-    return [
-        {"index": i, "startStep": s.start_step, "endStep": s.end_step,
-         "startTime": s.start_time, "endTime": s.end_time,
-         "stride": int(round(stride_m * 100))}
-        for i, s in enumerate(steps)
-    ]
+def build_stride_entry(stride) -> Dict[str, Any]:
+    """原版 DataComponent.E0() 的 stride map（键名与类型照抄）
+
+    stride 以**厘米**计、保留 1 位小数：
+      stride = floor((段距离 * 100.0 / 段步数) * 10) / 10
+    """
+    return {
+        "time": int(stride.time_s),
+        "stride": round(float(stride.stride_cm), 1),
+        "distance": int(stride.distance_m),
+        "stepCount": int(stride.step_count),
+        "index": int(stride.stride_index),
+    }
+
+
+def build_stride_list(stride) -> List[Dict[str, Any]]:
+    """★ strideList 是**只含一个元素**的数组
+
+    原版 km7.l() 里 `ArrayList arrayList = new ArrayList(1); arrayList.add(strideMap);`
+    每次只上传刚封口的那一段，不是批量。
+    """
+    return [build_stride_entry(stride)]
 
 
 def build_target_points(pts: Sequence[RunLatLng],
                         checkpoint_indices: Optional[Sequence[int]] = None
                         ) -> List[Dict[str, Any]]:
-    """构造打卡点（uploadPassPoint 的 targetPoints）
+    """构造打卡点（uploadPassPoint / 结算的 targetPoints）
 
-    未显式给出索引时按 25% / 50% / 75% 三处取点，与客户端默认目标数一致。
+    ★ 字段名、类型均照搬原版 TargetPoints 的 fastjson 序列化结果：
+      code(long) lat(double) lng(double) passStatus(bool) clockTime(long) sort(int) nfcEnable(bool)
+    其余（pointName/simpleName/type/isClosingStatus/isInFence/isSensitiveFenceAdded）
+    都标了 @JSONField(serialize=false)，不上传。
     """
     if checkpoint_indices is None:
         n = len(pts)
@@ -289,16 +344,19 @@ def build_target_points(pts: Sequence[RunLatLng],
     for i, idx in enumerate(checkpoint_indices):
         if 0 <= idx < len(pts):
             p = pts[idx]
-            out.append({"index": i, "lat": round(p.lat, 6), "lng": round(p.lng, 6),
-                        "runTime": p.run_time, "collectTime": p.collect_time})
+            out.append({"code": i, "lat": round(p.lat, 6), "lng": round(p.lng, 6),
+                        "passStatus": bool(p.is_valid), "clockTime": p.collect_time,
+                        "sort": i, "nfcEnable": False})
     return out
 
 
 def tail_points(pts: Sequence[RunLatLng], k: int = 4) -> List[Dict[str, Any]]:
-    """结算报文里的 pois（客户端取最后 4 个点）"""
-    tail = list(pts)[-k:]
-    base = len(pts) - len(tail)
-    return [p.to_upload_dict(base + i) for i, p in enumerate(tail)]
+    """最后 4 个点
+
+    ★ 注意：原版结算报文 t1() 里**没有 pois**——pois 只出现在 uploadRunRecord。
+    这个函数保留给轨迹接口与导出用。
+    """
+    return [p.to_upload_dict() for p in list(pts)[-k:]]
 
 
 # ══════════════════ 本地有效性判定 ══════════════════
@@ -672,6 +730,56 @@ class TrackGenerator:
                 ))
                 buf_start_t, buf_start_s = rel_ms, cum_step
         return out
+
+    # ── 步幅段 ──
+    def build_strides(self, step_timeline: Sequence[Tuple[int, int]],
+                      interval_m: int = STRIDE_STATISTICS_M) -> List[StrideSegment]:
+        """每跑满 strideStatisticsInterval 米封一段步幅（原版 DataComponent.E0()）
+
+        与服务端实测一致：strideStatisticsInterval 默认 100，实测 200。
+        · 段距离 = 本段末累计距离 - 上段末累计距离
+        · 段步数 = 本段末累计步数 - 上段末累计步数（由时间线插值）
+        · stride = floor((段距离 * 100.0 / 段步数) * 10) / 10（厘米，1 位小数）
+        """
+        out: List[StrideSegment] = []
+        total_m = float(self.distance)
+        if total_m <= 0 or not step_timeline:
+            return out
+        span_ms = max(1, int(step_timeline[-1][0]))
+        last_dist, last_step, last_ms = 0.0, 0, 0
+        idx = 0
+        while total_m - last_dist >= interval_m and idx < 500:
+            cur_dist = last_dist + float(interval_m)
+            fraction = min(1.0, cur_dist / total_m)
+            cur_ms = int(round(span_ms * fraction))
+            cur_step = self._steps_at(step_timeline, cur_ms)
+            seg_dist = cur_dist - last_dist
+            seg_steps = cur_step - last_step
+            if seg_steps > 0:
+                stride_cm = math.floor((seg_dist * 100.0 / seg_steps) * 10.0) / 10.0
+                out.append(StrideSegment(
+                    stride_index=idx,
+                    time_s=max(0, int(round((cur_ms - last_ms) / 1000.0))),
+                    stride_cm=float(stride_cm),
+                    distance_m=int(round(seg_dist)),
+                    step_count=int(seg_steps),
+                ))
+            last_dist, last_step, last_ms = cur_dist, cur_step, cur_ms
+            idx += 1
+        return out
+
+    @staticmethod
+    def _steps_at(timeline: Sequence[Tuple[int, int]], t_ms: int) -> int:
+        """在 (相对毫秒, 累计步数) 时间线上线性插值"""
+        prev_t, prev_s = timeline[0]
+        for t, s in timeline:
+            if t >= t_ms:
+                if t == prev_t:
+                    return int(s)
+                ratio = (t_ms - prev_t) / float(t - prev_t)
+                return int(round(prev_s + (s - prev_s) * ratio))
+            prev_t, prev_s = t, s
+        return int(timeline[-1][1])
 
     # ── 配速段 ──
     def generate_paces(self, start_ms: Optional[int] = None) -> List[IntervalPace]:

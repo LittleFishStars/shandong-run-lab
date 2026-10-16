@@ -23,12 +23,14 @@ from .constants import (
     DEFAULT_SAMPLE_S,
     SPORT_TYPE_SUN,
     STATE_INIT,
+    STRIDE_STATISTICS_M,
 )
 from .protocol import (
     IntervalPace,
     IntervalStep,
     RunLatLng,
     RuleSet,
+    StrideSegment,
     TrackGenerator,
     evaluate_run,
     haversine,
@@ -276,7 +278,9 @@ class RunEngine:
                                      start_ms=start_ms)
         steps: List[IntervalStep] = gen.build_steps(timeline, start_ms=start_ms)
         paces: List[IntervalPace] = gen.generate_paces(start_ms=start_ms)
-
+        stride_interval = int((self.cfg.get("common") or {}).get("strideStatisticsInterval")
+                              or STRIDE_STATISTICS_M)
+        strides: List[StrideSegment] = gen.build_strides(timeline, interval_m=stride_interval)
         realtime, speed = self._realtime_cfg()
         if realtime:
             self._write_points_paced(run_code, pts, seconds, speed)
@@ -285,6 +289,7 @@ class RunEngine:
             self.store.add_points(run_code, pts)
         self.store.add_steps(run_code, steps)
         self.store.add_paces(run_code, paces)
+        self.store.add_strides(run_code, strides)
 
         hits = self.match_checkpoints(run_code, pts)
         total_step = sum(int(s.step) for s in steps)
@@ -381,7 +386,7 @@ class RunEngine:
     # ══════════════════ ④ 上传 ══════════════════
     def upload(self, run_code: str, batch: Optional[int] = None,
                do_steps: bool = True, do_paces: bool = True,
-               do_strides: bool = False, do_checkpoints: bool = True) -> Dict[str, Any]:
+               do_strides: bool = True, do_checkpoints: bool = True) -> Dict[str, Any]:
         c = self.client
         out: Dict[str, Any] = {}
         self._step(55, "上传轨迹（分批，带 sign）…")
@@ -391,18 +396,21 @@ class RunEngine:
             self._emit("log", "轨迹上传中断，可稍后 resume() 续传", level="error")
             self.last = {**self.last, "upload": out}
             return out
-        if do_checkpoints:
-            self._step(68, "上传打卡点…")
-            out["checkpoints"] = c.upload_checkpoints(run_code, [])
+        # 原版停止序列：轨迹 → 步频 → 配速 → 步幅 → 打卡点 → 结算
         if do_steps:
-            self._step(76, "上传步频段…")
+            self._step(68, "上传步频段…")
             out["steps"] = c.upload_steps(run_code)
         if do_paces:
-            self._step(84, "上传配速段…")
+            self._step(76, "上传配速段…")
             out["paces"] = c.upload_paces(run_code)
         if do_strides:
-            self._step(88, "上传步幅…")
-            out["strides"] = c.upload_strides(run_code)
+            self._step(84, "上传步幅段…")
+            out["strides"] = c.upload_strides(run_code, interval_m=int(
+                (self.cfg.get("common") or {}).get("strideStatisticsInterval")
+                or STRIDE_STATISTICS_M))
+        if do_checkpoints:
+            self._step(88, "上传打卡点…")
+            out["checkpoints"] = c.upload_checkpoints(run_code, [])
         # 上传结果既要给界面看状态码，也要给界面看实际条数（1 个 dict 两种字段）
         self.last = {**self.last, "upload": self._upload_summary(run_code, out)}
         return out
