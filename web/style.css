@@ -70,12 +70,20 @@ html, body {
 }
 .col { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: auto; }
 /* 中栏：地图卡片钉在页面上半部分（网格行高决定，不再被内容拉伸或居中），
-   下半部分给“本次跑步”。overflow:hidden 避免整列滚动把地图推出视野。 */
+   下半部分给“本次跑步”。overflow:hidden 避免整列滚动把地图推出视野。
+   地图卡有硬性最小高度（见 .col-mid .map-card，窗口矮时按视口降档），
+   保证右下角摇杆簇 + 主流程提示行永远装得下；空间不够时由“本次跑步”卡让位
+   （可压到 0 并内部滚动），而不是把地图区挤扁——地图区被挤扁后
+   .map-body{overflow:hidden} 会把整簇摇杆裁掉（2026-10-18 实测）。 */
 .col-mid {
   display: grid;
-  grid-template-rows: minmax(280px, 1.6fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.6fr) minmax(0, 1fr);
   overflow: hidden;
 }
+/* 地图卡的高度下界 = 卡头 40 + 工具行（两行按钮 + 提示行，约 110）+ 地图区 190：
+   右下角摇杆簇（按钮 + 摇杆 + 底边距，最大约 175）永远放得下。
+   高窗口时它照样按 1.6fr 长大，不影响地图占满上半页。 */
+.col-mid .map-card { min-height: 340px; }
 /* 窗口变窄时收窄两侧栏，把宽度让给地图（地图是主视口） */
 @media (max-width: 1340px) {
   .layout { grid-template-columns: 300px minmax(300px, 1fr) 352px; }
@@ -101,7 +109,7 @@ html, body {
 }
 .card-head h2 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: .3px; }
 .card-body { padding: 12px 14px; overflow: auto; min-height: 0; }
-.card-body.map-body { padding: 0; position: relative; overflow: hidden; flex: 1 1 auto; min-height: 0; }
+.card-body.map-body { padding: 0; position: relative; overflow: hidden; flex: 1 1 auto; min-height: 190px; }
 .hint { font-size: 11.5px; color: var(--text-faint); }
 .head-tools { display: flex; align-items: center; gap: 8px; }
 
@@ -204,7 +212,7 @@ select option { background: #131a29; color: var(--text); }
   background: #171e2e; flex: 0 0 auto;
 }
 /* 主流程工具行（① 拉取配置 / ② 选择起始点 / ③ 开始跑步 / ④ 结束跑步）右侧的状态提示 */
-.flow-bar .hint { flex: 1 1 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-bar .hint { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ── 高级 / 调试：默认折叠，主流程之外的控件都在这里 ── */
 .adv {
   position: absolute; left: 10px; top: 10px; z-index: 910;
@@ -225,7 +233,7 @@ select option { background: #131a29; color: var(--text); }
 .adv-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; max-width: 470px; }
 /* ── 摇杆 + 「自动跑」：钉在地图右下角，任何时候都看得见（默认手动）── */
 .run-ctl {
-  position: absolute; right: 12px; bottom: 26px; z-index: 910;
+  position: absolute; right: 12px; bottom: 20px; z-index: 910;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .run-ctl .btn { box-shadow: 0 2px 10px #0008; }
@@ -248,6 +256,35 @@ select option { background: #131a29; color: var(--text); }
   transition: transform .04s linear;
 }
 .joy.active .joy-knob { background: radial-gradient(circle at 35% 30%, #7ee0b0, #1f7a55); }
+
+/* 窗口变矮（非全屏）时摇杆随视口高度缩一档：地图区优先，控件也要放得下 */
+@media (max-height: 820px) {
+  .joy { width: 96px; height: 96px; }
+  .joy .joy-knob { width: 38px; height: 38px; margin: -19px 0 0 -19px; }
+  .col-mid .map-card { min-height: 320px; }
+}
+@media (max-height: 700px) {
+  .joy { width: 84px; height: 84px; }
+  .joy .joy-knob { width: 34px; height: 34px; margin: -17px 0 0 -17px; }
+  .run-ctl { bottom: 16px; right: 10px; }
+  .run-ctl .btn { padding: 3px 8px; font-size: 11px; }
+  .card-body.map-body { min-height: 165px; }
+  .col-mid .map-card { min-height: 290px; }
+}
+@media (max-height: 620px) {
+  .joy { width: 72px; height: 72px; }
+  .joy .joy-knob { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
+  .run-ctl { bottom: 12px; right: 8px; }
+  .flow-bar .hint { display: none; }
+  .card-body.map-body { min-height: 140px; }
+  .col-mid .map-card { min-height: 250px; }
+}
+/* 中栏变窄时主流程按钮收一收：工具行尽量只占一行，把高度让给地图 */
+@media (max-width: 1340px) {
+  .flow-bar { gap: 4px; padding: 6px 9px; }
+  .flow-bar .btn { padding: 4px 7px; font-size: 11.5px; }
+}
+}
 /* 实走中：地图外圈给个呼吸提示，一眼能看出在推进 */
 .map-card.walking { box-shadow: 0 0 0 1px #3ecf8e66, 0 0 22px #3ecf8e2e; }
 

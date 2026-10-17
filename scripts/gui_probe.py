@@ -285,6 +285,35 @@ def main() -> int:
         check("地图卡上还有主流程提示行",
               len(str(js(window, "document.querySelector('#flow-info').textContent") or "")) > 0,
               str(js(window, "document.querySelector('#flow-info').textContent")))
+        # 2026-10-18 用户报「点击开始跑步后摇杆会消失，需要使软件全屏才能看到」：
+        # ③ 之后提示行文案变长把主流程工具行撑高一档，本就不高的窗口里地图区被压到
+        # 175px 以下，.map-body{overflow:hidden} 就把右下角整簇摇杆簇裁没了（纯布局，无 JS 控制）。
+        # 真机窗口高度不受探针控制，所以这里把中栏布局强行压矮来复现并断言
+        # （420/380 对应窗口高 ~500/460：地图卡仍该完整可见，「本次跑步」卡让位）。
+        for _h in (420, 380):
+            js(window, f"document.querySelector('.layout').style.height = '{_h}px'")
+            time.sleep(0.35)
+            raw = js(window, "JSON.stringify((function(){"
+                              "const b=document.querySelector('.map-body').getBoundingClientRect();"
+                              "const c=document.querySelector('.run-ctl').getBoundingClientRect();"
+                              "const l=document.querySelector('.layout').getBoundingClientRect();"
+                              "return {cTop:Math.round(c.top),cBot:Math.round(c.bottom),"
+                              "bTop:Math.round(b.top),bBot:Math.round(b.bottom),"
+                              "lBot:Math.round(l.bottom),vh:window.innerHeight};})())")
+            try:
+                fit = json.loads(raw) if isinstance(raw, str) else {}
+            except Exception:
+                fit = {}
+            check(f"布局压到 {_h}px（窗口变矮）时右下角摇杆簇仍完整可见",
+                  bool(fit) and fit.get("cTop", 0) >= fit.get("bTop", 0) + 2
+                  and fit.get("cBot", 0) <= fit.get("bBot", 0) - 2
+                  and fit.get("cBot", 0) <= min(fit.get("lBot", 0), fit.get("vh", 0)),
+                  f"摇杆簇 {fit.get('cTop')}~{fit.get('cBot')} vs 地图区 "
+                  f"{fit.get('bTop')}~{fit.get('bBot')}（中栏底 {fit.get('lBot')}，视口高 {fit.get('vh')}）")
+        js(window, "document.querySelector('.layout').style.height = ''")
+        time.sleep(0.35)
+        check("还原窗口高度后摇杆簇仍在地图右下角",
+              js(window, "!!document.querySelector('#joy').offsetParent") is True)
 
         print("\n[3] 拉取配置（围栏/规则/打卡点）")
         js(window, "document.querySelector('#btn-prepare').click()")
