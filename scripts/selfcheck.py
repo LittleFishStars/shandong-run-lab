@@ -252,6 +252,40 @@ def test_checkpoints_source() -> None:
                 pass
         shutil.rmtree(tmp, ignore_errors=True)
 
+def test_auto_run() -> None:
+    section("2.7 自动跑 / 手动摇杆（默认手动，点了「自动跑」才跟路线）")
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+    try:
+        app.login("13800138000", "any-password", False)
+        app.run_prepare()
+        # 默认手动：不跟路线，等摇杆
+        st = app.walk_start("dry", 0.0, 0, 3.0, False, False, 30.0)
+        check(st.get("code") == 0 and (st.get("data") or {}).get("auto") is False,
+              "默认手动开跑（auto=false）", f"{st.get('data')}")
+        # 运行中切自动：沿规划路线走
+        check(app.walk_auto(True).get("code") == 0
+              and app.walk_status(-1).get("auto") is True,
+              "点「自动跑」后后端切为自动")
+        # 推杆即接管：一推杆就回手动（与后端的 joystick() 语义一致）
+        app.walk_joystick(1.0, 0.0, 0.8)
+        check(app.walk_status(-1).get("auto") is False,
+              "推杆即接管：手动摇杆自动压过自动巡航")
+        check(app.walk_auto(False).get("code") == 0,
+              "再点一次能切回手动")
+        # 开跑时给的 auto 是一次性的：不能留着下次强制自动
+        app.walk_stop()
+        app.walk_start("dry", 0.0, 0, 3.0, False, False, 30.0)
+        check(app.walk_status(-1).get("auto") is False,
+              "下一次开跑仍默认手动（pending 不残留）")
+        app.walk_stop()
+    finally:
+        try:
+            app.close()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.rmtree(tmp, ignore_errors=True)
+
 # ══════════════════════════════════════════════════════════════════
 # 3~5. 全链路
 # ══════════════════════════════════════════════════════════════════
@@ -390,6 +424,7 @@ def main() -> int:
     test_simulator()
     test_start_point()
     test_checkpoints_source()
+    test_auto_run()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

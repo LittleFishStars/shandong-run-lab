@@ -268,12 +268,20 @@ def main() -> int:
         check("其它控件收进「高级 / 调试」且默认折叠",
               js(window, "!!document.querySelector('#adv-tools') && "
                          "document.querySelector('#adv-tools').open === false") is True)
-        check("高级里功能没丢（路点/干跑/上传/一键跑/底图/摇杆全在）",
+        check("高级里功能没丢（路点/干跑/上传/一键跑/底图全在）",
               js(window, "['btn-plan','btn-pick','btn-clear-wp','btn-clear-start','btn-fit',"
                          "'btn-walk-dry','btn-walk-stop','btn-walk-up','btn-walk-save',"
                          "'btn-run','btn-resume','btn-save-cfg','btn-reset-device',"
-                         "'in-tiles','in-show-state','in-auto-route','joy']"
+                         "'in-tiles','in-show-state']"
                          ".every(id => !!document.getElementById(id))") is True)
+        # 本轮需求：摇杆常驻右下角——高级折叠着也得看得见，且默认是手动
+        check("摇杆与「自动跑」常驻（高级折叠时也可见）",
+              js(window, "document.querySelector('#adv-tools').open === false && "
+                         "!!document.querySelector('#joy').offsetParent && "
+                         "!!document.querySelector('#btn-auto-run').offsetParent") is True)
+        check("默认手动（「自动跑」按钮未点亮）",
+              js(window, "document.querySelector('#btn-auto-run')"
+                         ".classList.contains('primary') === false") is True)
         check("地图卡上还有主流程提示行",
               len(str(js(window, "document.querySelector('#flow-info').textContent") or "")) > 0,
               str(js(window, "document.querySelector('#flow-info').textContent")))
@@ -313,10 +321,10 @@ def main() -> int:
         # 摇杆、停止、干跑、路点都在「高级 / 调试」里：先展开它，截图里也才看得到摇杆
         js(window, "document.querySelector('#adv-tools').open = true")
         time.sleep(0.4)
-        check("展开「高级 / 调试」后摇杆与工具按钮真的可见",
+        check("展开「高级 / 调试」后工具按钮真的可见（摇杆本来就在右下角）",
               js(window, "!!document.querySelector('#adv-tools').open && "
-                         "!!document.querySelector('#joy').offsetParent && "
-                         "!!document.querySelector('#btn-plan').offsetParent") is True)
+                         "!!document.querySelector('#btn-plan').offsetParent && "
+                         "!!document.querySelector('#joy').offsetParent") is True)
         runs_before = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         js(window, "document.querySelector('#btn-plan').click()")
         time.sleep(1.5)
@@ -334,6 +342,10 @@ def main() -> int:
         time.sleep(2.0)
         check("干跑已启动（界面进入 walking 态）",
               js(window, "document.querySelector('.map-card').classList.contains('walking')") is True)
+        check("干跑默认手动（等摇杆，不自己跟路线）",
+              js(window, "!!(S.walk && S.walk.running) && S.walk.auto === false") is True,
+              str(js(window, "JSON.stringify({running: !!(S.walk&&S.walk.running), "
+                             "auto: !!(S.walk&&S.walk.auto)})")))
         # 直接调桥推杆（与拖动摇杆走同一条通路），然后看实时点是否在变多
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
         time.sleep(4.0)
@@ -404,6 +416,10 @@ def main() -> int:
         time.sleep(3.0)
         rc_live = str(js(window, "(S.walk && S.walk.run_code) || ''") or "")
         check("实跑已开跑并拿到记录号", bool(rc_live), rc_live)
+        check("实跑默认手动（没点「自动跑」时 auto=false）",
+              js(window, "!!(S.walk && S.walk.running) && S.walk.auto === false") is True,
+              str(js(window, "JSON.stringify({running: !!(S.walk&&S.walk.running), "
+                             "auto: !!(S.walk&&S.walk.auto)})")))
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
         time.sleep(4.0)
         stored = int(js(window, "(S.walk && S.walk.stored) || 0") or 0)
@@ -420,7 +436,12 @@ def main() -> int:
         # 沿规划路线自动走，等打卡点被刷到（地图上紫点转绿就是这条链路生效的直观证据）
         # 注意：必须先把杆松回去，否则手动方向会盖掉“沿路线自动巡航”
         js(window, "Bridge.call('walk_joystick', 0, 0, 0)")
-        js(window, "Bridge.call('walk_route', JSON.stringify(S.route || []), true, false)")
+        # 用界面上的「自动跑」按钮接管方向（不再是直接调桥）——这正是本轮需求走的那条路
+        js(window, "document.querySelector('#btn-auto-run').click()")
+        time.sleep(1.2)
+        check("点「自动跑」后开始沿规划路线巡航",
+              js(window, "!!(S.walk && S.walk.auto)") is True,
+              str(js(window, "JSON.stringify({auto: !!(S.walk&&S.walk.auto)})")))
         deadline = time.time() + 90
         hits = 0
         while time.time() < deadline:

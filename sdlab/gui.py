@@ -104,6 +104,9 @@ class JsApi:
             return {"code": -1, "message": f"路点不是合法 JSON：{e}", "data": None}
         return self.app.walk_route(wps, auto=bool(auto), targets=bool(targets))
 
+    def walk_auto(self, on: bool = True) -> Dict[str, Any]:
+        return self.app.walk_auto(bool(on))
+
     def walk_upload(self, do_finish: bool = True) -> Dict[str, Any]:
         return self.app.walk_upload(bool(do_finish))
 

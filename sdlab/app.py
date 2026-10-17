@@ -75,7 +75,8 @@ class App:
         self.walk: WalkSession = None                 # type: ignore[assignment]  # 摇杆实走会话
         # 用户在地图上点出来（或“仅渲染路径点”生成）的待用路线，开走时交给 Walker
         self._pending_route: List[List[float]] = []
-        self._pending_auto: bool = True
+        # 默认手动（不跟路线），要自动跑得在界面上点「自动跑」；只在本次开跑生效
+        self._pending_auto: bool = False
         # 用户在图上选定的跑步起始点 [lat, lng]；None = 跟随围栏中心。存在本地库 kv 里
         self._start_point: Optional[List[float]] = self._load_start_point()
         self._thread: Optional[threading.Thread] = None
@@ -402,10 +403,13 @@ class App:
         route = list(getattr(self, "_pending_route", None) or [])
         if not route and cps:
             route = route_from_checkpoints(lat, lng, cps, loop=True)
+        # 「自动跑」由界面按钮说了算：开跑时给值，_pending_auto 只在本次生效
+        auto = bool(auto_route or self._pending_auto)
+        self._pending_auto = False
         return self.walk.start(
             mode, lat=lat, lng=lng, target_m=float(target_m or 0),
             speed_mps=(float(speed_mps) if speed_mps else None),
-            route=route, auto_route=bool(auto_route or self._pending_auto),
+            route=route, auto_route=auto,
             targets=build_walk_targets(cps),
             polygon=self.client.fence_polygon(),
             run_code=run_code,
@@ -413,6 +417,13 @@ class App:
 
     def walk_joystick(self, dx: float, dy: float, mag: float) -> Dict[str, Any]:
         return self.walk.joystick(float(dx), float(dy), float(mag))
+
+    def walk_auto(self, on: bool = True) -> Dict[str, Any]:
+        """运行中切换「自动沿路线走 / 手动摇杆」。
+
+        界面上就一个「自动跑」按钮：点一下自动沿打卡路线跑，再点一下交回摇杆。
+        """
+        return self.walk.set_auto(bool(on))
 
     def walk_stop(self) -> Dict[str, Any]:
         out = self.walk.stop()

@@ -276,9 +276,21 @@ def main() -> int:
         ws = post_api(api_url, "walk_start", "dry", 0, 0, 3.0, False, False, 20.0)
         check(ws.get("code") == 0, "walk_start(dry) 已开始",
               json.dumps(ws.get("data", {}).get("state", {}), ensure_ascii=False)[:140])
+        check(ws.get("data", {}).get("auto") is False
+              and (post_api(api_url, "walk_status", -1) or {}).get("auto") is False,
+              "没点「自动跑」时是手动（walk_status.auto=false）")
+
+        # 「自动跑」按钮：运行中一切就自动沿路线走；一推杆就回手动（推杆即接管）
+        r_auto = post_api(api_url, "walk_auto", True)
+        check(r_auto.get("code") == 0
+              and (post_api(api_url, "walk_status", -1) or {}).get("auto") is True,
+              "walk_auto(True) 切为自动沿路线走")
 
         # 摇杆一推就动：两个方向分别推，采样点必须真变多
         post_api(api_url, "walk_joystick", 1.0, 0.0, 1.0)
+        time.sleep(0.4)
+        check((post_api(api_url, "walk_status", -1) or {}).get("auto") is False,
+              "推杆即接管：自动巡航被摇杆压回手动")
         time.sleep(1.2)
         st1 = post_api(api_url, "walk_status", 0) or {}
         n1 = int(st1.get("total") or len(st1.get("points") or []))

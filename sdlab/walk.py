@@ -295,6 +295,15 @@ class WalkSession:
                             f"{'自动沿路径走' if auto else '仍然由摇杆控制'}")
         return {"code": 0, "data": {"route": [list(p) for p in (route or [])], "auto": auto}}
 
+    def set_auto(self, auto: bool = True) -> Dict[str, Any]:
+        """开跑后随时切换「自动沿路线走 / 手动摇杆控制」。"""
+        if not self.walker:
+            return {"code": -1, "message": "尚未开始实走"}
+        self.walker.set_auto_route(bool(auto))
+        self._emit("state", "已切为自动跑：沿路线自动走" if auto
+                   else "已切为手动：摇杆推杆即接管方向")
+        return {"code": 0, "data": {"auto": bool(auto)}}
+
     def set_target_speed(self, mps: float) -> Dict[str, Any]:
         if not self.walker:
             return {"code": -1, "message": "尚未开始实走"}
@@ -353,6 +362,8 @@ class WalkSession:
             # 本次真正在走的那条线（界面直接画它，省得自己再推一遍）
             "route": [[float(p[0]), float(p[1])]
                       for p in (self.walker.route if self.walker else [])],
+            # 自动沿路线走还是手动摇杆（界面上的「自动跑」按钮就看它）
+            "auto": bool(self.walker.auto_route) if self.walker else False,
         }
         if since is not None:
             data.update(self.points_since(int(since)))

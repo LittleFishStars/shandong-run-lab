@@ -85,6 +85,7 @@ const S = {
   pickStart: false,      // 地图点击设置跑步起点（与 pickMode 互斥）
   startPoint: null,      // 跑步起点 {lat,lng}；null = 没选过，一律按围栏中心
   previewPoints: [],     // 高级里「只规划路径」按围栏预估的预览点（开跑前地图上不画打卡点）
+  autoRun: false,        // 自动跑：沿规划路线自动走；false = 手动（右下角摇杆控制），默认手动
   walkMsg: '',           // 主流程状态行上的临时文案（跑步中/刚规划完），空则按登录与围栏状态推导
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
@@ -644,6 +645,8 @@ function joyApply(e) {
   const rad = r.width / 2 - 10;
   let mag = Math.sqrt(dx * dx + dy * dy) / rad;
   if (mag < 0.02) { joyReset(); return; }
+  // 手动推杆即接管：后端 joystick() 已经关掉路径跟随，界面按钮得跟着回到「手动」
+  if (S.autoRun) { S.autoRun = false; syncAutoUi(); }
   if (mag > 1) { dx = dx / mag; dy = dy / mag; mag = 1; }
   JOY.dx = dx / rad; JOY.dy = -dy / rad; JOY.mag = Math.min(1, mag);
   const kx = JOY.dx * rad * JOY.mag, ky = -JOY.dy * rad * JOY.mag;
@@ -844,12 +847,41 @@ function syncFlowInfo() {
   if (end) end.disabled = !(S.walk && S.walk.running);
 }
 
+// 「自动跑」按钮：手动（默认）↔ 自动沿规划路线走。开跑后点也能切（后端 walk_auto 立即生效）
+function syncAutoUi() {
+  const b = $('btn-auto-run');
+  if (!b) return;
+  b.textContent = S.autoRun ? '自动跑中（点此转手动）' : '手动（摇杆）';
+  b.classList.toggle('primary', !!S.autoRun);
+  b.title = S.autoRun
+    ? '正在自动沿规划路线走；点一下交回摇杆（推杆也会自动接管）'
+    : '默认手动：用右下角摇杆控制方向。点这里切到自动沿规划路线跑';
+}
+
+async function toggleAutoRun() {
+  const want = !S.autoRun;
+  S.autoRun = want;
+  syncAutoUi();
+  if (S.walk && S.walk.running) {
+    const r = await Bridge.call('walk_auto', want);
+    if (!r || r.code !== 0) {          // 后端没切成功就把按钮回滚，别骗人
+      S.autoRun = !want;
+      syncAutoUi();
+      toast('切换失败：' + ((r && r.message) || '?'), 'err');
+      return;
+    }
+  }
+  toast(want ? '自动跑：沿规划路线自动走' : '手动模式：用右下角摇杆控制方向', 'ok');
+  syncFlowInfo();
+  refreshStatus();
+}
+
 // ── 实走：升跑 / 叫停 / 上传 ────────────────────────
 async function walkStart(mode) {
   busy($('btn-walk-dry'), true); busy($('btn-walk-real'), true);
   try {
     const target = Number($('in-distance').value) || 0;
-    const auto = $('in-auto-route').checked;
+    const auto = !!S.autoRun;   // 「自动跑」按钮说了算：默认手动，靠摇杆控制方向
     // 第 4 个参数是摇杆速度（m/s），第 7 个是时间倍速——实走固定 1 倍速，
     // 传统上误把「仿真倍速」当摇杆速度传进去，会让实跑飙到 20 m/s
     const mps = Number($('in-walk-speed') && $('in-walk-speed').value) || 0;
@@ -859,6 +891,8 @@ async function walkStart(mode) {
     S.walkSince = 0;
     S.livePoints = [];
     S.walk = r.data || {};
+    S.autoRun = !!auto;                    // 开跑就用按钮上的手动 / 自动，不等下一次轮询
+    syncAutoUi();
     $('map').closest('.map-card').classList.add('walking');
     $('btn-walk-stop').disabled = false;
     S.walkMsg = '';                       // 交给实时数据（pumpWalk 每 500ms 刷一次）
@@ -904,7 +938,7 @@ async function startRun() {
   await saveParams(true);
   // 先清掉图上画过的旧路线，让这次开跑按服务端下发的真实打卡点重算路线
   S.previewPoints = [];
-  await Bridge.call('walk_route', '[]', true, false);
+  await Bridge.call('walk_route', '[]', !!S.autoRun, false);
   await walkStart('real');
 }
 
@@ -948,6 +982,7 @@ async function pumpWalk() {
   try { r = await Bridge.call('walk_status', S.walkSince); } catch (_) { return; }
   if (!r) return;
   S.walk = r;
+  if (typeof r.auto === 'boolean' && r.auto !== S.autoRun) { S.autoRun = r.auto; syncAutoUi(); }
   const pts = r.points || [];
   if (pts.length) {
     S.walkSince = Number(r.total || (S.walkSince + pts.length));
@@ -1146,6 +1181,9 @@ $('btn-login').addEventListener('click', async () => {
   // 跑步起点：点“设置起点”后在图上点一下，或点“清除起点”回到围栏中心
   $('btn-pick-start').addEventListener('click', togglePickStart);
   $('btn-clear-start').addEventListener('click', clearStartPoint);
+  // 摇杆与「自动跑」：常驻右下角，默认手动
+  $('btn-auto-run').addEventListener('click', toggleAutoRun);
+  syncAutoUi();
   $('in-tiles').addEventListener('change', (e) => {
     S.tiles = e.target.value;
     try { localStorage.setItem('sdlab.tiles', S.tiles); } catch (err) { /* 隐私模式等 */ }
