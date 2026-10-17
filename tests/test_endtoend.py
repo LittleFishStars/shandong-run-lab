@@ -14,6 +14,7 @@ from pathlib import Path
 
 from sdlab import constants as C
 from sdlab.app import App
+from sdlab.protocol import point_in_polygon
 
 超时上限 = 120.0
 
@@ -310,6 +311,87 @@ class 错误处理测试(unittest.TestCase):
     def test_配置补丁可写回(self):
         self.app.patch_config({"run": {"target_distance_m": 1500}})
         self.assertEqual(self.app.status()["run_cfg"]["target_distance_m"], 1500)
+
+
+class 跑步起点测试(unittest.TestCase):
+    """地图上「设置起点」：围栏外的点自动吸附进围栏，并同时作用于开跑报文 / 实走轨迹 / 路径规划"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-start-"))
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
+        cls.app.login("13800138000", "any-password", False)
+        cls.app.run_prepare()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.close()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _规划起点(self):
+        return (self.app.walk_plan().get("data") or {}).get("start") or {}
+
+    def test_默认起点是围栏中心(self):
+        st = self.app.status()
+        self.assertIsNone(st.get("start_point"))
+        self.assertFalse(st.get("start_point_custom"))
+        clat, clng = self.app.client.fence_center()
+        p = self._规划起点()
+        self.assertAlmostEqual(p["lat"], clat, places=6)
+        self.assertAlmostEqual(p["lng"], clng, places=6)
+
+    def test_围栏外的点自动吸附进围栏(self):
+        poly = [tuple(x) for x in self.app.client.fence_polygon()]
+        clat, clng = self.app.client.fence_center()
+        r = self.app.set_start_point(clat + 0.01, clng)      # 往北 1.1 km，肯定在围栏外
+        self.assertEqual(r["code"], C.CODE_OK)
+        起点 = (r.get("data") or {}).get("start_point") or {}
+        self.assertTrue(起点.get("snapped"))
+        self.assertTrue(起点.get("in_fence"))
+        self.assertTrue(point_in_polygon(起点["lat"], 起点["lng"], poly))
+        # 路径规划跟着新起点走
+        p = self._规划起点()
+        self.assertAlmostEqual(p["lat"], 起点["lat"], places=6)
+        self.assertAlmostEqual(p["lng"], 起点["lng"], places=6)
+
+    def test_所选起点进开跑报文(self):
+        """把围栏藏起来（等价于吸附不可用），此时选的点必须原样进开跑报文"""
+        poly = self.app.client.fence_polygon
+        self.app.client.fence_polygon = lambda *a, **k: []
+        try:
+            clat, clng = self.app.client.fence_center()
+            r = self.app.set_start_point(clat + 0.01, clng)
+        finally:
+            self.app.client.fence_polygon = poly
+        self.assertEqual(r["code"], C.CODE_OK)
+        self.assertFalse(((r.get("data") or {}).get("start_point") or {}).get("snapped"))
+        尾巴 = self.app.bus.events_since(0, 1)
+        seq = 尾巴[-1]["seq"] if 尾巴 else 0
+        self.assertEqual(self.app.walk_start("real", target_m=0, fence_index=0,
+                                             speed_mps=0.0, auto_route=False,
+                                             auto_start=True, speed=30.0).get("code"),
+                         C.CODE_OK)
+        try:
+            time.sleep(0.8)
+            消息 = " | ".join(e.get("message", "") for e in self.app.bus.events_since(seq))
+        finally:
+            self.app.walk_stop()
+        self.assertIn("Mock 开跑成功", 消息)
+        self.assertIn("起点不在围栏内", 消息)   # 报文里的 lat/lng 就是用户选的那个点
+
+    def test_清除起点回到围栏中心(self):
+        self.assertEqual(self.app.set_start_point().get("code"), C.CODE_OK)
+        st = self.app.status()
+        self.assertIsNone(st.get("start_point"))
+        self.assertFalse(st.get("start_point_custom"))
+        clat, clng = self.app.client.fence_center()
+        p = self._规划起点()
+        self.assertAlmostEqual(p["lat"], clat, places=6)
+        self.assertAlmostEqual(p["lng"], clng, places=6)
+
+    def test_非法坐标被拒(self):
+        for 坏点 in ((0.0, 0.0), (91.0, 117.0), ("x", "y")):
+            self.assertNotEqual(self.app.set_start_point(*坏点).get("code"), C.CODE_OK)
 
 
 if __name__ == "__main__":

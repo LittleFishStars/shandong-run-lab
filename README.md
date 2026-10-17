@@ -24,7 +24,7 @@
 | 上传 | `uploadRunRecord`（★唯一需签名的接口：整表一次 POST，`state∈{1,4} 且 isValid=1`，总数 ≤ 3 不发）→ 步频段（20 秒一段）/配速段（50 米一段）/步幅段（`strideStatisticsInterval` 米一段，每次只发 1 段）→ 打卡点 |
 | 结算 | 完全照搬原版 `DataComponent.t1()` 的 Map：`runRecordCode / duration / distance / totalStep / status / stepInterval / paceInterval / targetPoints / alignType / pauseCount / pauseTimes / sportType`（非空时加 `invalidReasons`）；**不含** pois/stepList/paceList |
 | 调试 | Mock 服务端（可注入延迟与随机失败率）、传感器仿真器（步频/抖动/丢包/暂停）、实时仿真（逐点推进，可在界面上看轨迹长出来）、事件流面板、本地记录浏览、JSON/GPX 导出 |
-| 地图 | Leaflet 真实底图（高德路网/卫星、OSM、或关闭底图），围栏、打卡点、轨迹、规划路线矢量叠加；UI 自动验证布局与几何 |
+| 地图 | Leaflet 真实底图（高德路网/卫星、OSM、或关闭底图），围栏、打卡点、轨迹、规划路线、**起跑点**矢量叠加；**拉到电子围栏后镜头自动飞到围栏**（围栏换了才动；用户自己拖过镜头之后不再抢镜）；UI 自动验证布局与几何 |
 | 手控 | **摇杆实走**（拖动摇杆 / 方向键逐帧推进位置与传感器；推满杆默认 2.5 m/s，可调）；**只规划不动**（按打卡点最近邻连成闭环、或地图上点选路点，只画出来不升跑）；**实跑边跑边落库**（完全按原 App 记录链路：定位回调 3 秒一条、精度/速度过滤、有效点折线累距、步频段 20 秒一段、配速段 50 米一段、打卡半径 25 米），干跑/实跑结束后可一键上传结算 |
 | 续传 | 断点续传：只补传「未成功」的点/段，含尾部补齐段 |
 
@@ -73,6 +73,9 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 .venv/bin/python -m sdlab records show --points  # 明细（含轨迹点）
 .venv/bin/python -m sdlab records export MCKXXXX --format gpx
 .venv/bin/python -m sdlab records resume MCKXXXX # 断点续传
+.venv/bin/python -m sdlab start-point          # 看当前跑步起点（围栏中心 / 图上选的）
+.venv/bin/python -m sdlab start-point --lat 36.6637 --lng 117.0265   # 设起点（围栏外自动吸附）
+.venv/bin/python -m sdlab start-point --clear  # 回围栏中心
 .venv/bin/python -m sdlab check -v               # 跑自检（等价下面两脚本）
 ```
 
@@ -133,7 +136,15 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 > 这张是**摇杆干跑**的实拍：右下角拖动摇杆（或按方向键）自己控制方向，轨迹实时长出来，
 > 右栏事件流同步打印「实走中：X 米 / Y 步 / Z 打卡」；干跑全程**不升跑、不落库、不上传**。
 >
-> 另两张：`docs/screenshots/gui-1-init.png`（首屏）、`docs/screenshots/gui-3-done.png`（跑完结算）。
+> ![图上选起点](docs/screenshots/gui-3-start-point.png)
+>
+> 这张是**图上选跑步起点**的实拍：点「设置起点」后在地图上点一下，青色「起」标就是起点
+> （落在围栏外会自动吸附进围栏，与边界留 10 米）；拿到电子围栏那一下镜头会自动飞到围栏上（
+> 之后自己拖过镜头就不再抢镜，换围栏才会再飞一次）。同一个坐标同时决定开跑报文的 `lat`/`lng`、
+> 实走轨迹的起点与路径规划的起点，并写进本地库，重启仍然生效。
+>
+> 另几张：`docs/screenshots/gui-1-init.png`（首屏）、`docs/screenshots/gui-3-done.png`（跑完结算）、
+> `docs/screenshots/gui-3-start-point.png`（图上选起点）。
 >
 > ![实跑边跑边落库](docs/screenshots/gui-5-walk-real.png)
 >
@@ -156,6 +167,12 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 * **中栏（手动）**：地图左上角的工具条与右下角的**摇杆**用于自己控制路径，不再是一键跑完：
   * **只规划路径**：按打卡点做最近邻排序连成一条闭环，或点「点选路点」在地图上依次点击，
     画出的路线只渲染（黄色折线 + 白色路点），**不升跑、不落库、不上传**。
+  * **设置起点**：点工具条「设置起点」再在地图上点一下，那里就是起跑点（青色地标「起」，
+    提示行显示坐标）。点在围栏外会**自动吸附进围栏**（与边界留 10 米，既不在围栏中心、也不贴边，
+    避免 GPS 抖动被判出界），同一个坐标同时决定**开跑报文的 `lat`/`lng`**、**实走轨迹的起点**
+    与**路径规划的起点**，并写进本地库（重启不丢）；「清除起点」即回到围栏中心。
+  * **镜头跟随围栏**：备跑拿到电子围栏后地图**自动移到围栏处**（按围栏指纹判断，换围栏才重飞），
+    不用手工去拖地图找围栏。
   * **摇杆 / 方向键**：拖动摇杆（或按方向键）实时控制前进方向，位置、步数、步频、加速度
     逐帧推进；勾选「沿路线自动走」则沿规划路线自动巡航，推杆会自动接管。
   * **干跑调试**：只推位置与传感器数据，不升跑、不写库、不上传；步频段与配速段只在内存里切（状态栏会显示“内存已切 N 个步频段”）。
@@ -194,16 +211,17 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 ```bash
 export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 
-# 单元测试（172 项）
+# 单元测试（181 项）
 .venv/bin/python -m unittest discover -s tests
 
-# 端到端自检（36 项：密码学 / 仿真 / 全链路 / 失败注入+续传）
+# 端到端自检（44 项：密码学 / 仿真 / 跑步起点 / 全链路 / 失败注入+续传）
 .venv/bin/python scripts/selfcheck.py -v
 
-# 前端桥自检（44 项：用和浏览器一模一样的 HTTP 调用驱动后端，含摇杆干跑、只规划路径、实跑边跑边落库）
+# 前端桥自检（50 项：用和浏览器一模一样的 HTTP 调用驱动后端，含 app.js 语法校验、摇杆干跑、
+#   只规划路径、起点选点/吸附、实跑边跑边落库）
 .venv/bin/python scripts/webcheck.py
 
-# 桌面外壳自检（真的开窗口、点界面按钮，断言中栏布局/地图几何，并验证只规划不跑、摇杆干跑与实跑实时写库）
+# 桌面外壳自检（真的开窗口、点界面按钮，断言中栏布局/地图几何，并验证只规划不跑、图上选起点、摇杆干跑与实跑实时写库）
 .venv/bin/python scripts/gui_probe.py --distance 1200 --speed 8
 
 # 真实服务端连通性自检（不需要账号；会真的去 api.huachenjie.com 打请求，并实测滑块验证码）

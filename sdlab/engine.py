@@ -199,13 +199,15 @@ class RunEngine:
     # ══════════════════ ② 开跑 ══════════════════
     def start(self, target_m: Optional[float] = None, fence_index: Optional[int] = None,
               run_plan_code: str = "", sport_type: int = SPORT_TYPE_SUN,
-              use_credit_sword: bool = False, activity_code: str = "") -> str:
+              use_credit_sword: bool = False, activity_code: str = "",
+              lat: Optional[float] = None, lng: Optional[float] = None) -> str:
         c = self.client
         if fence_index is not None and c.fences:
             idx = max(0, min(int(fence_index), len(c.fences) - 1))
             c.fence = dict(c.fences[idx])
         target = float(target_m or self._run_cfg("target_distance_m", 2000))
-        lat, lng = c.fence_center()
+        if lat is None or lng is None:      # 没选起点时才回到围栏中心
+            lat, lng = c.fence_center()
         self._step(12, f"请求开跑（目标 {target:.0f} 米）…")
         res = c.start_sun_run(lat=lat, lng=lng, min_run_dis=target,
                               run_plan_code=run_plan_code, sport_type=sport_type,
@@ -444,7 +446,8 @@ class RunEngine:
     def auto(self, target_m: Optional[float] = None, fence_index: int = 0,
              seed: Optional[int] = None, do_upload: bool = True,
              do_finish: bool = True, run_plan_code: str = "",
-             sport_type: int = SPORT_TYPE_SUN, mode: str = "sim") -> Dict[str, Any]:
+             sport_type: int = SPORT_TYPE_SUN, mode: str = "sim",
+             lat: Optional[float] = None, lng: Optional[float] = None) -> Dict[str, Any]:
         with self._lock:
             started = time.time()
             try:
@@ -453,7 +456,7 @@ class RunEngine:
                 self._step(1, "准备参数…")
                 self.prepare(fence_index=fence_index)
                 code = self.start(target_m=target_m, run_plan_code=run_plan_code,
-                                  sport_type=sport_type)
+                                  sport_type=sport_type, lat=lat, lng=lng)
                 summary = self.simulate(code, target_m=target_m, seed=seed, mode=mode)
                 if do_upload:
                     _up = self.upload(code)

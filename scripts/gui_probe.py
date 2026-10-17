@@ -263,6 +263,46 @@ def main() -> int:
         check("规划后本地记录条数不变（只画不写）", runs_now == runs_before,
               f"{runs_before} → {runs_now}")
 
+        # 跑步起点：在图上点一下就定起点，后端记住，围栏外自动吸附
+        print("\n[3.6] 跑步起点（图上选点 → 围栏吸附 → 清除）")
+        check("起点按钮与提示已渲染",
+              js(window, "!!document.querySelector('#btn-pick-start') && "
+                         "document.querySelector('#start-info').textContent.indexOf('起点') === 0") is True,
+              str(js(window, "document.querySelector('#start-info').textContent")))
+        js(window, "document.querySelector('#btn-pick-start').click()")
+        time.sleep(0.4)
+        check("点「设置起点」进入设点态（按钮变「完成设点」）",
+              js(window, "S.pickStart === true && "
+                         "document.querySelector('#btn-pick-start').textContent === '完成设点'") is True)
+        # 派发一次 Leaflet click：和真人在地图上点一下走同一条通路
+        js(window, "MAP.obj.fire('click', {latlng: L.latLng(36.6730, 117.0265)})")
+        time.sleep(1.5)
+        check("图上设点后拿到吸附后的坐标（S.startPoint 非空）",
+              js(window, "!!S.startPoint && !!S.startPoint.lat") is True,
+              str(js(window, "JSON.stringify(S.startPoint)")))
+        check("提示文字跟着起点走（不再是围栏中心）",
+              js(window, "document.querySelector('#start-info').textContent.indexOf('围栏中心') < 0") is True,
+              str(js(window, "document.querySelector('#start-info').textContent")))
+        # status 不一定是同步回来的（前端每秒轮询一次），等它跟上来，别拿刷新时机当失败
+        custom = False
+        st_deadline = time.time() + 8.0
+        while time.time() < st_deadline:
+            custom = js(window, "!!(S.status && S.status.start_point_custom)") is True
+            if custom:
+                break
+            time.sleep(0.5)
+        check("后端也记住了起点（status.start_point_custom）", custom)
+        n_start = int(js(window, "document.querySelectorAll('.start-label').length") or 0)
+        check("地图上出现起点标记", n_start >= 1, f"标记数 {n_start}")
+        print("        截图（带上起点）")
+        shot(window, outdir, "gui-3-start-point.png", full=args.full)
+        js(window, "document.querySelector('#btn-clear-start').click()")
+        time.sleep(1.2)
+        check("点「清除起点」回到围栏中心",
+              js(window, "!S.startPoint && "
+                         "document.querySelector('#start-info').textContent === '起点：围栏中心'") is True,
+              str(js(window, "document.querySelector('#start-info').textContent")))
+
         # 摇杆干跑：推杆后地图上必须长出实时轨迹，且不落库
         js(window, "document.querySelector('#btn-walk-dry').click()")
         time.sleep(2.0)

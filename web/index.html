@@ -155,6 +155,9 @@
         <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
         <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
         <button class="btn ghost small" id="btn-clear-wp">清路点</button>
+        <button class="btn small" id="btn-pick-start" title="在地图上点一下，把跑步起点设在那个位置（落在围栏外时自动吸附进围栏）">设置起点</button>
+        <button class="btn ghost small" id="btn-clear-start" disabled title="取消自定义起点，回到围栏中心">清除起点</button>
+        <span class="hint" id="start-info" title="跑步起点：开跑报文的 lat/lng、实走轨迹起点、路径规划起点都用它">起点：围栏中心</span>
         <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
           <option value="amap">高德路网</option>
           <option value="amap-sat">高德卫星</option>
@@ -185,6 +188,7 @@
           <span><i class="sw route"></i>规划路线</span>
           <span><i class="sw wpt"></i>路点</span>
           <span><i class="sw fence"></i>围栏</span>
+          <span><i class="sw start"></i>起点</span>
           <span><i class="sw cp"></i>打卡点</span>
           <span><i class="sw init"></i>待上传</span>
           <span><i class="sw fail"></i>失败</span>

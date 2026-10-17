@@ -216,6 +216,59 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_start_point(args: argparse.Namespace) -> int:
+    """查看 / 设置 / 清除跑步起点（GUI 上就是地图工具条的「设置起点」）"""
+    app = build_app(args)
+    try:
+        if args.clear:
+            r = app.set_start_point(None, None)
+            print(ok(str(r.get("message") or "已清除跑步起点")))
+        elif args.lat is not None and args.lng is not None:
+            if not app.status()["logged_in"]:
+                print(dim("尚未登录，先自动登录并备跑（点在围栏外时要用围栏多边形做吸附）…"))
+                if app.login(args.phone, args.password or "", True).get("code") != 0:
+                    print(bad("登录失败，拉不到围栏，起点不会被吸附"))
+                    return 1
+                app.run_prepare()
+            elif not app.client.fence_polygon():
+                app.run_prepare()
+            r = app.set_start_point(args.lat, args.lng)
+            if r.get("code") != 0:
+                print(bad(str(r.get("message"))))
+                return 1
+            sp = (r.get("data") or {}).get("start_point") or {}
+            print(ok(f"{r.get('message')}：{float(sp.get('lat') or 0):.6f}, "
+                     f"{float(sp.get('lng') or 0):.6f}"
+                     + ("（已吸附进围栏）" if sp.get("snapped") else "")))
+        elif args.lat is not None or args.lng is not None:
+            print(bad("--lat 与 --lng 必须成对给出（或加 --clear 清除）"))
+            return 1
+
+        st = app.status()
+        cur = st.get("start_point") or {}
+        rows = [
+            ("运行模式", "本地 Mock（不联网）" if st["mode"] == "mock" else "真实服务端"),
+            ("当前起点", f"{cur['lat']:.6f}, {cur['lng']:.6f}（图上选的）"
+                        if cur else "围栏中心（没自定义过）"),
+            ("存的位置", f"{st['data_dir']}/records.db → kv.start_point"),
+            ("登录态", "已登录" if st["logged_in"] else "未登录（起点仍可查看/设置）"),
+        ]
+        if st["logged_in"]:
+            try:
+                clat, clng = app.client.fence_center()
+                rows.append(("围栏中心", f"{clat:.6f}, {clng:.6f}"))
+            except Exception:  # noqa: BLE001
+                rows.append(("围栏中心", "尚未备跑（先 `login --prepare`）"))
+        width = max(len(k) for k, _ in rows)
+        for k, v in rows:
+            print(f"  {k.ljust(width)}  {v}")
+        if args.json:
+            print(json.dumps(st.get("start_point"), ensure_ascii=False))
+        return 0
+    finally:
+        app.close()
+
+
 def _print_summary(last: Dict[str, Any]) -> None:
     if not last:
         return
@@ -442,6 +495,13 @@ def build_parser() -> argparse.ArgumentParser:
     rc.add_argument("--log", action="store_true", help="show 时打印上传日志")
     rc.add_argument("--json", action="store_true", help="打印原始返回")
     rc.set_defaults(func=cmd_records)
+
+    stp = sp.add_parser("start-point", parents=[common], help="跑步起点：查看 / 设置 / 清除")
+    stp.add_argument("--lat", type=float, default=None, help="起点纬度（与 --lng 成对）")
+    stp.add_argument("--lng", type=float, default=None, help="起点经度")
+    stp.add_argument("--clear", action="store_true", help="清除起点，回到围栏中心")
+    stp.add_argument("--json", action="store_true", help="额外打印原始返回值")
+    stp.set_defaults(func=cmd_start_point)
 
     mk = sp.add_parser("mock", parents=[common], help="只启动 Mock 服务端")
     mk.add_argument("--host", default="127.0.0.1")

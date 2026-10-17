@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -97,6 +99,18 @@ def main() -> int:
             check(status == 200 and len(text) > 200,
                   f"{name} 可访问（{len(text)} 字节）", f"HTTP {status}")
 
+        # 前端 JS 的语法：HTTP 桥自检看不出来（页面里 S 找不到变量时请求照样通），
+        # 有 node 就真解析一遍；没有就跳过。
+        node = shutil.which("node")
+        if node:
+            proc = subprocess.run([node, "--check", str(ROOT / "web" / "app.js")],
+                                  capture_output=True, text=True)
+            tail = (proc.stderr or "").strip().splitlines()
+            check(proc.returncode == 0, "app.js 语法通过（node --check）",
+                  tail[-1] if (proc.returncode and tail) else "")
+        else:
+            print("  \033[33m·\033[0m 没装 node，跳过 app.js 语法检查")
+
         st = post_api(api_url, "status")
         check(isinstance(st, dict) and "mode" in st, "桥可用：status() 返回结构正确",
               json.dumps({k: st.get(k) for k in ("mode", "logged_in", "device_id")},
@@ -129,6 +143,39 @@ def main() -> int:
         prep = post_api(api_url, "prepare")
         check(prep.get("code") == 0, "prepare() 拉取围栏与规则",
               str(prep.get("message"))[:120])
+
+        # ── 3′. 跑步起点（等价于界面上点「设置起点」再点地图）──
+        section("3′. 跑步起点（选点 → 围栏吸附 → 规划与开跑都跟着走）")
+        from sdlab.protocol import point_in_polygon
+
+        st0 = post_api(api_url, "status") or {}
+        poly = [tuple(p) for p in (st0.get("fence_polygon") or [])]
+        lats = [float(p[0]) for p in poly]
+        lngs = [float(p[1]) for p in poly]
+        clng = (min(lngs) + max(lngs)) / 2
+        check(st0.get("start_point") is None and not st0.get("start_point_custom"),
+              "默认没有自定义起点（跟随围栏中心）")
+
+        r = post_api(api_url, "set_start_point", max(lats) + 0.01, clng)   # 围栏北边 1.1 km 外
+        sp = (r.get("data") or {}).get("start_point") or {}
+        check(r.get("code") == 0 and bool(sp.get("snapped")) and bool(sp.get("in_fence"))
+              and point_in_polygon(float(sp["lat"]), float(sp["lng"]), poly),
+              f"围栏外的起点自动吸附进围栏（{float(sp.get('lat') or 0):.6f}, {float(sp.get('lng') or 0):.6f}）",
+              str(r.get("message"))[:120])
+
+        plan = (post_api(api_url, "walk_plan") or {}).get("data") or {}
+        start = plan.get("start") or {}
+        check(abs(float(start.get("lat") or 0) - float(sp["lat"])) < 1e-6
+              and abs(float(start.get("lng") or 0) - float(sp["lng"])) < 1e-6,
+              "「只规划路径」从所选起点出发")
+        check(bool((post_api(api_url, "status") or {}).get("start_point_custom")),
+              "status() 带着自定义起点（界面刷新后不回退）")
+
+        clr = post_api(api_url, "set_start_point", None, None)
+        st2 = post_api(api_url, "status") or {}
+        check(clr.get("code") == 0 and st2.get("start_point") is None,
+              "清除起点：回到围栏中心（后续用例都在默认起跑点上跑）",
+              str(clr.get("message"))[:120])
 
         # 与前端一字不差：run_auto(目标距离, 围栏序号, 上传, 结算, 运动类型)
         r = post_api(api_url, "run_auto", 1500, 0, True, True, 1)
@@ -306,7 +353,6 @@ def main() -> int:
         httpd.shutdown()
         app.close()
         if not args.keep:
-            import shutil
             shutil.rmtree(tmp, ignore_errors=True)
 
     total = len(PASS) + len(FAIL)

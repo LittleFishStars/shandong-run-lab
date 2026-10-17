@@ -123,6 +123,84 @@ def test_simulator() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════
+# 2.5 跑步起点（地图上选点：围栏吸附 / 三处生效 / 持久化）
+# ══════════════════════════════════════════════════════════════════
+def test_start_point() -> None:
+    section("2.5 跑步起点（图上选点 → 围栏吸附 → 开跑报文 / 实走轨迹 / 路径规划）")
+
+    from sdlab.protocol import (SNAP_MARGIN_M, closest_point_on_polygon,
+                                point_in_polygon)
+
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-start-"))
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+    try:
+        app.login("13800138000", "any-password", False)
+        app.run_prepare()
+        st = app.status()
+        check(st.get("start_point") is None and not st.get("start_point_custom"),
+              "默认没有自定义起点（一律按围栏中心算）")
+
+        poly = [tuple(p) for p in app.client.fence_polygon()]
+        clat, clng = app.client.fence_center()
+        r = app.set_start_point(clat + 0.01, clng)          # 往北 1.1 km，肯定在围栏外
+        sp = (r.get("data") or {}).get("start_point") or {}
+        _, _, dm = closest_point_on_polygon(sp.get("lat", 0.0), sp.get("lng", 0.0), poly)
+        check(r.get("code") == 0 and sp.get("snapped") and sp.get("in_fence")
+              and point_in_polygon(sp.get("lat", 0.0), sp.get("lng", 0.0), poly)
+              and abs(dm - SNAP_MARGIN_M) < 1.5,
+              "围栏外的起点自动吸附进围栏（贴着边界，不被抛到围栏中心）",
+              f"离边界 {dm:.1f} 米（margin {SNAP_MARGIN_M:.0f} 米）")
+
+        d = app.walk_plan().get("data") or {}
+        check(abs(d["start"]["lat"] - sp["lat"]) < 1e-6
+              and abs(d["start"]["lng"] - sp["lng"]) < 1e-6,
+              "路径规划从所选起点开始")
+
+        app.walk_start("dry", target_m=0, fence_index=0, speed_mps=3.0,
+                       auto_route=False, auto_start=False, speed=30.0)
+        time.sleep(0.6)
+        app.walk_joystick(1.0, 0.0, 0.5)
+        time.sleep(0.6)
+        pts = (app.walk_status(0) or {}).get("points") or []
+        p0 = pts[0] if pts else {}
+        check(bool(p0) and abs(float(p0.get("lat", 0.0)) - sp["lat"]) < 5e-5,
+              "实走轨迹的第一个点就是所选起点",
+              f"首点 {p0.get('lat')}, {p0.get('lng')}")
+        app.walk_stop()
+
+        # 起点真的进了开跑报文：把围栏藏起来（吸附不可用），Mock 便会当场指出“起点不在围栏内”
+        seq = (app.bus.events_since(0, 1) or [{"seq": 0}])[-1]["seq"]
+        原围栏 = app.client.fence_polygon
+        app.client.fence_polygon = lambda *a, **k: []
+        try:
+            app.set_start_point(clat + 0.01, clng)
+        finally:
+            app.client.fence_polygon = 原围栏
+        app.walk_start("real", target_m=0, fence_index=0, speed_mps=0.0,
+                       auto_route=False, auto_start=True, speed=30.0)
+        time.sleep(0.8)
+        消息 = " | ".join(e.get("message", "") for e in app.bus.events_since(seq))
+        app.walk_stop()
+        check("Mock 开跑成功" in 消息 and "起点不在围栏内" in 消息,
+              "开跑报文的 lat/lng 用的就是所选起点（Mock 服务端口径校验）")
+
+        lat, lng = app.start_lat_lng()
+        check(abs(lat - (clat + 0.01)) < 1e-6 and app.store.kv_get("start_point") is not None,
+              "起点写进本地库 kv（重启后仍然生效）")
+
+        app.set_start_point()
+        check(app.status().get("start_point") is None
+              and app.store.kv_get("start_point") is None,
+              "清除起点：回到围栏中心，并从库里删掉")
+        check(app.set_start_point(0.0, 0.0).get("code") != 0
+              and app.set_start_point("x", "y").get("code") != 0,
+              "非法坐标被拒（0,0 与 非数字）")
+    finally:
+        app.close()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+# ══════════════════════════════════════════════════════════════════
 # 3~5. 全链路
 # ══════════════════════════════════════════════════════════════════
 def test_full_chain(verbose: bool = False, fail_rate: float = 0.0) -> dict:
@@ -258,6 +336,7 @@ def main() -> int:
 
     test_crypto()
     test_simulator()
+    test_start_point()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

@@ -10,10 +10,11 @@ import math
 import unittest
 
 from sdlab import constants as C
-from sdlab.protocol import (RunLatLng, RuleSet, TrackGenerator, build_pace_list,
-                            build_step_list, build_stride_list, build_target_points,
-                            build_upload_pois, evaluate_run, haversine,
-                            point_in_polygon, polygon_centroid)
+from sdlab.protocol import (SNAP_MARGIN_M, RunLatLng, RuleSet, TrackGenerator,
+                            build_pace_list, build_step_list, build_stride_list,
+                            build_target_points, build_upload_pois,
+                            closest_point_on_polygon, evaluate_run, haversine,
+                            point_in_polygon, polygon_centroid, snap_into_polygon)
 
 中心 = (36.6615, 117.0265)
 
@@ -41,6 +42,37 @@ class 几何测试(unittest.TestCase):
         lat, lng = polygon_centroid([(36.66, 117.02), (36.66, 117.03), (36.67, 117.03)])
         self.assertTrue(36.66 < lat < 36.67)
         self.assertTrue(117.02 < lng < 117.03)
+
+    def test_围栏外点吸附到围栏内(self):
+        """选到围栏外的起点要能自动落到围栏里，且贴着边界，而不是被吸到围栏中心"""
+        方形 = [(36.66, 117.02), (36.66, 117.03), (36.67, 117.03), (36.67, 117.02)]
+        lat, lng, moved = snap_into_polygon(36.680, 117.025, 方形)
+        self.assertTrue(moved)
+        self.assertTrue(point_in_polygon(lat, lng, 方形))
+        # 吸附点与边界的距离正好压在 margin 上（不往围栏内部跑）
+        self.assertAlmostEqual(haversine(lat, lng, 36.67, 117.025), SNAP_MARGIN_M, delta=1.0)
+
+    def test_围栏内点原样保留(self):
+        方形 = [(36.66, 117.02), (36.66, 117.03), (36.67, 117.03), (36.67, 117.02)]
+        lat, lng, moved = snap_into_polygon(36.665, 117.025, 方形)
+        self.assertFalse(moved)
+        self.assertEqual((lat, lng), (36.665, 117.025))
+        # 贴着边界（离边界不足 margin）也要往里挪一点：GPS 抖一下就会掉到围栏外
+        lat2, lng2, moved2 = snap_into_polygon(36.66995, 117.025, 方形)
+        self.assertTrue(moved2)
+        self.assertTrue(point_in_polygon(lat2, lng2, 方形))
+
+    def test_没有围栏时不改点(self):
+        """还没拉到电子围栏时没有依据去改用户选的点"""
+        self.assertEqual(snap_into_polygon(36.680, 117.025, []), (36.680, 117.025, False))
+
+    def test_最近边界点(self):
+        方形 = [(36.66, 117.02), (36.66, 117.03), (36.67, 117.03), (36.67, 117.02)]
+        lat, lng, d = closest_point_on_polygon(36.680, 117.025, 方形)
+        self.assertAlmostEqual(lat, 36.67, places=6)
+        self.assertAlmostEqual(lng, 117.025, places=6)
+        # 这里用平面投影（EARTH_M_PER_DEG_LAT=111320）算距离，与球面 haversine 差 0.1% 左右
+        self.assertAlmostEqual(d, haversine(36.680, 117.025, 36.67, 117.025), delta=2.0)
 
 
 class 轨迹生成测试(unittest.TestCase):

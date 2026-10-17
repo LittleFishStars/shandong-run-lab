@@ -82,6 +82,8 @@ const S = {
   route: [],             // 规划路线 [[lat,lng], …]
   waypoints: [],         // 手动点选的路点
   pickMode: false,       // 地图点击添加路点
+  pickStart: false,      // 地图点击设置跑步起点（与 pickMode 互斥）
+  startPoint: null,      // 跑步起点 {lat,lng}；null = 没选过，一律按围栏中心
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
 };
@@ -175,6 +177,10 @@ function renderStatus(st) {
       `<option value="${i}">${esc(f.fenceName || f.fenceCode || ('围栏 ' + (i + 1)))}</option>`).join('');
     sel.value = String(st.fence_index || 0);
   }
+
+  // 跑步起点：后端说了算（存在本地库里），前端只回显
+  S.startPoint = st.start_point || null;
+  syncStartUi();
 
   // 参数回填（仅首次）
   if (!S.paramsLoaded) {
@@ -415,8 +421,12 @@ function ensureMap() {
   });
   // 用户自己拖了/缩了地图之后，实时重绘不再抢镜头（下一次跑步开始时自动恢复）
   m.on('dragstart zoomstart', () => { MAP.userMoved = true; });
-  // “点选路点”：地图点一下加一个路点，连线就是待走的路线
+  // 地图点击：“设起点”与“点选路点”两种模式互斥，都没开就什么都不做
   m.on('click', (e) => {
+    if (S.pickStart) {
+      setStartPoint(e.latlng.lat, e.latlng.lng);
+      return;
+    }
     if (!S.pickMode) return;
     S.waypoints.push([e.latlng.lat, e.latlng.lng]);
     drawMap();
@@ -457,6 +467,21 @@ function drawMap(forceFit) {
   if (rid !== MAP.runId) { MAP.runId = rid; MAP.userMoved = false; }
   const st = S.status || {};
   const fence = st.fence_polygon || [];
+  // ★ 电子围栏一到手就把镜头挪到围栏上：指纹只跟“哪块围栏”有关，与 MAP.userMoved 无关——
+  //   用户拖过地图也不该阻止这一次自动定位；登录/刷新/换围栏拿到新围栏才触发，
+  //   之后每秒的实时重绘不会再抢镜头。
+  const fencePts = (fence || []).map(([la, ln]) => [Number(la), Number(ln)])
+    .filter(([la, ln]) => isFinite(la) && isFinite(ln));
+  const fi = st.fence || {};
+  const fenceKey = fencePts.length
+    ? String(fi.fenceCode || fi.fenceName || '') + '@' + L.latLngBounds(fencePts).toBBoxString()
+    : '';
+  let fitFence = null;
+  if (fenceKey && fenceKey !== MAP.fenceKey) {
+    MAP.fenceKey = fenceKey;
+    fitFence = L.latLngBounds(fencePts);
+    MAP.userMoved = false;      // 换围栏等于换场景，重新允许自动跟随
+  }
   const pts = (S.detail && S.detail.points) || [];
   // 打卡点优先用实时快照：实跑时 walk_status.targets 会立刻翻转 passed，
   // 而 S.detail 要等下一次 run_detail 回来才刷新，否则地图上绿点要晚好几秒
@@ -510,7 +535,7 @@ function drawMap(forceFit) {
   }
   if (!fence.length && !pts.length && !cps.length
       && !(S.route || []).length && !(S.waypoints || []).length
-      && !(S.livePoints || []).length) {
+      && !(S.livePoints || []).length && !S.startPoint) {
     if (!MAP.blank) { MAP.blank = true; m.setView(MAP_HOME, 16); }
     return;
   }
@@ -547,6 +572,18 @@ function drawMap(forceFit) {
     }).addTo(MAP.layers.start);
   }
 
+  // 跑步起点（图上选的）：和轨迹首点分开画，带“起”字的青标
+  if (S.startPoint && isFinite(Number(S.startPoint.lat))) {
+    L.marker(P(S.startPoint.lat, S.startPoint.lng), {
+      icon: L.divIcon({
+        className: 'cp-icon', iconSize: [22, 22], iconAnchor: [11, 11],
+        html: '<span class="start-label">起</span>',
+      }),
+      title: '跑步起点（“设置起点”可改，“清除起点”回到围栏中心）',
+      keyboard: false,
+    }).addTo(MAP.layers.start);
+  }
+
   // 打卡点：带序号的圆点，命中后由紫转绿
   cps.forEach((c, i) => {
     const passed = Number(c.passed) === 1;
@@ -561,10 +598,17 @@ function drawMap(forceFit) {
   });
 
   MAP.bounds = corners.length ? L.latLngBounds(corners) : null;
-  if (!MAP.bounds) return;
-  const key = MAP.bounds.toBBoxString() + '|' + pts.length + '|' + cps.length
+  const key = (MAP.bounds ? MAP.bounds.toBBoxString() : '') + '|' + pts.length + '|' + cps.length
     + '|' + (S.livePoints || []).length + '|' + (S.route || []).length
-    + '|' + (S.waypoints || []).length + '|' + cps.filter((c) => Number(c.passed) === 1).length;
+    + '|' + (S.waypoints || []).length + '|' + cps.filter((c) => Number(c.passed) === 1).length
+    + '|' + (S.startPoint ? 'S' : '');
+  if (fitFence) {                       // ★ 刚拿到电子围栏：这一帧的镜头直接对准围栏
+    MAP.fitKey = key;
+    S.fit = false;
+    m.fitBounds(fitFence, { padding: [28, 28], maxZoom: 17, animate: false });
+    return;
+  }
+  if (!MAP.bounds) return;
   if (forceFit || S.fit || (key !== MAP.fitKey && !MAP.userMoved)) {
     MAP.fitKey = key;
     S.fit = false;
@@ -698,6 +742,68 @@ function clearWaypoints() {
   $('btn-pick').classList.remove('primary');
   Bridge.call('walk_route', '[]', false, false).catch(() => {});
   drawMap();
+}
+
+// ── 跑步起点（在图上选，存后端）────────────────────
+function startPointText() {
+  const p = S.startPoint;
+  if (!p || p.lat === undefined || p.lat === null) return '起点：围栏中心';
+  return `起点：${Number(p.lat).toFixed(6)}, ${Number(p.lng).toFixed(6)}`;
+}
+
+function syncStartUi() {
+  const info = $('start-info');
+  if (info) info.textContent = startPointText();
+  const b = $('btn-pick-start');
+  if (b) {
+    b.textContent = S.pickStart ? '完成设点' : '设置起点';
+    b.classList.toggle('primary', S.pickStart);
+  }
+  const cb = $('btn-clear-start');
+  if (cb) cb.disabled = !S.startPoint;
+}
+
+function togglePickStart() {
+  S.pickStart = !S.pickStart;
+  if (S.pickStart && S.pickMode) {     // 两种点选互斥：免得一次点击既加路点又设起点
+    S.pickMode = false;
+    $('btn-pick').textContent = '点选路点';
+    $('btn-pick').classList.remove('primary');
+  }
+  if (S.pickStart) {
+    toast('设点模式：在地图上点一下就是跑步起点（点在围栏外会自动吸附进围栏）', 'ok');
+  }
+  syncStartUi();
+}
+
+async function setStartPoint(lat, lng) {
+  const r = await Bridge.call('set_start_point', Number(lat), Number(lng));
+  if (!r || r.code !== 0) {
+    toast('设起点失败：' + ((r && r.message) || '未知错误'), 'err');
+    return;
+  }
+  S.startPoint = ((r.data || {}).start_point) || null;
+  S.pickStart = false;
+  S.fit = true;                        // 镜头跟到新起点上，好确认选对没有
+  syncStartUi();
+  drawMap(true);
+  refreshStatus();                   // 后端已换起点：让顶栏/详情那些读 S.status 的地方立刻跟上
+  toast(r.message || '起点已设置', 'ok');
+}
+
+async function clearStartPoint() {
+  const r = await Bridge.call('set_start_point', null, null);
+  if (!r || r.code !== 0) {
+    toast('清除起点失败：' + ((r && r.message) || '未知错误'), 'err');
+    return;
+  }
+  S.startPoint = null;
+  S.pickStart = false;
+  S.fit = true;
+  syncStartUi();
+  drawMap(true);
+  refreshStatus();
+  toast('已回到围栏中心起点', 'ok');
 }
 
 // ── 实走：升跑 / 叫停 / 上传 ────────────────────────
@@ -949,6 +1055,9 @@ $('btn-login').addEventListener('click', async () => {
   // 地图 / 日志
   $('in-show-state').addEventListener('change', (e) => { S.showState = e.target.checked; drawMap(); });
   $('btn-fit').addEventListener('click', () => { S.fit = true; drawMap(true); });
+  // 跑步起点：点“设置起点”后在图上点一下，或点“清除起点”回到围栏中心
+  $('btn-pick-start').addEventListener('click', togglePickStart);
+  $('btn-clear-start').addEventListener('click', clearStartPoint);
   $('in-tiles').addEventListener('change', (e) => {
     S.tiles = e.target.value;
     try { localStorage.setItem('sdlab.tiles', S.tiles); } catch (err) { /* 隐私模式等 */ }

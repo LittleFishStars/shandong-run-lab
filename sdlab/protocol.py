@@ -37,6 +37,8 @@ from .constants import (
 )
 
 EARTH_M_PER_DEG_LAT = 111_320.0
+# 起点自动吸附时与围栏边界保持的最小距离（米）：贴边走容易被判成“出围栏”
+SNAP_MARGIN_M = 10.0
 
 
 # ══════════════════ 几何工具 ══════════════════
@@ -105,6 +107,90 @@ def _point_seg_distance(lat: float, lng: float, alat: float, alng: float,
     t = max(0.0, min(1.0, -(ax * dx + ay * dy) / seg2))
     px, py = ax + t * dx, ay + t * dy
     return math.hypot(px, py)
+
+
+def _polygon_edge_distance(lat: float, lng: float,
+                           polygon: Sequence[Sequence[float]]) -> float:
+    """点到多边形边界的最近距离（米），不关心点在里还是在外"""
+    if not polygon or len(polygon) < 3:
+        return 0.0
+    best = float("inf")
+    n = len(polygon)
+    for i in range(n):
+        a = polygon[i]
+        b = polygon[(i + 1) % n]
+        best = min(best, _point_seg_distance(lat, lng, float(a[0]), float(a[1]),
+                                             float(b[0]), float(b[1])))
+    return 0.0 if best == float("inf") else best
+
+
+def closest_point_on_polygon(lat: float, lng: float,
+                             polygon: Sequence[Sequence[float]]) -> Tuple[float, float, float]:
+    """点到多边形边界的最近点：返回 (lat, lng, 距离米)；多边形无效时返回自身"""
+    if not polygon or len(polygon) < 3:
+        return float(lat), float(lng), 0.0
+    m_per_deg_lng = EARTH_M_PER_DEG_LAT * math.cos(math.radians(lat))
+    best_d = float("inf")
+    best_lat, best_lng = float(lat), float(lng)
+    n = len(polygon)
+    for i in range(n):
+        a = polygon[i]
+        b = polygon[(i + 1) % n]
+        alat, alng = float(a[0]), float(a[1])
+        blat, blng = float(b[0]), float(b[1])
+        ax, ay = (alng - lng) * m_per_deg_lng, (alat - lat) * EARTH_M_PER_DEG_LAT
+        bx, by = (blng - lng) * m_per_deg_lng, (blat - lat) * EARTH_M_PER_DEG_LAT
+        dx, dy = bx - ax, by - ay
+        seg2 = dx * dx + dy * dy
+        t = 0.0 if seg2 <= 1e-9 else max(0.0, min(1.0, -(ax * dx + ay * dy) / seg2))
+        d = math.hypot(ax + t * dx, ay + t * dy)
+        if d < best_d:
+            best_d = d
+            best_lat, best_lng = alat + t * (blat - alat), alng + t * (blng - alng)
+    return best_lat, best_lng, best_d
+
+
+def _inside_with_margin(lat: float, lng: float, polygon: Sequence[Sequence[float]],
+                        margin_m: float) -> bool:
+    """点在围栏内、且离边界还有 margin_m 米以上（GPS 抖动也还在围栏里）"""
+    return point_in_polygon(lat, lng, polygon) and \
+        _polygon_edge_distance(lat, lng, polygon) >= margin_m
+
+
+def snap_into_polygon(lat: float, lng: float, polygon: Sequence[Sequence[float]],
+                      margin_m: float = SNAP_MARGIN_M) -> Tuple[float, float, bool]:
+    """把点吸附到围栏内，返回 (lat, lng, 是否被移动)
+
+    已经在围栏里、且离边界还有 margin_m 米以上 → 原样返回；
+    落在围栏外（或贴着边）→ 先取边界最近点，再沿「边界点 → 质心」方向内推，
+    停在第一个“确实在围栏内、且离边界够远”的位置上。
+    围栏几何缺失（还没拉到）时不做任何修正——没有依据去改用户选的点。
+    """
+    if not polygon or len(polygon) < 3:
+        return float(lat), float(lng), False
+    if _inside_with_margin(lat, lng, polygon, margin_m):
+        return float(lat), float(lng), False
+    edge_lat, edge_lng, _ = closest_point_on_polygon(lat, lng, polygon)
+    c_lat, c_lng = polygon_centroid(polygon)
+    lo, hi = 0.0, 1.0
+    for i in range(1, 41):
+        t = i / 40.0
+        if _inside_with_margin(edge_lat + (c_lat - edge_lat) * t,
+                              edge_lng + (c_lng - edge_lng) * t, polygon, margin_m):
+            hi = t
+            break
+        lo = t
+    else:
+        return c_lat, c_lng, True        # 凹陷/细长的围栏：退到质心
+    for _ in range(24):                  # 再二分：大围栏上一步就是几十米，插值到贴着边界刚好够 margin
+        mid = (lo + hi) / 2.0
+        if _inside_with_margin(edge_lat + (c_lat - edge_lat) * mid,
+                               edge_lng + (c_lng - edge_lng) * mid, polygon, margin_m):
+            hi = mid
+        else:
+            lo = mid
+    return (edge_lat + (c_lat - edge_lat) * hi,
+            edge_lng + (c_lng - edge_lng) * hi, True)
 
 
 # ══════════════════ 表 1：run_lat_lng ══════════════════

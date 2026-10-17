@@ -113,6 +113,10 @@ class JsApi:
     def walk_plan(self) -> Dict[str, Any]:
         return self.app.walk_plan()
 
+    def set_start_point(self, lat: Any = None, lng: Any = None) -> Dict[str, Any]:
+        """设置 / 清除跑步起始点：传经纬度就设（围栏外会自动吸附），传空就清除"""
+        return self.app.set_start_point(lat, lng)
+
     # —— 记录 ——
     def list_runs(self, limit: int = 100) -> Any:
         return self.app.list_runs(int(limit))

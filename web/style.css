@@ -195,6 +195,7 @@ select option { background: #131a29; color: var(--text); }
 .sw.succ { background: var(--ok); }
 .sw.route { background: #ffd166; }
 .sw.wpt { background: #ffffff; }
+.sw.start { background: #4dd0e1; }
 
 /* 地图卡片自己的工具行：不挤占卡片头，宽度不够时自动换行 */
 .map-bar {
@@ -256,6 +257,15 @@ select option { background: #131a29; color: var(--text); }
   font-size: 10px; font-weight: 700; line-height: 1;
 }
 .cp-label.passed { background: var(--ok); }
+/* 跑步起点：带“起”字的青标，和打卡点/路点一眼分开 */
+.start-label {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  box-sizing: border-box; border: 1.5px solid #0c1120;
+  background: #4dd0e1; color: #06222b;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px #4dd0e155;
+}
 /* 卡片头部里的小号下拉（瓦片源选择） */
 select.mini {
   width: auto; padding: 3px 22px 3px 8px; font-size: 11.5px;

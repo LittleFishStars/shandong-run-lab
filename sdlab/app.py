@@ -15,16 +15,36 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .bus import DEFAULT_MODE, ConfigStore, EventBus, default_data_dir
 from .client import ShandongClient
 from .engine import RunEngine
-from .protocol import haversine
+from .protocol import haversine, point_in_polygon, snap_into_polygon
 from .mock import MockServer, MockWorld
 from .store import RecordStore
 from .walk import WalkSession, build_walk_targets
 from .walker import route_from_checkpoints
+
+
+KV_START_POINT = "start_point"     # 跑步起始点在本地库 kv 里的键（重启后仍然生效）
+
+
+def _as_lat_lng(p: Any) -> Optional[List[float]]:
+    """把 {lat,lng} / [lat,lng] 统一成 [float, float]；不合法（含 0,0）时返回 None"""
+    if isinstance(p, dict):
+        p = [p.get("lat"), p.get("lng")]
+    if not isinstance(p, (list, tuple)) or len(p) < 2:
+        return None
+    try:
+        lat, lng = float(p[0]), float(p[1])
+    except (TypeError, ValueError):
+        return None
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0):
+        return None
+    if lat == 0.0 and lng == 0.0:      # 空值/默认值，不当成真起点
+        return None
+    return [lat, lng]
 
 
 class App:
@@ -56,6 +76,8 @@ class App:
         # 用户在地图上点出来（或“仅渲染路径点”生成）的待用路线，开走时交给 Walker
         self._pending_route: List[List[float]] = []
         self._pending_auto: bool = True
+        # 用户在图上选定的跑步起始点 [lat, lng]；None = 跟随围栏中心。存在本地库 kv 里
+        self._start_point: Optional[List[float]] = self._load_start_point()
         self._thread: Optional[threading.Thread] = None
         self._last_result: Dict[str, Any] = {}
         self._progress: Dict[str, Any] = {"percent": 0, "message": "就绪", "running": False}
@@ -180,6 +202,65 @@ class App:
         self.bus.emit("state", f"已生成新的 deviceId：{did}")
         return {"device_id": did}
 
+    # ══════════════════ 跑步起始点（地图上选） ══════════════════
+    def _load_start_point(self) -> Optional[List[float]]:
+        return _as_lat_lng(self.store.kv_get(KV_START_POINT))
+
+    def start_point(self) -> Optional[Dict[str, float]]:
+        """当前生效的跑步起始点；从没选过时返回 None（此时一律按围栏中心算）"""
+        p = self._start_point
+        return {"lat": p[0], "lng": p[1]} if p else None
+
+    def _custom_start_lat_lng(self) -> Tuple[Optional[float], Optional[float]]:
+        """用户选过的起点；没选过给 (None, None)，让引擎自己回落到围栏中心"""
+        if self._start_point:
+            return float(self._start_point[0]), float(self._start_point[1])
+        return None, None
+
+    def start_lat_lng(self) -> Tuple[float, float]:
+        """实走轨迹与路径规划用的起点：选过就用它，否则用围栏中心"""
+        lat, lng = self._custom_start_lat_lng()
+        if lat is None or lng is None:
+            return self.client.fence_center()
+        return lat, lng
+
+    def set_start_point(self, lat: Any = None, lng: Any = None) -> Dict[str, Any]:
+        """设置 / 清除跑步起始点（地图上点一下就调这个）
+
+        两个坐标都给 → 设为该点；选到围栏外时自动吸附进围栏（与边界留 SNAP_MARGIN_M 米）。
+        都不给（None）→ 清除，重新跟随围栏中心。
+        同一个坐标供三处使用：开跑报文的 lat/lng、实走轨迹的起点、路线规划的起点。
+        """
+        if lat is None or lng is None:
+            self._start_point = None
+            self.store.kv_delete(KV_START_POINT)
+            self.bus.emit("state", "已清除跑步起点，回到围栏中心")
+            return {"code": 0, "message": "已清除跑步起点", "data": {"start_point": None}}
+        pt = _as_lat_lng([lat, lng])
+        if pt is None:
+            return {"code": -1, "message": f"起点坐标不合法：{lat}, {lng}", "data": None}
+        poly: List[Any] = []
+        try:
+            poly = list(self.client.fence_polygon() or [])
+        except Exception:  # noqa: BLE001
+            poly = []
+        la, ln, moved = snap_into_polygon(pt[0], pt[1], poly)
+        self._start_point = [float(la), float(ln)]
+        self.store.kv_set(KV_START_POINT, {"lat": self._start_point[0],
+                                          "lng": self._start_point[1]})
+        msg = "跑步起点已设置"
+        if moved:
+            msg += "（原位置在围栏外，已自动吸附进围栏）"
+        self.bus.emit("state",
+                      f"{msg}：{self._start_point[0]:.6f}, {self._start_point[1]:.6f}")
+        return {"code": 0, "message": msg,
+                "data": {"start_point": {
+                    "lat": self._start_point[0], "lng": self._start_point[1],
+                    "snapped": bool(moved),
+                    "has_fence": bool(poly and len(poly) >= 3),
+                    "in_fence": point_in_polygon(self._start_point[0],
+                                                 self._start_point[1], poly)}}}
+
     # ══════════════════ 状态快照（GUI 首屏用） ══════════════════
     def status(self) -> Dict[str, Any]:
         c = self.client
@@ -197,6 +278,9 @@ class App:
             "walk_cfg": self.cfg.get("walk", {}),
             "fences": c.fences,
             "fence": c.fence,
+            # 跑步起点（用户在地图上选的）：None 表示没选过，所有地方按围栏中心算
+            "start_point": self.start_point(),
+            "start_point_custom": bool(self._start_point),
             "fence_polygon": c.fence_polygon(),
             "rule": c.rule.to_dict(),
             "checkpoints": c.store.get_checkpoints((self._last_code() or "")) or
@@ -244,9 +328,10 @@ class App:
 
         def _work() -> None:
             try:
+                lat, lng = self._custom_start_lat_lng()
                 self.engine.auto(target_m=target_m, fence_index=fence_index, seed=seed,
                                  do_upload=do_upload, do_finish=do_finish,
-                                 sport_type=sport_type, mode="sim")
+                                 sport_type=sport_type, mode="sim", lat=lat, lng=lng)
             finally:
                 self._progress = {**self._progress, "running": False}
 
@@ -294,12 +379,14 @@ class App:
             self.bus.emit("log", f"✗ 实走前准备失败：{e}", level="error")
             return {"code": -1, "message": str(e), "data": None}
 
-        lat, lng = self.client.fence_center()
+        # 起点：图上选过就是它，否则回落到围栏中心（与原版“在围栏里开跑”一致）
+        lat, lng = self.start_lat_lng()
         run_code = ""
         mode = "real" if str(mode).lower() == "real" else "dry"
         if mode == "real" and auto_start:
             try:
-                run_code = self.engine.start(target_m=target_m, fence_index=int(fence_index))
+                run_code = self.engine.start(target_m=target_m, fence_index=int(fence_index),
+                                            lat=lat, lng=lng)
             except Exception as e:  # noqa: BLE001
                 self.bus.emit("log", f"✗ 实跑开跑失败：{e}", level="error")
                 return {"code": -1, "message": str(e), "data": None}
@@ -349,7 +436,7 @@ class App:
                 continue
         if not wps and targets:
             try:
-                lat, lng = self.client.fence_center()
+                lat, lng = self.start_lat_lng()
             except Exception:  # noqa: BLE001
                 lat, lng = 0.0, 0.0
             wps = route_from_checkpoints(lat, lng, self.engine.checkpoints or [], loop=True)
@@ -425,7 +512,7 @@ class App:
         """
         c = self.client
         try:
-            lat, lng = c.fence_center()
+            lat, lng = self.start_lat_lng()
         except Exception:  # noqa: BLE001
             lat, lng = 0.0, 0.0
         cps = [dict(x) for x in (self.engine.checkpoints or [])]
