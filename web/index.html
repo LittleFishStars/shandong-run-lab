@@ -192,15 +192,6 @@
             </div>
           </div>
         </details>
-        <!-- 摇杆与「自动跑」常驻右下角：默认手动，点了「自动跑」才沿路线自动走 -->
-        <div class="run-ctl" id="run-ctl">
-          <button class="btn small" id="btn-auto-run"
-                  title="默认手动：用右下角摇杆控制方向。点这里切到自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
-          <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键（自动跑时推杆即接管）">
-            <div class="joy-ring"></div>
-            <div class="joy-knob" id="joy-knob"></div>
-          </div>
-        </div>
         <div class="map-legend">
           <span><i class="sw route"></i>规划路线</span>
           <span><i class="sw wpt"></i>路点</span>
@@ -210,6 +201,17 @@
           <span><i class="sw init"></i>待上传</span>
           <span><i class="sw fail"></i>失败</span>
           <span><i class="sw succ"></i>已上传</span>
+        </div>
+      </div>
+      <!-- 摇杆与「自动跑」常驻地图卡右下角：默认手动，点了「自动跑」才沿路线自动走。
+           注意它挂在卡片上（不在 .map-body 里）——地图区 overflow:hidden，
+           窗口一矮/提示行变长就会把绝对定位的摇杆整块裁掉（2026-10-18 实测）。 -->
+      <div class="run-ctl" id="run-ctl">
+        <button class="btn small" id="btn-auto-run"
+                title="默认手动：用右下角摇杆控制方向。点这里切到自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
+        <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键（自动跑时推杆即接管）">
+          <div class="joy-ring"></div>
+          <div class="joy-knob" id="joy-knob"></div>
         </div>
       </div>
     </div>

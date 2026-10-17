@@ -77,6 +77,11 @@ html, body {
    .map-body{overflow:hidden} 会把整簇摇杆裁掉（2026-10-18 实测）。 */
 .col-mid {
   display: grid;
+  /* 列宽由中栏自身宽度决定，不被卡片的 max-content 撑开：
+     #flow-info 是 nowrap 的长文案，用 auto 列时会把卡片撑到 622px，
+     而中栏只有 342px——绝对定位的摇杆按卡片右边缘摆放，就被 .col-mid{overflow:hidden}
+     整块裁到中栏外面（2026-10-18 实测：DOM 里摇杆矩形正常、屏幕上什么都没有）。 */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1.6fr) minmax(0, 1fr);
   overflow: hidden;
 }
@@ -84,6 +89,12 @@ html, body {
    右下角摇杆簇（按钮 + 摇杆 + 底边距，最大约 175）永远放得下。
    高窗口时它照样按 1.6fr 长大，不影响地图占满上半页。 */
 .col-mid .map-card { min-height: 340px; }
+/* 卡片允许窄于内容（内容自己省略 / 滚动），与上面的列宽一起保证卡片右边缘
+   就是中栏的右边缘，右下角的摇杆簇才落在可见区内。 */
+.col-mid > .card { min-width: 0; }
+/* 摇杆簇挂在卡片上（不在 .map-body 里）：地图区 overflow:hidden，窗口一矮就会把它裁掉；
+   卡片自己不裁剪，所以哪怕地图区被压到 0，摇杆也不会消失。 */
+.map-card { position: relative; }
 /* 窗口变窄时收窄两侧栏，把宽度让给地图（地图是主视口） */
 @media (max-width: 1340px) {
   .layout { grid-template-columns: 300px minmax(300px, 1fr) 352px; }

@@ -120,6 +120,10 @@ class JsApi:
         """设置 / 清除跑步起始点：传经纬度就设（围栏外会自动吸附），传空就清除"""
         return self.app.set_start_point(lat, lng)
 
+    def ui_report(self, info: Any = None) -> Dict[str, Any]:
+        """前端上报布局自检几何（摇杆/自动跑按钮的实测矩形），写进事件流便于事后定位"""
+        return self.app.ui_report(info)
+
     # —— 记录 ——
     def list_runs(self, limit: int = 100) -> Any:
         return self.app.list_runs(int(limit))

@@ -285,6 +285,45 @@ def main() -> int:
         check("地图卡上还有主流程提示行",
               len(str(js(window, "document.querySelector('#flow-info').textContent") or "")) > 0,
               str(js(window, "document.querySelector('#flow-info').textContent")))
+        # 2026-10-18 用户又报「点了开始跑步摇杆还是被裁掉」：窗口很高、地图区很大也照样不见。
+        # 治本做法：把摇杆簇从 .map-body 里搬出来挂到 .map-card 上（地图区 overflow:hidden，
+        # 矮到一定程度会把里面的绝对定位元素整块裁掉；卡片不裁子元素）。
+        check("摇杆簇挂在卡片上（不在地图区里），地图区再矮也裁不掉它",
+              js(window, "!!document.querySelector('#run-ctl') && "
+                         "!document.querySelector('#run-ctl').closest('.map-body') && "
+                         "document.querySelector('#run-ctl').parentElement"
+                         ".classList.contains('map-card')") is True)
+        # 2026-10-18 实测抓到第二种「看不见」（DOM 里矩形正常、屏幕上什么都没有）：
+        # 中栏的网格列被卡片的 max-content 撑宽（#flow-info 是 nowrap 长文案 → 卡片 622px，
+        # 中栏只有 342px），绝对定位的摇杆按卡片右边缘摆在中栏之外，
+        # 被 .col-mid{overflow:hidden} 整块裁掉。所以这里直接问「摇杆中心点上到底是谁」。
+        raw_vis = js(window, "JSON.stringify((function(){"
+                             "const ctl=document.querySelector('#run-ctl');"
+                             "const j=document.querySelector('#joy').getBoundingClientRect();"
+                             "const m=document.querySelector('.col-mid').getBoundingClientRect();"
+                             "const card=document.querySelector('.map-card').getBoundingClientRect();"
+                             "const hit=document.elementFromPoint(Math.round(j.left+j.width/2),"
+                             "Math.round(j.top+j.height/2));"
+                             "return {over:!!(hit&&ctl.contains(hit)),"
+                             "hit:hit?(hit.id||hit.className||hit.tagName):null,"
+                             "cardW:Math.round(card.width),midW:Math.round(m.width),"
+                             "cardRight:Math.round(card.right),midRight:Math.round(m.right)};})())")
+        try:
+            vis = json.loads(raw_vis) if isinstance(raw_vis, str) else {}
+        except Exception:
+            vis = {}
+        check("摇杆簇真的在屏幕可见区内（摇杆中心点命中摇杆，卡片没被撑出中栏）",
+              bool(vis) and vis.get("over") and vis.get("cardRight", 0) <= vis.get("midRight", 0) + 1,
+              f"命中 {vis.get('hit')}；卡片宽 {vis.get('cardW')} / 中栏宽 {vis.get('midW')}"
+              f"（右边缘 {vis.get('cardRight')} vs {vis.get('midRight')}）")
+        # 前端每次加载/开跑/改窗口大小都把实测几何回传后端（写进事件流 + app.log），
+        # 以后“某个控件看不见”能直接从日志定位，不用等用户截图。
+        check("首屏已把布局自检写进事件流",
+              js(window, "Array.from(document.querySelectorAll('#log > *'))"
+                         ".some(e => (e.textContent || '').includes('界面自检'))") is True,
+              str(js(window, "(Array.from(document.querySelectorAll('#log > *'))"
+                             ".find(e => (e.textContent || '').includes('界面自检')) || {})"
+                             ".textContent || ''"))[:160])
         # 2026-10-18 用户报「点击开始跑步后摇杆会消失，需要使软件全屏才能看到」：
         # ③ 之后提示行文案变长把主流程工具行撑高一档，本就不高的窗口里地图区被压到
         # 175px 以下，.map-body{overflow:hidden} 就把右下角整簇摇杆簇裁没了（纯布局，无 JS 控制）。
@@ -449,6 +488,32 @@ def main() -> int:
               js(window, "!!(S.walk && S.walk.running) && S.walk.auto === false") is True,
               str(js(window, "JSON.stringify({running: !!(S.walk&&S.walk.running), "
                              "auto: !!(S.walk&&S.walk.auto)})")))
+        # 用户报的就是「点了开始跑步摇杆被裁掉」——开跑后（提示行变长、工具行变高）必须再量一次
+        raw_ctl = js(window, "JSON.stringify((function(){"
+                             "const a=document.querySelector('.map-card').getBoundingClientRect();"
+                             "const c=document.querySelector('#run-ctl').getBoundingClientRect();"
+                             "const j=document.querySelector('#joy').getBoundingClientRect();"
+                             "const m=document.querySelector('.col-mid').getBoundingClientRect();"
+                             "const ctlEl=document.querySelector('#run-ctl');"
+                             "const hit=document.elementFromPoint(Math.round(j.left+j.width/2),"
+                             "Math.round(j.top+j.height/2));"
+                             "return {ok:(c.top>=a.top-1&&c.bottom<=a.bottom+1&&c.left>=a.left-1"
+                             "&&c.right<=a.right+1&&a.right<=m.right+1&&!!(hit&&ctlEl.contains(hit))),"
+                             "cTop:Math.round(c.top),cBot:Math.round(c.bottom),"
+                             "aTop:Math.round(a.top),aBot:Math.round(a.bottom),"
+                             "hit:hit?(hit.id||hit.className||hit.tagName):null,"
+                             "cardRight:Math.round(a.right),midRight:Math.round(m.right),"
+                             "joy:!!document.querySelector('#joy').offsetParent,"
+                             "btn:!!document.querySelector('#btn-auto-run').offsetParent};})())")
+        try:
+            ctl = json.loads(raw_ctl) if isinstance(raw_ctl, str) else {}
+        except Exception:
+            ctl = {}
+        check("实跑中右下角摇杆与「自动跑」按钮仍完整可见（没被裁）",
+              bool(ctl) and ctl.get("ok") and ctl.get("joy") and ctl.get("btn"),
+              f"摇杆簇 {ctl.get('cTop')}~{ctl.get('cBot')} vs 卡片 "
+              f"{ctl.get('aTop')}~{ctl.get('aBot')}；中心点命中 {ctl.get('hit')}；"
+              f"卡片右 {ctl.get('cardRight')} vs 中栏右 {ctl.get('midRight')}")
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
         time.sleep(4.0)
         stored = int(js(window, "(S.walk && S.walk.stored) || 0") or 0)

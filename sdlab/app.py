@@ -262,6 +262,18 @@ class App:
                     "in_fence": point_in_polygon(self._start_point[0],
                                                  self._start_point[1], poly)}}}
 
+    # ══════════════════ 前端自检回传 ══════════════════
+    def ui_report(self, info: Any = None) -> Dict[str, Any]:
+        """接收前端的布局自检几何并写进事件流（落 app.log）。
+
+        用途：界面“看不见某个控件”这类问题，事后能直接从日志定位到底是被裁掉了、
+        还是根本没渲染（例如摇杆簇在地图区里被overflow:hidden裁掉时，
+        ctl 的矩形会跑到 body 矩形之外）——不需要用户复现时截图。
+        """
+        text = info if isinstance(info, str) else json.dumps(info or {}, ensure_ascii=False)
+        self.bus.emit("state", "界面自检：" + text[:600])
+        return {"code": 0, "message": "已记录", "data": None}
+
     # ══════════════════ 状态快照（GUI 首屏用） ══════════════════
     def status(self) -> Dict[str, Any]:
         c = self.client

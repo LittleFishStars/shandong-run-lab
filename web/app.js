@@ -847,6 +847,48 @@ function syncFlowInfo() {
   if (end) end.disabled = !(S.walk && S.walk.running);
 }
 
+// ══════════════════ 布局自愈与界面自检 ══════════════════
+// 摇杆簇「永不消失」兜底 + 把实测几何上报后端（写进事件流 / app.log）。
+// 背景：2026-10-18 用户报「点开始跑步后摇杆被裁掉」——窗口矮、或 ③ 之后提示行变长把工具行撑高，
+// 都能把地图区压扁，绝对定位的摇杆会被地图区 overflow:hidden 整块裁掉。
+// 这里无论布局怎么变都把摇杆夹回卡片可见区（必要时整体缩一档），并把 card/body/ctl 的实测矩形发去存档。
+function reportGeometry(tag) {
+  const card = document.querySelector('.map-card');
+  const body = document.querySelector('.map-body');
+  const ctl = $('run-ctl');
+  const joy = $('joy');
+  if (!card || !ctl) return null;
+  const R = (e) => {
+    if (!e) return null;
+    const r = e.getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom),
+             left: Math.round(r.left), right: Math.round(r.right),
+             w: Math.round(r.width), h: Math.round(r.height) };
+  };
+  ctl.style.transform = '';
+  const a = R(card), c = R(ctl);
+  let dx = 0, dy = 0, scale = 1;
+  if (c.bottom > a.bottom - 4) dy = a.bottom - 4 - c.bottom;       // 越出卡片下边 → 上移
+  if (c.top + dy < a.top + 4) dy = a.top + 4 - c.top;              // 越出上边 → 下移
+  if (c.right > a.right - 4) dx = a.right - 4 - c.right;
+  if (c.left + dx < a.left + 4) dx = a.left + 4 - c.left;
+  if (c.h > a.h - 8) scale = Math.max(0.55, (a.h - 8) / c.h);      // 卡片太矮 → 整体缩一档
+  if (dx || dy || scale !== 1) {
+    ctl.style.transformOrigin = 'bottom right';
+    ctl.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(3)})`;
+  }
+  const info = {
+    tag: tag || '', vw: innerWidth, vh: innerHeight, dpr: window.devicePixelRatio,
+    card: a, body: R(body), ctl: R(ctl),
+    joyVisible: !!(joy && joy.offsetParent),
+    autoBtnVisible: !!($('btn-auto-run') && $('btn-auto-run').offsetParent),
+    advOpen: !!($('adv-tools') && $('adv-tools').open),
+    fixed: !!(dx || dy || scale !== 1),
+  };
+  try { Bridge.call('ui_report', JSON.stringify(info)); } catch (e) { /* 桥未就绪就算了 */ }
+  return info;
+}
+
 // 「自动跑」按钮：手动（默认）↔ 自动沿规划路线走。开跑后点也能切（后端 walk_auto 立即生效）
 function syncAutoUi() {
   const b = $('btn-auto-run');
@@ -940,6 +982,7 @@ async function startRun() {
   S.previewPoints = [];
   await Bridge.call('walk_route', '[]', !!S.autoRun, false);
   await walkStart('real');
+  reportGeometry('run');                       // 开跑后把布局几何上报一次（写进事件流）
 }
 
 // ④ 结束跑步：停止记录 → 上传轨迹 → 结算（上传走后台线程，进度看状态行）
@@ -964,6 +1007,7 @@ async function walkEnd() {
   } finally {
     busy(b, false);
     syncFlowInfo();                   // 能不能再点，由真实运行态决定
+    reportGeometry('end');
   }
 }
 
@@ -1192,7 +1236,11 @@ $('btn-login').addEventListener('click', async () => {
   $('btn-clear-log').addEventListener('click', () => { $('log').innerHTML = ''; S.logCount = 0; });
   $('btn-refresh-runs').addEventListener('click', refreshRuns);
   // 尺寸变化：Leaflet 必须收到 invalidateSize，否则瓦片错位、底图留白
-  window.addEventListener('resize', () => { if (MAP.obj) MAP.obj.invalidateSize(); drawMap(); });
+  window.addEventListener('resize', () => {
+    if (MAP.obj) MAP.obj.invalidateSize();
+    drawMap();
+    reportGeometry('resize');
+  });
 
   // 首次渲染 + 轮询事件流（失败一定要看得见，否则界面会静默地全空）
   try {
@@ -1202,6 +1250,7 @@ $('btn-login').addEventListener('click', async () => {
     toast('初始化失败：' + ((e && e.message) || e), 'err');
   }
   setInterval(poll, 700);
+  reportGeometry('load');                        // 首屏自检：摇杆簇有没有被裁，直接写进事件流
 }
 
 async function saveParams(silent) {
