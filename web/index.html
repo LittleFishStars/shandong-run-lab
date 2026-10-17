@@ -64,7 +64,7 @@
     <div class="card">
       <div class="card-head">
         <h2>② 阳光跑</h2>
-        <span class="hint">一键跑完整链路</span>
+        <span class="hint">跑步参数（别的操作都在地图卡的「高级 / 调试」里）</span>
       </div>
       <div class="card-body">
         <div class="row2">
@@ -120,13 +120,7 @@
           </label>
         </div>
         <div class="row">
-          <button class="btn" id="btn-prepare">拉取配置</button>
-          <button class="btn primary" id="btn-run">③ 一键跑完整链路</button>
-        </div>
-        <div class="row">
-          <button class="btn" id="btn-resume">断点续传</button>
-          <button class="btn" id="btn-save-cfg">保存参数</button>
-          <button class="btn ghost" id="btn-reset-device">换 deviceId</button>
+          <span class="hint">③ 开始跑步 · ④ 结束跑步 在中间地图卡上方；整场仿真在「高级 / 调试」里</span>
         </div>
         <div class="progress">
           <div class="progress-bar"><i id="progress-fill" style="width:0%"></i></div>
@@ -151,39 +145,59 @@
         <h2>轨迹与围栏</h2>
         <span class="hint" id="map-hint">高德路网 · GCJ-02</span>
       </div>
-      <div class="map-bar">
-        <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
-        <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
-        <button class="btn ghost small" id="btn-clear-wp">清路点</button>
-        <button class="btn small" id="btn-pick-start" title="在地图上点一下，把跑步起点设在那个位置（落在围栏外时自动吸附进围栏）">设置起点</button>
-        <button class="btn ghost small" id="btn-clear-start" disabled title="取消自定义起点，回到围栏中心">清除起点</button>
-        <span class="hint" id="start-info" title="跑步起点：开跑报文的 lat/lng、实走轨迹起点、路径规划起点都用它">起点：围栏中心</span>
-        <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
-          <option value="amap">高德路网</option>
-          <option value="amap-sat">高德卫星</option>
-          <option value="osm">OpenStreetMap</option>
-          <option value="none">无底图</option>
-        </select>
-        <label class="check small"><input type="checkbox" id="in-show-state" checked>
-          <span>按上传状态着色</span></label>
-        <button class="btn ghost small" id="btn-fit">适应</button>
+      <div class="map-bar flow-bar" id="flow-bar">
+        <button class="btn small primary" id="btn-prepare"
+                title="拉取电子围栏 / 学校规则 / 打卡点，并自动把地图移到电子围栏处">① 拉取配置</button>
+        <button class="btn small" id="btn-pick-start"
+                title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">② 选择起始点</button>
+        <button class="btn small primary" id="btn-walk-real"
+                title="在地图上画出打卡路径，然后升跑并开始记录轨迹（实时写入本地库）">③ 开始跑步</button>
+        <button class="btn small" id="btn-flow-end" disabled
+                title="停止记录，并把本次轨迹上传结算">④ 结束跑步</button>
+        <span class="hint" id="flow-info">第 ① 步：先在左栏登录</span>
       </div>
       <div class="card-body map-body">
         <div id="map"></div>
-        <div class="map-tools">
-          <button class="btn small" id="btn-walk-dry" title="只推位置与数据，不升跑、不落库、不上传，纯调路径">干跑调试</button>
-          <button class="btn small primary" id="btn-walk-real" title="先开跑拿 runRecordCode，轨迹实时写进本地库">实跑记录</button>
-          <button class="btn small" id="btn-walk-stop" disabled>停止</button>
-          <button class="btn small" id="btn-walk-up" title="停止后按与一键跑完全相同的链路上传并结算">上传结算</button>
-          <button class="btn ghost small" id="btn-walk-save" title="把本次路径存成本地草稿，不升跑不上传">存草稿</button>
-          <label class="check small"><input type="checkbox" id="in-auto-route" checked>
-            <span>沿路线自动走</span></label>
-          <span class="hint" id="walk-info">未开始（摇杆 / 方向键 / 路点均可控制）</span>
-        </div>
-        <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键">
-          <div class="joy-ring"></div>
-          <div class="joy-knob" id="joy-knob"></div>
-        </div>
+        <details class="adv" id="adv-tools">
+          <summary>高级 / 调试</summary>
+          <div class="adv-body">
+            <div class="adv-row">
+              <button class="btn small" id="btn-walk-dry" title="只推位置与数据，不升跑、不落库、不上传，纯调路径">干跑调试</button>
+              <button class="btn small" id="btn-walk-stop" disabled>停止</button>
+              <button class="btn small" id="btn-walk-up" title="停止后按与一键跑完全相同的链路上传并结算">上传结算</button>
+              <button class="btn ghost small" id="btn-walk-save" title="把本次路径存成本地草稿，不升跑不上传">存草稿</button>
+            </div>
+            <div class="adv-row">
+              <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
+              <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
+              <button class="btn ghost small" id="btn-clear-wp">清路点</button>
+              <button class="btn ghost small" id="btn-clear-start" disabled title="取消自定义起点，回到围栏中心">清除起点</button>
+              <button class="btn ghost small" id="btn-fit">适应</button>
+            </div>
+            <div class="adv-row">
+              <button class="btn small" id="btn-run" title="不用在地图上走，直接按仿真参数跑完一整场并上传">一键跑完整链路</button>
+              <button class="btn small" id="btn-resume">断点续传</button>
+              <button class="btn small" id="btn-save-cfg">保存参数</button>
+              <button class="btn ghost small" id="btn-reset-device">换 deviceId</button>
+            </div>
+            <div class="adv-row">
+              <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
+                <option value="amap">高德路网</option>
+                <option value="amap-sat">高德卫星</option>
+                <option value="osm">OpenStreetMap</option>
+                <option value="none">无底图</option>
+              </select>
+              <label class="check small"><input type="checkbox" id="in-show-state" checked>
+                <span>按上传状态着色</span></label>
+              <label class="check small"><input type="checkbox" id="in-auto-route" checked>
+                <span>沿路线自动走</span></label>
+            </div>
+            <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键">
+              <div class="joy-ring"></div>
+              <div class="joy-knob" id="joy-knob"></div>
+            </div>
+          </div>
+        </details>
         <div class="map-legend">
           <span><i class="sw route"></i>规划路线</span>
           <span><i class="sw wpt"></i>路点</span>

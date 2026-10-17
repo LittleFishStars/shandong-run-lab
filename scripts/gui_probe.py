@@ -54,6 +54,18 @@ def js(window, expr: str):
         return f"<evaluate_js 失败：{exc}>"
 
 
+def wait_js(window, expr: str, timeout: float = 40.0, interval: float = 0.4) -> bool:
+    """轮询一个 JS 条件直到为真：登录/拉取配置这类真异步步骤不能赌固定秒数。"""
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            if js(window, expr) is True:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(interval)
+    return False
+
 def _webkit_shot(window, path: Path) -> bool:
     """用 WebKit 自己的快照接口截图（不依赖合成器）。
 
@@ -236,21 +248,66 @@ def main() -> int:
 
         print("\n[2] 登录（点界面按钮）")
         js(window, "document.querySelector('#btn-login').click()")
-        time.sleep(4)
-        check("登录成功（顶栏已登录）",
-              "已登录" in str(js(window, "document.querySelector('#pill-login').textContent")))
+        # 验证码要试好几次才会过，登录耗时不定（本次就比 4 秒慢）：轮询等真登录，不赌秒数
+        ok_login = wait_js(window, "!!(S.status && S.status.logged_in)", timeout=60.0)
+        check("登录成功（顶栏已登录）", ok_login,
+              str(js(window, "document.querySelector('#pill-login').textContent")))
         check("用户信息已渲染",
-              "未登录" not in str(js(window, "document.querySelector('#user-info').textContent")))
+              "未登录" not in str(js(window, "document.querySelector('#user-info').textContent") or ""))
+
+        # 2026-10-17 用户要求：「现在操作有点太乱了，只留拉取配置 / 选择起始点 /
+        # 开始跑步 / 结束跑步」——其余控件全部收进地图卡上的「高级 / 调试」折叠区。
+        print("\n[2.5] 界面精简：主流程 4 个按钮 + 高级折叠")
+        n_flow = int(js(window, "document.querySelectorAll('#flow-bar button').length") or 0)
+        check("主流程工具条正好 4 个按钮", n_flow == 4,
+              f"实际 {n_flow} 个：" + str(js(window,
+                  "Array.from(document.querySelectorAll('#flow-bar button'))"
+                  ".map(b => b.textContent.trim()).join(' / ')")))
+        check("④ 结束跑步未跑时不可点",
+              js(window, "document.querySelector('#btn-flow-end').disabled") is True)
+        check("其它控件收进「高级 / 调试」且默认折叠",
+              js(window, "!!document.querySelector('#adv-tools') && "
+                         "document.querySelector('#adv-tools').open === false") is True)
+        check("高级里功能没丢（路点/干跑/上传/一键跑/底图/摇杆全在）",
+              js(window, "['btn-plan','btn-pick','btn-clear-wp','btn-clear-start','btn-fit',"
+                         "'btn-walk-dry','btn-walk-stop','btn-walk-up','btn-walk-save',"
+                         "'btn-run','btn-resume','btn-save-cfg','btn-reset-device',"
+                         "'in-tiles','in-show-state','in-auto-route','joy']"
+                         ".every(id => !!document.getElementById(id))") is True)
+        check("地图卡上还有主流程提示行",
+              len(str(js(window, "document.querySelector('#flow-info').textContent") or "")) > 0,
+              str(js(window, "document.querySelector('#flow-info').textContent")))
 
         print("\n[3] 拉取配置（围栏/规则/打卡点）")
         js(window, "document.querySelector('#btn-prepare').click()")
-        time.sleep(5)
-        check("围栏下拉已有选项", js(window, "document.querySelector('#in-fence').options.length > 0") is True)
+        # 拉取配置要连打七八个接口：等围栏多边形真的到手再断言，不赌固定秒数
+        got_fence = wait_js(window, "((S.status && S.status.fence_polygon) || []).length >= 3", timeout=40.0)
+        check("围栏已到手（多边形 ≥ 3 点）", got_fence,
+              f"{(js(window, '((S.status && S.status.fence_polygon) || []).length') or 0)} 个点")
+        check("围栏下拉已有选项",
+              js(window, "Array.from(document.querySelector('#in-fence').options)"
+                         ".some(o => o.textContent.trim().length > 0)") is True,
+              str(js(window, "Array.from(document.querySelector('#in-fence').options)"
+                             ".map(o => o.textContent.trim()).join(' / ')"))[:80])
         check("规则已显示",
               js(window, "document.querySelector('#rule-info').textContent.indexOf('尚未加载') < 0") is True)
+        # 「拉取配置」的另一半语义：拿到围栏就把镜头移过去（镜头中心必须落在围栏里）
+        check("拿到围栏后镜头已飞到围栏处",
+              js(window, "(function(){const c=MAP.obj.getCenter();"
+                         "const b=L.latLngBounds((S.status.fence_polygon||[]).map(p=>[p[0],p[1]]));"
+                         "return !!MAP.fenceKey && (S.status.fence_polygon||[]).length >= 3 && b.contains(c);})()") is True,
+              str(js(window, "JSON.stringify({fenceKey: MAP.fenceKey, "
+                             "center: [MAP.obj.getCenter().lat, MAP.obj.getCenter().lng]})")))
         # 布局与「只规划不动」：先把路径画出来，不升跑。
         # 用户要求：加入摇杆便于自行控制路径 + 加入仅渲染路径点但不一键跑完的功能。
         print("\n[3.5] 只规划路径（不升跑、不落库）与摇杆干跑")
+        # 摇杆、停止、干跑、路点都在「高级 / 调试」里：先展开它，截图里也才看得到摇杆
+        js(window, "document.querySelector('#adv-tools').open = true")
+        time.sleep(0.4)
+        check("展开「高级 / 调试」后摇杆与工具按钮真的可见",
+              js(window, "!!document.querySelector('#adv-tools').open && "
+                         "!!document.querySelector('#joy').offsetParent && "
+                         "!!document.querySelector('#btn-plan').offsetParent") is True)
         runs_before = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         js(window, "document.querySelector('#btn-plan').click()")
         time.sleep(1.5)
@@ -262,46 +319,6 @@ def main() -> int:
         runs_now = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         check("规划后本地记录条数不变（只画不写）", runs_now == runs_before,
               f"{runs_before} → {runs_now}")
-
-        # 跑步起点：在图上点一下就定起点，后端记住，围栏外自动吸附
-        print("\n[3.6] 跑步起点（图上选点 → 围栏吸附 → 清除）")
-        check("起点按钮与提示已渲染",
-              js(window, "!!document.querySelector('#btn-pick-start') && "
-                         "document.querySelector('#start-info').textContent.indexOf('起点') === 0") is True,
-              str(js(window, "document.querySelector('#start-info').textContent")))
-        js(window, "document.querySelector('#btn-pick-start').click()")
-        time.sleep(0.4)
-        check("点「设置起点」进入设点态（按钮变「完成设点」）",
-              js(window, "S.pickStart === true && "
-                         "document.querySelector('#btn-pick-start').textContent === '完成设点'") is True)
-        # 派发一次 Leaflet click：和真人在地图上点一下走同一条通路
-        js(window, "MAP.obj.fire('click', {latlng: L.latLng(36.6730, 117.0265)})")
-        time.sleep(1.5)
-        check("图上设点后拿到吸附后的坐标（S.startPoint 非空）",
-              js(window, "!!S.startPoint && !!S.startPoint.lat") is True,
-              str(js(window, "JSON.stringify(S.startPoint)")))
-        check("提示文字跟着起点走（不再是围栏中心）",
-              js(window, "document.querySelector('#start-info').textContent.indexOf('围栏中心') < 0") is True,
-              str(js(window, "document.querySelector('#start-info').textContent")))
-        # status 不一定是同步回来的（前端每秒轮询一次），等它跟上来，别拿刷新时机当失败
-        custom = False
-        st_deadline = time.time() + 8.0
-        while time.time() < st_deadline:
-            custom = js(window, "!!(S.status && S.status.start_point_custom)") is True
-            if custom:
-                break
-            time.sleep(0.5)
-        check("后端也记住了起点（status.start_point_custom）", custom)
-        n_start = int(js(window, "document.querySelectorAll('.start-label').length") or 0)
-        check("地图上出现起点标记", n_start >= 1, f"标记数 {n_start}")
-        print("        截图（带上起点）")
-        shot(window, outdir, "gui-3-start-point.png", full=args.full)
-        js(window, "document.querySelector('#btn-clear-start').click()")
-        time.sleep(1.2)
-        check("点「清除起点」回到围栏中心",
-              js(window, "!S.startPoint && "
-                         "document.querySelector('#start-info').textContent === '起点：围栏中心'") is True,
-              str(js(window, "document.querySelector('#start-info').textContent")))
 
         # 摇杆干跑：推杆后地图上必须长出实时轨迹，且不落库
         js(window, "document.querySelector('#btn-walk-dry').click()")
@@ -328,8 +345,49 @@ def main() -> int:
         check("干跑不落库（记录条数未变）", runs_after == runs_before,
               f"{runs_before} → {runs_after}")
 
-        # 实跑：摇杆驱动，轨迹/打卡/步频/配速都必须边跑边落库
-        print("\n[3.7] 实跑（摇杆驱动）：边跑边落库、实测并检测打卡点")
+        # 跑步起点：在图上点一下就定起点，后端记住，围栏外自动吸附
+        print("\n[3.6] 跑步起点（图上选点 → 围栏吸附 → 清除）")
+        check("起点按钮与提示已渲染",
+              js(window, "!!document.querySelector('#btn-pick-start') && "
+                         "document.querySelector('#flow-info').textContent.indexOf('起点') >= 0") is True,
+              str(js(window, "document.querySelector('#flow-info').textContent")))
+        js(window, "document.querySelector('#btn-pick-start').click()")
+        time.sleep(0.4)
+        # 注入的 JS 走 WebKit 的 evaluate_js：里面带中文会报
+        # “SyntaxError: Unexpected end of script”，所以只比布尔/class，不比中文文案
+        check("点「② 选择起始点」进入设点态（按钮高亮）",
+              js(window, "S.pickStart === true && "
+                         "document.querySelector('#btn-pick-start').classList.contains('primary')") is True)
+        # 派发一次 Leaflet click：和真人在地图上点一下走同一条通路
+        js(window, "MAP.obj.fire('click', {latlng: L.latLng(36.6730, 117.0265)})")
+        time.sleep(1.5)
+        check("图上设点后拿到吸附后的坐标（S.startPoint 非空）",
+              js(window, "!!S.startPoint && !!S.startPoint.lat") is True,
+              str(js(window, "JSON.stringify(S.startPoint)")))
+        check("提示文字跟着起点走（不再是围栏中心）",
+              js(window, "document.querySelector('#flow-info').textContent.indexOf('围栏中心') < 0") is True,
+              str(js(window, "document.querySelector('#flow-info').textContent")))
+        # status 不一定是同步回来的（前端每秒轮询一次），等它跟上来，别拿刷新时机当失败
+        custom = False
+        st_deadline = time.time() + 8.0
+        while time.time() < st_deadline:
+            custom = js(window, "!!(S.status && S.status.start_point_custom)") is True
+            if custom:
+                break
+            time.sleep(0.5)
+        check("后端也记住了起点（status.start_point_custom）", custom)
+        n_start = int(js(window, "document.querySelectorAll('.start-label').length") or 0)
+        check("地图上出现起点标记", n_start >= 1, f"标记数 {n_start}")
+        print("        截图（带上起点）")
+        shot(window, outdir, "gui-3-start-point.png", full=args.full)
+        js(window, "document.querySelector('#btn-clear-start').click()")
+        time.sleep(1.2)
+        check("点「清除起点」回到围栏中心",
+              js(window, "!S.startPoint && "
+                         "document.querySelector('#flow-info').textContent.indexOf('围栏中心') >= 0") is True,
+              str(js(window, "document.querySelector('#flow-info').textContent")))
+        # 实跑：③ 开始跑步（先把路径画到地图上，再升跑），轨迹/打卡/步频/配速都必须边跑边落库
+        print("\n[3.7] 实跑（③ 开始跑步）：边跑边落库、沿规划路线自动巡航打卡")
         # 摇杆速度调高：默认 2.5 m/s 走完“中心→最近打卡点”要一分钟以上，
         # 探针里没必要等那么久（这条链路的正确性与速度无关）
         js(window, "document.querySelector('#in-walk-speed').value = 5.5")
@@ -372,7 +430,7 @@ def main() -> int:
               f"DOM 打卡点 {n_cp} 个 / 变绿 {n_green} 个 / 快照命中 {n_mapcp} 个")
         shot(window, outdir, "gui-5-walk-real.png", full=args.full)
         js(window, "Bridge.call('walk_joystick', 0, 0, 0)")
-        js(window, "document.querySelector('#btn-walk-stop').click()")
+        js(window, "document.querySelector('#btn-flow-end').click()")   # ④ 结束跑步 = 停止 + 上传结算
         time.sleep(4.0)
         check("实跑停止后本地轨迹与段仍在（未因停止而回滚）",
               int(js(window, "(S.walk && S.walk.stored) || 0") or 0) >= stored and
@@ -382,6 +440,24 @@ def main() -> int:
         runs_real = int(js(window, "document.querySelectorAll('#runs .run-item').length") or 0)
         check("实跑确实多了一条本地记录（与干跑相反）", runs_real > runs_before,
               f"{runs_before} → {runs_real}")
+        check("④ 结束跑步已不可点（当前没有在跑的记录了）",
+              js(window, "document.querySelector('#btn-flow-end').disabled") is True)
+        # ④ 会顺带上传结算（后端后台线程）：等它落地再进 [4]，
+        # 否则一键跑会被「已有任务在运行」挡回来，白等一轮。
+        up_deadline = time.time() + 90
+        while time.time() < up_deadline:
+            if js(window, "!!(S.status && S.status.progress && S.status.progress.running)") is False:
+                break
+            time.sleep(1.5)
+        check("结束跑步后上传结算已跑完（进度已归零）",
+              js(window, "!!(S.status && S.status.progress && !S.status.progress.running)") is True,
+              str(js(window, "JSON.stringify((S.status && S.status.progress) || null)")))
+        # 一键跑要在干净的界面上跑（README 的截图就是这张），把高级区收回去
+        js(window, "document.querySelector('#adv-tools').open = false")
+        time.sleep(0.3)
+        check("收回「高级 / 调试」后主流程 4 个按钮仍可见",
+              js(window, "['btn-prepare','btn-pick-start','btn-walk-real','btn-flow-end']"
+                         ".every(id => !!document.getElementById(id).offsetParent)") is True)
         print(f"\n[4] 一键跑 {args.distance:.0f} 米（点界面按钮，开实时仿真）")
         js(window, f"document.querySelector('#in-distance').value = {args.distance}")
         # 打开实时仿真：mock 模式下不算实时的话整场跑只要一两秒，界面上一瞬就过去了，

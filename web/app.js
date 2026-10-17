@@ -84,6 +84,7 @@ const S = {
   pickMode: false,       // 地图点击添加路点
   pickStart: false,      // 地图点击设置跑步起点（与 pickMode 互斥）
   startPoint: null,      // 跑步起点 {lat,lng}；null = 没选过，一律按围栏中心
+  walkMsg: '',           // 主流程状态行上的临时文案（跑步中/刚规划完），空则按登录与围栏状态推导
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
 };
@@ -202,6 +203,11 @@ function renderStatus(st) {
     renderRunInfo(st.last);
     refreshDetail(st.last.run_code);
   }
+  // ★ 每次状态回来后重画叠加层：电子围栏是「拉取配置」的产品结果，
+  //   不在这里重画的话，围栏要等到下一次别的 drawMap 触发（规划/摇杆/详情）才出现，
+  //   镜头也就不会在拿到围栏的当下就飞过去。
+  //   重绘本身有围栏指纹 + 用户手动的双重护栏，不会每秒抢镜头。
+  drawMap();
 }
 
 function renderProgress(p) {
@@ -213,6 +219,7 @@ function renderProgress(p) {
   $('btn-run').disabled = busy;
   $('btn-prepare').disabled = busy;
   $('btn-resume').disabled = busy;
+  syncFlowInfo();          // 主流程状态行也跟着走（上传结算期间显示“进行中 xx%”）
 }
 
 function fmtDur(sec) {
@@ -708,8 +715,9 @@ async function planPaths() {
   }
   drawMap(true);
   const est = Number(d.est_duration_s || 0);
-  $('walk-info').textContent = `已规划 ${S.route.length} 个点 / ${Number(d.route_length_m || 0).toFixed(0)} 米`
+  S.walkMsg = `已规划 ${S.route.length} 个点 / ${Number(d.route_length_m || 0).toFixed(0)} 米`
     + `（预计 ${Math.floor(est / 60)}分${String(est % 60).padStart(2, '0')}秒走完）`;
+  syncFlowInfo();
   toast(`已规划路线：${S.route.length} 个点，${Number(d.route_length_m || 0).toFixed(0)} 米（未开跑）`, 'ok');
 }
 
@@ -752,15 +760,14 @@ function startPointText() {
 }
 
 function syncStartUi() {
-  const info = $('start-info');
-  if (info) info.textContent = startPointText();
   const b = $('btn-pick-start');
   if (b) {
-    b.textContent = S.pickStart ? '完成设点' : '设置起点';
+    b.textContent = S.pickStart ? '点地图…（取消）' : '② 选择起始点';
     b.classList.toggle('primary', S.pickStart);
   }
   const cb = $('btn-clear-start');
   if (cb) cb.disabled = !S.startPoint;
+  syncFlowInfo();                      // 起点变了，主流程状态行也要跟着变
 }
 
 function togglePickStart() {
@@ -806,6 +813,28 @@ async function clearStartPoint() {
   toast('已回到围栏中心起点', 'ok');
 }
 
+// ── 主流程状态行：① 拉取配置 → ② 选择起始点 → ③ 开始跑步 → ④ 结束跑步 ──
+// 只讲“下一步做什么”，免得每加一个按钮就得让人自己找路。
+function flowInfoText() {
+  const st = S.status || {};
+  const pg = st.progress || {};
+  let base;
+  if (pg.running) base = `进行中：${pg.message || '处理中'}（${Math.round(Number(pg.percent || 0))}%）`;
+  else if (S.walk && S.walk.running) base = `${S.walk.mode === 'real' ? '跑步中' : '干跑中'}｜${startPointText()}`;
+  else if (!st.logged_in) base = '第 ① 步：先在左栏登录';
+  else if (!((st.fences || []).length)) base = '第 ① 步：点「拉取配置」，把电子围栏拉下来并自动定位到围栏';
+  else base = `已就绪｜${startPointText()}｜点「③ 开始跑步」`;
+  // 动作回执（规划结果、跑步实时数据）永远拼在后面：「起点 / 下一步该点哪个」不能被它顶掉
+  return S.walkMsg ? `${base}｜${S.walkMsg}` : base;
+}
+
+function syncFlowInfo() {
+  const info = $('flow-info');
+  if (info) info.textContent = flowInfoText();
+  const end = $('btn-flow-end');
+  if (end) end.disabled = !(S.walk && S.walk.running);
+}
+
 // ── 实走：升跑 / 叫停 / 上传 ────────────────────────
 async function walkStart(mode) {
   busy($('btn-walk-dry'), true); busy($('btn-walk-real'), true);
@@ -823,7 +852,9 @@ async function walkStart(mode) {
     S.walk = r.data || {};
     $('map').closest('.map-card').classList.add('walking');
     $('btn-walk-stop').disabled = false;
-    toast(mode === 'real' ? '实跑已开始（轨迹实时入库）' : '干跑已开始（不落库、不上传）', 'ok');
+    S.walkMsg = '';                       // 交给实时数据（pumpWalk 每 500ms 刷一次）
+    syncFlowInfo();
+    toast(mode === 'real' ? '已开跑，轨迹实时入库（结束跑步会顺带上传结算）' : '干跑已开始（不落库、不上传）', 'ok');
     startWalkTimer();
   } finally {
     busy($('btn-walk-dry'), false); busy($('btn-walk-real'), false);
@@ -835,6 +866,8 @@ async function walkStop() {
   S.walk = r || S.walk;
   $('btn-walk-stop').disabled = true;
   $('map').closest('.map-card').classList.remove('walking');
+  S.walkMsg = '';
+  syncFlowInfo();
   const st = (r && r.state) || {};
   toast(`已停止：${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步`
     + `（本地已落库 ${r && r.stored || 0} 点）`, 'ok');
@@ -850,6 +883,42 @@ async function walkSave() {
   const r = await Bridge.call('walk_save', '');
   toast((r && r.message) || '已保存', r && r.code === 0 ? 'ok' : 'err');
   if (r && r.code === 0) refreshRuns();
+}
+
+// ③ 开始跑步：先把打卡路径画到地图上，再升跑并开始记录（轨迹实时入库）
+async function startRun() {
+  const st = S.status || {};
+  if (!st.logged_in) { toast('请先在左栏 ① 登录', 'err'); return; }
+  if (!((st.fences || []).length)) { toast('请先点「① 拉取配置」，把电子围栏拉下来', 'err'); return; }
+  if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「④ 结束跑步」', 'err'); return; }
+  await saveParams(true);
+  await planPaths();                  // 路径点先画出来（后端开跑用的也是同一条）
+  await walkStart('real');
+}
+
+// ④ 结束跑步：停止记录 → 上传轨迹 → 结算（上传走后台线程，进度看状态行）
+async function walkEnd() {
+  if (!(S.walk && S.walk.running)) { toast('现在没有在跑', 'err'); return; }
+  const b = $('btn-flow-end');
+  busy(b, true);
+  try {
+    const r = await Bridge.call('walk_stop');
+    S.walk = r || S.walk;
+    stopWalkTimer();
+    $('map').closest('.map-card').classList.remove('walking');
+    $('btn-walk-stop').disabled = true;
+    const st = (r && r.state) || {};
+    S.walkMsg = '';
+    syncFlowInfo();
+    const up = await Bridge.call('walk_upload', true);
+    toast(`已结束：${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 · `
+      + ((up && up.message) || '已提交上传结算'), (up && up.code === 0) ? 'ok' : 'err');
+    refreshRuns();
+    refreshStatus();
+  } finally {
+    busy(b, false);
+    syncFlowInfo();                   // 能不能再点，由真实运行态决定
+  }
 }
 
 // 实走进行中：从后端增量拉点（S.walkSince = 已拉到的点数），描到地图上。
@@ -881,11 +950,14 @@ async function pumpWalk() {
   const stepLine = r.mode === 'real'
     ? `　已落库 ${r.stored || 0} 点 / ${r.steps || 0} 个步频段 / ${r.paces || 0} 个配速段 / ${r.strides || 0} 个步幅段`
     : `　（调试不落库；内存已切 ${segs.steps || 0} 个步频段 / ${segs.strides || 0} 个步幅段）`;
-  $('walk-info').textContent = `${r.mode === 'real' ? '实跑' : '干跑'} `
-    + `${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 / `
+  S.walkMsg = `${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步 / `
     + `速度 ${st.speed_mps ? Number(st.speed_mps).toFixed(2) : '0.00'} m/s / `
     + `打卡 ${st.passed || 0}/${st.targets || 0}`
     + stepLine;
+  if (Array.isArray(r.route) && r.route.length) {   // 后端真正在走的那条线，才是地图上该画的线
+    S.route = r.route.map((p) => [Number(p[0]), Number(p[1])]);
+  }
+  syncFlowInfo();
   if (r.run_code) { S.currentRun = r.run_code; $('run-code-label').textContent = r.run_code; }
   // 跑步中“本次跑步”面板实时跟距离、步数、打卡
   renderRunInfo({
@@ -900,6 +972,8 @@ async function pumpWalk() {
     stopWalkTimer();
     $('btn-walk-stop').disabled = true;
     $('map').closest('.map-card').classList.remove('walking');
+    S.walkMsg = '';
+    syncFlowInfo();
     if (st.arrived) {
       toast('实走结束：' + st.arrived, 'ok');
       refreshRuns();
@@ -1034,7 +1108,8 @@ $('btn-login').addEventListener('click', async () => {
   $('btn-pick').addEventListener('click', togglePick);
   $('btn-clear-wp').addEventListener('click', clearWaypoints);
   $('btn-walk-dry').addEventListener('click', () => walkStart('dry'));
-  $('btn-walk-real').addEventListener('click', () => walkStart('real'));
+  $('btn-walk-real').addEventListener('click', startRun);   // ③ 开始跑步（先画路径再开跑）
+  $('btn-flow-end').addEventListener('click', walkEnd);      // ④ 结束跑步（停止 + 上传结算）
   $('btn-walk-stop').addEventListener('click', walkStop);
   $('btn-walk-up').addEventListener('click', walkUpload);
   $('btn-walk-save').addEventListener('click', walkSave);
@@ -1046,6 +1121,7 @@ $('btn-login').addEventListener('click', async () => {
     if (w && w.running) {
       S.walk = w; S.walkSince = Number(w.points || 0);
       $('btn-walk-stop').disabled = false;
+      syncFlowInfo();                    // 接管后「④ 结束跑步」也得可用
       $('map').closest('.map-card').classList.add('walking');
       startWalkTimer();
       toast('检测到正在进行的实走，已重新接管', 'ok');

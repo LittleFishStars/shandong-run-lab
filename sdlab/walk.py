@@ -350,6 +350,9 @@ class WalkSession:
             "error": self.error,
             "finished": self.finished_result,
             "targets": [dict(c) for c in (self.walker.targets if self.walker else [])],
+            # 本次真正在走的那条线（界面直接画它，省得自己再推一遍）
+            "route": [[float(p[0]), float(p[1])]
+                      for p in (self.walker.route if self.walker else [])],
         }
         if since is not None:
             data.update(self.points_since(int(since)))
