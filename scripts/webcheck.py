@@ -111,6 +111,14 @@ def main() -> int:
         else:
             print("  \033[33m·\033[0m 没装 node，跳过 app.js 语法检查")
 
+        # 时长/配速必须走墙钟口径（原版 DataComponent.Q0()）：实时面板若拿 move_sec（只在移动时
+        # 累加）算，一停下来时长与配速就冻住——这是 m02443 的实际故障，静态守一条。
+        js_text = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        check("实时面板的时长/配速用 elapsed_sec（不用 move_sec）",
+              "st.elapsed_sec || st.move_sec" in js_text
+              and "pace_s_per_km: st.dist_m > 0 ? (st.move_sec" not in js_text,
+              "pumpWalk 里要写成 duration_s: durSec / pace: durSec")
+
         st = post_api(api_url, "status")
         check(isinstance(st, dict) and "mode" in st, "桥可用：status() 返回结构正确",
               json.dumps({k: st.get(k) for k in ("mode", "logged_in", "device_id")},

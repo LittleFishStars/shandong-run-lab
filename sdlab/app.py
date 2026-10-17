@@ -525,7 +525,8 @@ class App:
         if pts:
             self.store.add_points(code, pts)
         self.store.finish_run(code, distance_m=float(st["state"].get("dist_m") or 0),
-                              duration_s=float(st["state"].get("move_sec") or 0),
+                              duration_s=float(st["state"].get("elapsed_sec")
+                                 or st["state"].get("move_sec") or 0),
                               total_step=int(st["state"].get("steps") or 0),
                               source="walk")
         self.bus.emit("state", f"路径草稿已保存：{code}（{len(pts)} 点）")

@@ -1051,10 +1051,15 @@ async function pumpWalk() {
   syncFlowInfo();
   if (r.run_code) { S.currentRun = r.run_code; $('run-code-label').textContent = r.run_code; }
   // 跑步中“本次跑步”面板实时跟距离、步数、打卡
+  // 时长/配速取 elapsed_sec（原版 DataComponent.Q0()：站着不动也照走表），
+  // 配速 = 时长 / 公里数（原版 J0()，Q0()/max(0.01, km)）——不能拿 move_sec（只在移动时累加），
+  // 否则一停下时长与配速都冻住。
+  const durSec = Number(st.elapsed_sec || st.move_sec || 0);
   renderRunInfo({
-    run_code: r.run_code || '--', distance_m: st.dist_m, duration_s: st.move_sec,
+    run_code: r.run_code || '--', distance_m: st.dist_m, duration_s: durSec,
+    elapsed_s: durSec,   // 草稿/记录里的「计时」也是墙钟口径，实时面板别显示成 0
     total_step: st.steps, stride_m: st.steps ? (st.dist_m / st.steps) : 0,
-    pace_s_per_km: st.dist_m > 0 ? (st.move_sec / (st.dist_m / 1000)) : 0,
+    pace_s_per_km: st.dist_m > 0 ? (durSec / (st.dist_m / 1000)) : 0,
     checkpoints_done: st.passed, checkpoints_total: st.targets,
     valid: { isValid: true, reasons: [] },
   });

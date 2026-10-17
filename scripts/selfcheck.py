@@ -286,6 +286,46 @@ def test_auto_run() -> None:
             pass
         shutil.rmtree(tmp, ignore_errors=True)
 
+def test_elapsed_no_freeze() -> None:
+    section("2.8 停下来时间照走（时长/配速不冻住，原版 Q0() 口径）")
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+    try:
+        app.login("13800138000", "any-password", False)
+        app.run_prepare()
+        app.walk_start("dry", 0.0, 0, 3.0, False, False, 30.0)
+        app.walk_joystick(1.0, 0.0, 0.8)
+        time.sleep(1.5)
+        app.walk_joystick(0.0, 0.0, 0.0)      # 松开摇杆：站着不动
+        time.sleep(0.8)
+        st = (app.walk_status(-1).get("state") or {})
+        d1 = float(st.get("dist_m") or 0)
+        e1 = float(st.get("elapsed_sec") or 0)
+        m1 = float(st.get("move_sec") or 0)
+        check(d1 > 0, "先走出一段距离", f"{d1:.1f} 米 / 时长 {e1:.1f} 秒")
+        time.sleep(2.0)
+        st2 = (app.walk_status(-1).get("state") or {})
+        d2 = float(st2.get("dist_m") or 0)
+        e2 = float(st2.get("elapsed_sec") or 0)
+        m2 = float(st2.get("move_sec") or 0)
+        check(d2 - d1 < 1.0, "松杆后距离基本不再增长", f"{d1:.1f} → {d2:.1f} 米")
+        check(e2 - e1 >= 1.2, "松杆后时长照走（墙钟，原版 Q0()）",
+              f"elapsed_sec {e1:.1f} → {e2:.1f} 秒")
+        p1 = e1 / (d1 / 1000.0) if d1 > 0 else 0.0
+        p2 = e2 / (d2 / 1000.0) if d2 > 0 else 0.0
+        check(p2 > p1, "配速随时长变大（配速 = 时长 / 公里）",
+              f"{p1:.1f} → {p2:.1f} 秒/公里")
+        check(m2 - m1 < (e2 - e1) * 0.5, "move_sec 是另一口径：只在移动时累加",
+              f"move_sec {m1:.1f} → {m2:.1f} 秒（elapsed {e1:.1f} → {e2:.1f}）")
+        app.walk_stop()
+    finally:
+        try:
+            app.close()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 # ══════════════════════════════════════════════════════════════════
 # 3~5. 全链路
 # ══════════════════════════════════════════════════════════════════
@@ -425,6 +465,7 @@ def main() -> int:
     test_start_point()
     test_checkpoints_source()
     test_auto_run()
+    test_elapsed_no_freeze()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

@@ -514,6 +514,32 @@ def main() -> int:
               f"摇杆簇 {ctl.get('cTop')}~{ctl.get('cBot')} vs 卡片 "
               f"{ctl.get('aTop')}~{ctl.get('aBot')}；中心点命中 {ctl.get('hit')}；"
               f"卡片右 {ctl.get('cardRight')} vs 中栏右 {ctl.get('midRight')}")
+        # 用户报的第二个点（m02443）：停下来时「本次跑步」的时长/配速得像原版一样继续走
+        # （原版 DataComponent.Q0() 是墙钟，配速 = Q0()/公里）。之前面板拿 move_sec 算，一停就冻住。
+        # 先推杆走几秒攒出距离，否则配速还是 0/0 看不出变化。
+        js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
+        time.sleep(4.0)
+        js(window, "Bridge.call('walk_joystick', 0, 0, 0)")   # 松杆：站着不动
+        time.sleep(2.0)      # 等车速衰减到 0，否则松杆瞬间还会滑一小段（物理惯性，不是时长口径的事）
+        st1 = json.loads(str(js(window, "JSON.stringify((S.walk&&S.walk.state)||{})") or "{}"))
+        pan1 = str(js(window, "document.querySelector('#run-info').textContent") or "")
+        pace1 = float(js(window, "(function(){var m=((document.querySelector('#run-info')||{}).textContent||'').match(/(\\d+)'(\\d+)/);return m?(parseInt(m[1],10)*60+parseInt(m[2],10)):0})()") or 0)
+        time.sleep(3.2)
+        st2 = json.loads(str(js(window, "JSON.stringify((S.walk&&S.walk.state)||{})") or "{}"))
+        pan2 = str(js(window, "document.querySelector('#run-info').textContent") or "")
+        pace2 = float(js(window, "(function(){var m=((document.querySelector('#run-info')||{}).textContent||'').match(/(\\d+)'(\\d+)/);return m?(parseInt(m[1],10)*60+parseInt(m[2],10)):0})()") or 0)
+        d_gap = abs(float(st2.get("dist_m") or 0) - float(st1.get("dist_m") or 0))
+        e_gap = float(st2.get("elapsed_sec") or 0) - float(st1.get("elapsed_sec") or 0)
+        check("停杆期间时长照走（elapsed_sec 仍在涨，原版 Q0() 口径）",
+              e_gap >= 2.0, f"elapsed_sec {float(st1.get('elapsed_sec') or 0):.1f} → "
+                            f"{float(st2.get('elapsed_sec') or 0):.1f} 秒（+{e_gap:.1f}）")
+        # 5.5 m/s 推满杆时 3.2 秒能走 ~17 米，所以“基本没动”按 < 8 米判；
+        # 真正要守的是“时长在走、面板在变”，距离这条只是排除“还在往前跑”的干扰。
+        check("停杆后距离基本不动、但「本次跑步」面板的时长/配速确实变了（不冻住）",
+              d_gap < 8.0 and pan1 != pan2,
+              f"距离差 {d_gap:.1f} 米；面板文本{'有' if pan1 != pan2 else '没有'}变化")
+        check("原地待着配速变大（配速 = 墙钟时长 ÷ 公里数）",
+              pace1 > 0 and pace2 > pace1, f"{pace1:.0f} → {pace2:.0f} 秒/公里")
         js(window, "Bridge.call('walk_joystick', 1, 0, 1)")
         time.sleep(4.0)
         stored = int(js(window, "(S.walk && S.walk.stored) || 0") or 0)
