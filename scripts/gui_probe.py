@@ -291,6 +291,13 @@ def main() -> int:
                              ".map(o => o.textContent.trim()).join(' / ')"))[:80])
         check("规则已显示",
               js(window, "document.querySelector('#rule-info').textContent.indexOf('尚未加载') < 0") is True)
+        # 打卡点坐标只有开跑接口（startSunRun_v2 → targetPoints）才下发：
+        # 拉取配置阶段地图上不该有打卡点（预览点只给高级里的路径预览用）
+        n_cp0 = int(js(window, "document.querySelectorAll('.cp-label').length") or 0)
+        n_st0 = int(js(window, "((S.status && S.status.checkpoints) || []).length") or 0)
+        check("拉取配置后地图上没有打卡点（坐标等开跑下发）", n_cp0 == 0 and n_st0 == 0,
+              f"DOM 打卡点 {n_cp0} 个 / status.checkpoints {n_st0} 个 / preview "
+              f"{int(js(window, '((S.status && S.status.preview_points) || []).length') or 0)} 个")
         # 「拉取配置」的另一半语义：拿到围栏就把镜头移过去（镜头中心必须落在围栏里）
         check("拿到围栏后镜头已飞到围栏处",
               js(window, "(function(){const c=MAP.obj.getCenter();"
@@ -298,6 +305,8 @@ def main() -> int:
                          "return !!MAP.fenceKey && (S.status.fence_polygon||[]).length >= 3 && b.contains(c);})()") is True,
               str(js(window, "JSON.stringify({fenceKey: MAP.fenceKey, "
                              "center: [MAP.obj.getCenter().lat, MAP.obj.getCenter().lng]})")))
+        # 存一张「只有围栏、没有打卡点」的图：这是本轮需求的产品形态（原版也是开跑才画打卡点）
+        shot(window, outdir, "gui-3-fence-only.png", full=args.full)
         # 布局与「只规划不动」：先把路径画出来，不升跑。
         # 用户要求：加入摇杆便于自行控制路径 + 加入仅渲染路径点但不一键跑完的功能。
         print("\n[3.5] 只规划路径（不升跑、不落库）与摇杆干跑")
@@ -423,6 +432,11 @@ def main() -> int:
         # 界面每 500ms 拉一次 walk_status 并重绘地图，刚命中时可能还没轮到下一帧，
         # 等一拍再查 DOM，否则测的是“刷新时机”而不是“紫点会不会转绿”
         time.sleep(1.5)
+        check("开跑后改用服务端下发的打卡点（checkpoints_source=server）",
+              wait_js(window, "!!(S.status && S.status.checkpoints_source === 'server')",
+                     timeout=20.0),
+              str(js(window, "JSON.stringify({src: S.status.checkpoints_source, "
+                             "n: (S.status.checkpoints || []).length})")))
         n_cp = int(js(window, "document.querySelectorAll('.cp-label').length") or 0)
         n_green = int(js(window, "document.querySelectorAll('.cp-label.passed').length") or 0)
         n_mapcp = int(js(window, "((S.walk && S.walk.targets) || []).filter(c => Number(c.passed) === 1).length") or 0)
@@ -468,6 +482,10 @@ def main() -> int:
         js(window, "document.querySelector('#btn-save-cfg').click()")
         time.sleep(1.5)
         js(window, "document.querySelector('#btn-run').click()")
+        # 上一节（④ 结束跑步）把进度条留在 100%，直接采样会第一次就 break；
+        # 先等这一次真的跑起来（progress.running 为真），再看进度。
+        wait_js(window, "!!(S.status && S.status.progress && S.status.progress.running)",
+                timeout=20.0)
         # mock 模式下整场跑只要一两秒（仿真不是实时的），所以要密集采样：
         # 只要采到任何一次 0 < 进度 < 100，就证明界面确实在跑步过程中刷新了。
         seen: list = []
@@ -495,20 +513,13 @@ def main() -> int:
         if not shot_taken:      # 没赶上跑步中也得留一张图
             shot(window, outdir, "gui-2-running.png", full=args.full)
 
-        # 等真的跑完（轮询事件而不是拍脑袋 sleep，避免白等也避免拍太早）
-        deadline = time.time() + 90
-        last_obj = None
-        while time.time() < deadline:
+        # 等这次一键跑真的跑完（进度 running 落回 false），而不是拿 90 秒前的旧记录交差
+        done_deadline = time.time() + 180
+        while time.time() < done_deadline:
             time.sleep(1.5)
-            last = js(window, "JSON.stringify((S.status && S.status.last) || null)")
-            try:
-                last_obj = json.loads(last) if isinstance(last, str) else None
-            except Exception:
-                last_obj = None
-            if last_obj:
+            if js(window, "!!(S.status && S.status.progress && !S.status.progress.running)") is True:
                 break
-        if last_obj:
-            time.sleep(1.5)     # 让详情/记录列表跟上
+        time.sleep(1.5)     # 让详情/记录列表跟上
 
         print("\n[5] 收尾与结果渲染")
         time.sleep(5)       # 给界面留时间，把记录列表、进度条、详情渲染完

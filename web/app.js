@@ -84,6 +84,7 @@ const S = {
   pickMode: false,       // 地图点击添加路点
   pickStart: false,      // 地图点击设置跑步起点（与 pickMode 互斥）
   startPoint: null,      // 跑步起点 {lat,lng}；null = 没选过，一律按围栏中心
+  previewPoints: [],     // 高级里「只规划路径」按围栏预估的预览点（开跑前地图上不画打卡点）
   walkMsg: '',           // 主流程状态行上的临时文案（跑步中/刚规划完），空则按登录与围栏状态推导
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
@@ -493,9 +494,13 @@ function drawMap(forceFit) {
   // 打卡点优先用实时快照：实跑时 walk_status.targets 会立刻翻转 passed，
   // 而 S.detail 要等下一次 run_detail 回来才刷新，否则地图上绿点要晚好几秒
   const liveCp = (S.walk && S.walk.targets) || [];
+  // 打卡点只来自「开跑下发」：实走实时快照（S.walk.targets）或历史记录详情。
+  // 开跑前 status.checkpoints 是空的（服务端要到 startSunRun_v2 才给 targetPoints），
+  // S.previewPoints 只在高级里点过「只规划路径」后才有——那是按围栏预估的预览点。
+  const runCp = (S.walk && S.walk.run_code) ? (st.checkpoints || []) : [];
   const cps = liveCp.length
     ? liveCp
-    : ((S.detail && S.detail.checkpoints) || st.checkpoints || []);
+    : ((S.detail && S.detail.checkpoints) || runCp || (S.previewPoints || []));
 
   for (const k of Object.keys(MAP.layers)) MAP.layers[k].clearLayers();
   MAP.bounds = null;
@@ -710,15 +715,19 @@ async function planPaths() {
   PLAN_INFO = d;
   S.route = d.route || [];
   S.fit = true;
+  // 开跑前规划用的是围栏预估点：画出来只为看路线，开跑后以服务端下发的打卡点为准
+  S.previewPoints = (d.estimated && (d.checkpoints || []).length) ? d.checkpoints : [];
   if (d.start && isFinite(Number(d.start.lat))) {
     S.livePoints = [];      // 重新规划时把上一次的实走残迹清掉，免得两套线混在一起
   }
   drawMap(true);
   const est = Number(d.est_duration_s || 0);
   S.walkMsg = `已规划 ${S.route.length} 个点 / ${Number(d.route_length_m || 0).toFixed(0)} 米`
-    + `（预计 ${Math.floor(est / 60)}分${String(est % 60).padStart(2, '0')}秒走完）`;
+    + `（预计 ${Math.floor(est / 60)}分${String(est % 60).padStart(2, '0')}秒走完`
+    + (d.estimated ? '；按围栏预估打卡点，开跑后以服务端下发为准' : '') + '）';
   syncFlowInfo();
-  toast(`已规划路线：${S.route.length} 个点，${Number(d.route_length_m || 0).toFixed(0)} 米（未开跑）`, 'ok');
+  toast(`已规划路线：${S.route.length} 个点，${Number(d.route_length_m || 0).toFixed(0)} 米（未开跑`
+    + (d.estimated ? '，按围栏预估打卡点' : '') + '）', 'ok');
 }
 
 function togglePick() {
@@ -856,6 +865,7 @@ async function walkStart(mode) {
     syncFlowInfo();
     toast(mode === 'real' ? '已开跑，轨迹实时入库（结束跑步会顺带上传结算）' : '干跑已开始（不落库、不上传）', 'ok');
     startWalkTimer();
+    refreshStatus();                       // 开跑后后端才拿到真实打卡点，status 立刻跟上
   } finally {
     busy($('btn-walk-dry'), false); busy($('btn-walk-real'), false);
   }
@@ -892,7 +902,9 @@ async function startRun() {
   if (!((st.fences || []).length)) { toast('请先点「① 拉取配置」，把电子围栏拉下来', 'err'); return; }
   if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「④ 结束跑步」', 'err'); return; }
   await saveParams(true);
-  await planPaths();                  // 路径点先画出来（后端开跑用的也是同一条）
+  // 先清掉图上画过的旧路线，让这次开跑按服务端下发的真实打卡点重算路线
+  S.previewPoints = [];
+  await Bridge.call('walk_route', '[]', true, false);
   await walkStart('real');
 }
 

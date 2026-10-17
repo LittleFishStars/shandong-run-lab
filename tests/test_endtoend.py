@@ -70,6 +70,8 @@ class 全链路测试(unittest.TestCase):
         st = self.app.status()
         self.assertGreaterEqual(len(st.get("fences") or []), 1)
         self.assertTrue(st.get("rule"))
+        # 打卡点只在开跑后才有：坐标由服务端 startSunRun_v2 的 targetPoints 下发
+        self.assertEqual(st.get("checkpoints_source"), "server")
         self.assertGreaterEqual(len(st.get("checkpoints") or []), 1)
 
     # ── 跑步结果 ──
@@ -393,6 +395,60 @@ class 跑步起点测试(unittest.TestCase):
         for 坏点 in ((0.0, 0.0), (91.0, 117.0), ("x", "y")):
             self.assertNotEqual(self.app.set_start_point(*坏点).get("code"), C.CODE_OK)
 
+class 打卡点下发测试(unittest.TestCase):
+    """打卡点坐标只有开跑接口（run/startSunRun_v2 → targetPoints）才下发。
+
+    拉取配置阶段能拿到的只有围栏几何与「需要几个打卡点」的计数，
+    所以地图上在开跑前不该出现打卡点；开跑后才用服务端下发的点。
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="sdlab-cp-"))
+        self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
+        self.app.login("13800138000", "any-password", False)
+        self.app.run_prepare()
+
+    def tearDown(self):
+        try:
+            self.app.close()
+        finally:
+            shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_拉取配置后没有打卡点(self):
+        st = self.app.status()
+        self.assertEqual(st.get("checkpoints"), [])
+        self.assertEqual(st.get("checkpoints_source"), "")
+        self.assertGreaterEqual(len(st.get("preview_points") or []), 1)
+
+    def test_开跑前规划用预估点(self):
+        d = self.app.walk_plan()["data"]
+        self.assertTrue(d.get("estimated"))
+        self.assertTrue(d.get("route"))
+
+    def test_开跑后用服务端下发的打卡点(self):
+        r = self.app.walk_start(mode="real", target_m=600, fence_index=0,
+                                auto_start=True, speed=30.0)
+        self.assertEqual(r.get("code"), C.CODE_OK)
+        try:
+            st = self.app.status()
+            self.assertEqual(st.get("checkpoints_source"), "server")
+            cps = st.get("checkpoints") or []
+            self.assertGreaterEqual(len(cps), 1)
+            code = str((self.app.engine.last or {}).get("run_code") or "")
+            self.assertTrue(code)
+            self.assertEqual([(round(c["lat"], 6), round(c["lng"], 6)) for c in cps],
+                             [(round(c["lat"], 6), round(c["lng"], 6))
+                              for c in self.app.store.get_checkpoints(code)])
+            # 拿到真实点之后规划就不再是预估的了
+            self.assertFalse(self.app.walk_plan()["data"].get("estimated"))
+        finally:
+            self.app.walk_stop()
+
+    def test_重启后不会平白出现打卡点(self):
+        self.assertEqual(self.app.status().get("checkpoints"), [])
+        self.app.close()
+        self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
+        self.assertEqual(self.app.status().get("checkpoints"), [])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

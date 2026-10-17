@@ -199,6 +199,58 @@ def test_start_point() -> None:
         app.close()
         shutil.rmtree(tmp, ignore_errors=True)
 
+def test_checkpoints_source() -> None:
+    section("2.6 打卡点来源（拉取配置只有围栏与计数，开跑才下发打卡点）")
+
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-cp-"))
+    apps: list = []
+    try:
+        app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+        apps.append(app)
+        app.login("13800138000", "any-password", False)
+        app.run_prepare()
+        st = app.status()
+        check(st.get("checkpoints") == [],
+              "拉取配置后没有打卡点（地图上不该出现它们）",
+              f"checkpoints={len(st.get('checkpoints') or [])}")
+        check(bool(st.get("preview_points")),
+              "同一时刻有按围栏预估的预览点（只给高级里的路径预览用）",
+              f"preview_points={len(st.get('preview_points') or [])}")
+
+        d = app.walk_plan().get("data") or {}
+        check(bool(d.get("estimated")) and bool(d.get("route")),
+              "开跑前规划走预估点，并在回执里标明 estimated=True",
+              f"{len(d.get('route') or [])} 个点")
+
+        app.walk_start("real", target_m=0, fence_index=0, speed_mps=0.0,
+                       auto_route=False, auto_start=True, speed=30.0)
+        st2 = app.status()
+        cps = st2.get("checkpoints") or []
+        check(st2.get("checkpoints_source") == "server" and len(cps) >= 1,
+              "开跑后用服务端下发的 targetPoints", f"checkpoints={len(cps)}")
+        check(not (app.walk_plan().get("data") or {}).get("estimated"),
+              "拿到真实打卡点后规划不再是预估的")
+
+        def 签名(seq) -> list:
+            return [(round(float(c["lat"]), 6), round(float(c["lng"]), 6)) for c in seq]
+
+        code = str((app.engine.last or {}).get("run_code") or "")
+        check(bool(code) and 签名(cps) == 签名(app.store.get_checkpoints(code)),
+              "真实打卡点落进这一趟的记录（上传/结算按它们判）")
+        app.walk_stop()
+
+        app.close()
+        app2 = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+        apps.append(app2)
+        check(app2.status().get("checkpoints") == [],
+              "重启后不会把上一趟记录的打卡点当成这次的")
+    finally:
+        for a in apps:
+            try:
+                a.close()
+            except Exception:  # noqa: BLE001
+                pass
+        shutil.rmtree(tmp, ignore_errors=True)
 
 # ══════════════════════════════════════════════════════════════════
 # 3~5. 全链路
@@ -337,6 +389,7 @@ def main() -> int:
     test_crypto()
     test_simulator()
     test_start_point()
+    test_checkpoints_source()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

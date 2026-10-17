@@ -179,6 +179,18 @@ def main() -> int:
 
         # 与前端一字不差：run_auto(目标距离, 围栏序号, 上传, 结算, 运动类型)
         r = post_api(api_url, "run_auto", 1500, 0, True, True, 1)
+        # 打卡点只在开跑后才有（服务端 startSunRun_v2 → targetPoints）
+        stc = post_api(api_url, "status") or {}
+        check(list(stc.get("checkpoints") or []) == [],
+              "拉取配置后没有打卡点（地图上不该画它们）",
+              f"checkpoints={len(stc.get('checkpoints') or [])}")
+        check(bool(stc.get("preview_points")),
+              "同时有按围栏预估的预览点（只给高级里的路径预览用）",
+              f"preview_points={len(stc.get('preview_points') or [])}")
+        pl = (post_api(api_url, "walk_plan") or {}).get("data") or {}
+        check(bool(pl.get("estimated")) and bool(pl.get("route")),
+              "开跑前规划走预估点（回执里 estimated=True）")
+
         check(r.get("code") == 0, "run_auto() 任务已启动", str(r.get("message"))[:120])
 
         # 与前端完全一致：轮询 poll()，用返回的 running 字段判断后台任务是否结束
@@ -210,6 +222,12 @@ def main() -> int:
         pts = (up.get("points") or {}).get("count") if isinstance(up, dict) else None
         check(bool(up) and (pts or 0) > 0, f"上传结果含条数（points={pts}）",
               json.dumps(up, ensure_ascii=False)[:200])
+        check(st.get("checkpoints_source") == "server"
+              and len(st.get("checkpoints") or []) >= 1,
+              "开跑后用服务端下发的打卡点（status.checkpoints_source=server）",
+              f"checkpoints={len(st.get('checkpoints') or [])}")
+        check(not ((post_api(api_url, "walk_plan") or {}).get("data") or {}).get("estimated"),
+              "拿到真实打卡点后规划不再标 estimated")
 
         # ── 4. 记录列表与详情 ──
         section("4. 记录列表 / 详情 / 导出")

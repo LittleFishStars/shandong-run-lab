@@ -52,7 +52,11 @@ class RunEngine:
         self.store = client.store
         self._lock = threading.Lock()
         self.last: Dict[str, Any] = {}          # 最近一次跑步的摘要
+        # 真实打卡点：只由开跑响应（run/startSunRun_v2 的 targetPoints）填进来
         self.checkpoints: List[Dict[str, Any]] = []
+        self.checkpoints_source: str = ""         # "server" | "preview" | ""
+        # 拉取配置阶段按围栏几何预估的预览点：只服务「高级 / 调试」里的路径预览
+        self.preview_points: List[Dict[str, Any]] = []
 
     # ══════════════════ 工具 ══════════════════
     def _emit(self, kind: str, msg: str, **data: Any) -> None:
@@ -128,7 +132,11 @@ class RunEngine:
         c.load_sunrun_abstract(semester_code=sem_code)
         c.load_plans(semester_code=sem_code)
 
-        self.checkpoints = self.build_checkpoints()
+        # 打卡点坐标只有开跑接口才下发（原版：围栏只给 requiredPointCounts 这类计数），
+        # 所以这里只存一份按围栏预估的预览点，真实打卡点等 start() 落下来。
+        self.preview_points = self.build_preview_points()
+        self.checkpoints = []
+        self.checkpoints_source = ""
         info = {
             "user": c.user,
             "semesters": c.semesters,
@@ -138,7 +146,8 @@ class RunEngine:
             "fence": c.fence,
             "fence_polygon": c.fence_polygon(),
             "rule": c.rule.to_dict(),
-            "checkpoints": self.checkpoints,
+            "checkpoints": self.checkpoints,          # 开跑前为空：打卡点由开跑下发
+            "preview_points": self.preview_points,    # 按围栏预估，仅供调试预览
             "plans": c.run_plans,
             "abstract": c.abstract,
             "fences_response": fences,
@@ -176,8 +185,12 @@ class RunEngine:
             ],
         }
 
-    def build_checkpoints(self) -> List[Dict[str, Any]]:
-        """开机必备：按围栏取 N 个必经点（N 取自 SchoolRule.requiredPointCounts）"""
+    def build_preview_points(self) -> List[Dict[str, Any]]:
+        """按围栏几何预估 N 个点（N 取自 SchoolRule.requiredPointCounts）
+
+        原版不在开跑前下发打卡点坐标，这里只是给「高级 / 调试」的路径预览用，
+        真实打卡点以开跑响应 targetPoints 为准。
+        """
         c = self.client
         poly = c.fence_polygon()
         n = max(1, int(c.rule.required_point_counts or 3))
@@ -216,8 +229,19 @@ class RunEngine:
         if res.get("code") != CODE_OK or not (res.get("data") or {}).get("runRecordCode"):
             raise EngineError(f"开跑失败：{res.get('code')} {res.get('message')}")
         code = str(res["data"]["runRecordCode"])
-        if not c.store.get_checkpoints(code) and self.checkpoints:
+        # 打卡点：服务端 targetPoints（client.start_sun_run 已落库）优先，
+        # 没下发才退回围栏预估点，保证整条链路还有目标可打。
+        cps = c.store.get_checkpoints(code) or []
+        if cps:
+            self.checkpoints = cps
+            self.checkpoints_source = "server"
+            self._emit("log", f"服务端下发 {len(cps)} 个打卡点（开跑响应 targetPoints）")
+        else:
+            self.checkpoints = [dict(p) for p in (self.preview_points or self.build_preview_points())]
+            self.checkpoints_source = "preview"
             c.store.add_checkpoints(code, self.checkpoints)
+            self._emit("log", f"服务端未下发打卡点，按围栏预估 {len(self.checkpoints)} 个",
+                       level="warn")
         self.last = {"run_code": code, "target_m": target, "started_at": int(time.time() * 1000)}
         self._emit("run_started", f"已开跑：{code}", run_code=code, target_m=target)
         return code

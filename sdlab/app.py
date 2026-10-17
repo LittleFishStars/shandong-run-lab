@@ -283,8 +283,11 @@ class App:
             "start_point_custom": bool(self._start_point),
             "fence_polygon": c.fence_polygon(),
             "rule": c.rule.to_dict(),
-            "checkpoints": c.store.get_checkpoints((self._last_code() or "")) or
-                           (self.engine.checkpoints if self.engine else []),
+            # 打卡点只在开跑之后有值（服务端 targetPoints）：开跑前地图上不该有它，
+            # 所以既不回落上一趟记录的打卡点，也不下发围栏预估点。
+            "checkpoints": (self.engine.checkpoints if self.engine else []),
+            "checkpoints_source": (self.engine.checkpoints_source if self.engine else ""),
+            "preview_points": (self.engine.preview_points if self.engine else []),
             "progress": self._progress,
             "stats": self.store.stats(),
             "last": self._last_result,
@@ -393,7 +396,8 @@ class App:
             self._progress = {"percent": 0, "message": "实跑已开始", "running": True,
                               "run_code": run_code}
 
-        cps = self.engine.checkpoints or []
+        # 目标点：开跑后的真实打卡点优先，拿不到（干跑 / 服务端没下发）才用围栏预估点
+        cps = self.engine.checkpoints or self.engine.preview_points or []
         # 优先用用户在地图上点出来/“仅渲染路径点”生成的那条路线，没有才回到默认闭环
         route = list(getattr(self, "_pending_route", None) or [])
         if not route and cps:
@@ -439,7 +443,8 @@ class App:
                 lat, lng = self.start_lat_lng()
             except Exception:  # noqa: BLE001
                 lat, lng = 0.0, 0.0
-            wps = route_from_checkpoints(lat, lng, self.engine.checkpoints or [], loop=True)
+            cps = self.engine.checkpoints or self.engine.preview_points or []
+            wps = route_from_checkpoints(lat, lng, cps, loop=True)
         # 还没开走也能先规划：此时只记在 engine.last 里，开走时再交给 Walker
         self._pending_route = wps
         self._pending_auto = bool(auto)
@@ -490,7 +495,7 @@ class App:
                                   fence_code=str(f.get("fenceCode") or ""),
                                   fence_name=str(f.get("fenceName") or ""))
         if self.store.get_checkpoints(code) == [] and self.client.fence is not None:
-            self.store.add_checkpoints(code, self.engine.checkpoints)
+            self.store.add_checkpoints(code, self.engine.checkpoints or self.engine.preview_points)
         for i, p in enumerate(pts):
             p.lat_lng_index = int(i)   # 重新编号：草稿必须是 0..n-1 连续，否则续传定位会错
             p.run_code = code
@@ -515,7 +520,9 @@ class App:
             lat, lng = self.start_lat_lng()
         except Exception:  # noqa: BLE001
             lat, lng = 0.0, 0.0
-        cps = [dict(x) for x in (self.engine.checkpoints or [])]
+        # 开跑后有真实打卡点；没有（开跑前预览）就用围栏预估点，并在回执里说明
+        real = bool(self.engine.checkpoints)
+        cps = [dict(x) for x in (self.engine.checkpoints or self.engine.preview_points or [])]
         route = route_from_checkpoints(lat, lng, cps, loop=True) if cps else []
         legs: List[Dict[str, Any]] = []
         total = 0.0
@@ -542,6 +549,7 @@ class App:
                 "est_duration_s": est_s,
                 "min_distance_m": round(total, 1),
                 "planned": True,
+                "estimated": not real,   # True = 用的是围栏预估点，开跑后以服务端下发为准
             },
         }
 
