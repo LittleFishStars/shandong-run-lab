@@ -32,6 +32,31 @@
 
 ## 二、安装
 
+### 方式 A：直接下载可执行文件（不用装 Python）
+
+到 [Releases](https://github.com/LittleFishStars/shandong-run-lab/releases) 下对应平台的那一个，双击即用：
+
+| 平台 | 文件 | 启动 |
+|---|---|---|
+| Linux x86_64 | `sdlab-<版本>-linux-x86_64`（或 `.zip`） | `chmod +x` 后双击，或终端 `./sdlab-… ` |
+| Windows x64 | `sdlab-<版本>-windows-x64.exe`（或 `.zip`） | 双击；命令行用法见下文 |
+
+命令行和界面是同一个程序：不带参数双击 = 开界面；在终端里带参数 = CLI。
+
+```bash
+./sdlab-1.0.0-linux-x86_64 --help          # 全部命令
+./sdlab-1.0.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
+# Windows（PowerShell）
+.\sdlab-1.0.0-windows-x64.exe --mode mock gui
+```
+
+自己构建看 [`docs/打包与发布.md`](docs/打包与发布.md)：`python scripts/build_bin.py --zip`
+一条命令出本平台单文件。
+
+> 单文件启动时会先解压到临时目录（首次 1-2 秒），属正常现象。
+
+### 方式 B：从源码跑
+
 需要 Python 3.10+（本机实测 3.14）。Arch Linux：
 
 ```bash
@@ -312,9 +337,19 @@ shandong-run-lab/
 ├── scripts/
 │   ├── selfcheck.py        # 端到端自检
 │   ├── webcheck.py         #   前端桥自检
-│   └── gui_probe.py        #   桌面外壳冒烟（真开窗口、点按钮、断言布局）
+│   ├── gui_probe.py        #   桌面外壳冒烟（真开窗口、点按钮、断言布局）
+│   └── build_bin.py        #   打包单文件可执行程序（Linux/Windows 同一套）
+├── packaging/              # PyInstaller 配置
+│   ├── sdlab.spec          #   打包描述（数据文件、可选 pywebview、图标、版本资源）
+│   ├── launcher.py         #   打包入口（绝对导入）
+│   ├── make_icon.py        #   图标生成脚本
+│   └── icon.png, icon.ico
+├── .github/workflows/
+│   └── build-release.yml   # 打 tag 自动双平台构建 + 发 Release
 ├── tests/                  # 单元测试（crypto/protocol/simulator/store/walker/e2e）
-└── docs/协议说明.md         # 协议与逆向要点
+└── docs/
+    ├── 协议说明.md          # 协议与逆向要点
+    └── 打包与发布.md        # 打包、发版、常见问题
 ```
 
 ---

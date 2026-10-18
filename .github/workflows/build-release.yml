@@ -1,0 +1,97 @@
+name: 打包可执行文件
+
+# 触发方式：
+#   · push tag v*  → 构建 Linux / Windows 两个单文件可执行程序，并发布到 GitHub Release
+#   · 手动运行    → 只构建，产物在 Actions 的 Artifacts 里（不发 Release）
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write        # 创建 Release / 上传附件需要
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build · ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04        # 老一点的 glibc（2.35），兼容面更宽
+            label: linux-x86_64
+            artifact: sdlab-linux
+          - os: windows-latest
+            label: windows-x64
+            artifact: sdlab-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests cryptography pycryptodome pillow pyinstaller
+
+      # Windows 上额外装 pywebview：有它才是原生窗口，没有就自动降级成浏览器
+      - name: 安装桌面壳（仅 Windows）
+        if: runner.os == 'Windows'
+        run: python -m pip install pywebview
+
+      - name: 单元测试
+        continue-on-error: ${{ runner.os == 'Windows' }}
+        run: python -m unittest discover -s tests -q
+
+      - name: 打包
+        run: python scripts/build_bin.py --zip
+
+      - name: 整理产物（校验和带上平台后缀，避免两个平台同名）
+        shell: bash
+        run: |
+          mv dist/SHA256SUMS "dist/SHA256SUMS-${{ matrix.label }}"
+          ls -lh dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: 发布 Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 合并校验和
+      - name: 合并校验和
+        working-directory: artifacts
+        run: |
+          rm -f SHA256SUMS-*
+          sha256sum sdlab-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: 创建 / 更新 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            && gh release upload "$TAG" artifacts/* --clobber \
+            || gh release create "$TAG" artifacts/* \
+                 --title "sdlab ${TAG#v}" \
+                 --notes "Linux / Windows 单文件可执行程序。校验和见 SHA256SUMS。" \
+                 --generate-notes

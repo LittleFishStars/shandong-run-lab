@@ -468,23 +468,54 @@ def cmd_mock(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    here = Path(__file__).resolve().parent.parent
-    import subprocess
-    rc = 0
+    """自检：源码模式起子进程跑 scripts/ 下的两个脚本；打包版在本进程里跑
+
+    单文件 exe 里 sys.executable 就是自己，起子进程只会重新启动整个程序，
+    所以打包时把两个脚本作为数据塞进 bundle，用 runpy 在同一个解释器里执行。
+    """
     only = args.only
+    rc = 0
+    frozen = bool(getattr(sys, "frozen", False))
+    base = (Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+            if frozen else Path(__file__).resolve().parent.parent)
     for name, script in (("离线协议自检", "selfcheck.py"), ("前端链路自检", "webcheck.py")):
         if only and only not in script:
             continue
-        p = here / "scripts" / script
+        p = base / "scripts" / script
         if not p.exists():
             print(bad(f"找不到 {p}"))
             rc = 1
             continue
-        print(_c(f"\n══ {name}：{script} ══", "1"))
+        print(_c(f"\n══ {name}：{script}{'（打包版内置）' if frozen else ''} ══", "1"))
+        if frozen:
+            rc = rc or _run_script_inproc(p, args.verbose)
+            continue
+        import subprocess
         r = subprocess.run([sys.executable, str(p)] + (["-v"] if args.verbose else []))
         rc = rc or r.returncode
     return rc
 
+
+def _run_script_inproc(script: Path, verbose: bool) -> int:
+    """在本进程里执行自检脚本（仅打包版）；脚本自己 argparse，所以接管 sys.argv"""
+    import runpy
+
+    saved = sys.argv
+    sys.argv = [str(script)] + (["-v"] if verbose else [])
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+        return 0
+    except SystemExit as e:
+        code = e.code
+        return int(code) if isinstance(code, int) else (0 if code is None else 1)
+    except Exception as e:                       # noqa: BLE001
+        print(bad(f"{type(e).__name__}: {e}"))
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+    finally:
+        sys.argv = saved
 
 # ══════════════════ 参数解析 ══════════════════
 def build_parser() -> argparse.ArgumentParser:
@@ -575,12 +606,57 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+_CONSOLE_HIDDEN = False
+
+
+def _hide_console_if_double_clicked(argv: Optional[List[str]]) -> None:
+    """Windows 下双击启动时把控制台黑窗藏掉（打包版专用）
+
+    同一个 exe 既是 GUI 又是 CLI：双击（无参数、且控制台里只有自己）→ 藏窗；
+    在 cmd/powershell 里带参数跑 → 不藏，否则 CLI 输出全看不见。
+    源码运行、其它平台一律不动。
+    """
+    global _CONSOLE_HIDDEN
+    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+        return
+    if (argv if argv is not None else sys.argv[1:]):
+        return
+    try:
+        import ctypes
+
+        k32 = ctypes.windll.kernel32
+        hwnd = k32.GetConsoleWindow()
+        if not hwnd:
+            return
+        pids = (ctypes.c_uint * 4)()
+        if k32.GetConsoleProcessList(pids, 4) > 1:
+            return                                  # 是父控制台拉起来的
+        ctypes.windll.user32.ShowWindow(hwnd, 0)     # SW_HIDE
+        _CONSOLE_HIDDEN = True
+    except Exception:                                # noqa: BLE001
+        pass
+
+
+def _report_fatal(e: BaseException) -> None:
+    """控制台被藏了的话，只能弹窗告诉用户（否则双击一片死寂）"""
+    if not _CONSOLE_HIDDEN:
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(
+            None, f"启动失败：{type(e).__name__}: {e}", "闪动校园·阳光跑工作台", 0x10)
+    except Exception:                                # noqa: BLE001
+        pass
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = build_parser()
     args = ap.parse_args(argv)
     if not getattr(args, "command", None):
         # 没给子命令 = 开桌面窗口
         args = ap.parse_args(["gui"] + (argv or []))
+    _hide_console_if_double_clicked(argv)
     try:
         return int(args.func(args) or 0)
     except KeyboardInterrupt:
@@ -591,6 +667,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if getattr(args, "verbose", False):
             import traceback
             traceback.print_exc()
+        _report_fatal(e)
         return 1
 
 

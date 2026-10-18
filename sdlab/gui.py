@@ -21,9 +21,19 @@ from typing import Any, Dict, Optional
 from . import constants as C
 from .app import App
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-INDEX = WEB_DIR / "index.html"
+def _resource_dir() -> Path:
+    """打包后的资源根目录（源码运行 = 仓库根，单文件 exe = sys._MEIPASS）
 
+    PyInstaller 的单文件模式会把 web/ 解到临时目录，__file__ 指到那里面，
+    parent.parent 就不再是仓库根了，所以必须显式区分。
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+    return Path(__file__).resolve().parent.parent
+
+
+WEB_DIR = _resource_dir() / "web"
+INDEX = WEB_DIR / "index.html"
 
 # ══════════════════ JS ↔ Python 桥 ══════════════════
 class JsApi:
@@ -247,7 +257,10 @@ def run_desktop(config_path: Optional[Path] = None, debug: bool = False,
     )
     api.window = window
 
+    loaded = {"ok": False}
+
     def _on_loaded() -> None:
+        loaded["ok"] = True
         app.bus.emit("state", "界面已加载，准备就绪")
         if autorun:
             _spawn_autorun(app, autorun)
@@ -269,7 +282,15 @@ def run_desktop(config_path: Optional[Path] = None, debug: bool = False,
             continue
     # 用 pywebview 内置 http 服务供给本地文件（默认开启）：
     # 以 file:// 直接加载时 pywebview 不会注入 window.pywebview，前端就永远拿不到后端。
-    webview.start(debug=debug, gui=gui, http_server=True)
+    try:
+        webview.start(debug=debug, gui=gui, http_server=True)
+    except Exception as e:  # noqa: BLE001
+        # 窗口根本没起来（比如 Windows 缺 WebView2 / Linux 缺 WebKitGTK）就降级到浏览器，
+        # 而不是让整个程序崩在启动那一步。已经起过窗口再出错就原样抛出。
+        if loaded["ok"]:
+            raise
+        print(f"[warn] 桌面窗口启动失败（{e}），降级为浏览器模式", file=sys.stderr)
+        return run_browser(app)
     app.close()
     return 0
 
