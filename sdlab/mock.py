@@ -387,7 +387,7 @@ def _upload_record(w: MockWorld, path: str, h, b):
     start = len(run.points)
     run.points.extend(pois)
     run.admitted = len(run.points)
-    idx_list = list(range(0, len(pois)))     # 服务端返回的「已接收索引」
+    idx_list = [int(p.get("index", i)) for i, p in enumerate(pois)]  # 回显点 index（同真实服务端）
     w.emit(f"✓ Mock 已接收轨迹 {len(pois)} 点（累计 {run.admitted}），返回 indexList={idx_list[:8]}"
            + ("…" if len(idx_list) > 8 else ""))
     return {"code": CODE_OK, "message": "成功", "data": {
@@ -413,7 +413,8 @@ def _upload_pace(w: MockWorld, path: str, h, b):
         return {"code": CODE_MISSING_PARAM, "message": "runRecordCode 无效", "data": None}
     paces = b.get("paceList") or []
     run.paces.extend(paces)
-    return {"code": CODE_OK, "message": "成功", "data": {"indexList": list(range(len(paces)))}}
+    return {"code": CODE_OK, "message": "成功",
+            "data": {"indexList": [int(p.get("index", i)) for i, p in enumerate(paces)]}}
 
 
 def _upload_step(w: MockWorld, path: str, h, b):
@@ -423,7 +424,8 @@ def _upload_step(w: MockWorld, path: str, h, b):
         return {"code": CODE_MISSING_PARAM, "message": "runRecordCode 无效", "data": None}
     steps = b.get("stepList") or []
     run.steps.extend(steps)
-    return {"code": CODE_OK, "message": "成功", "data": {"indexList": list(range(len(steps)))}}
+    return {"code": CODE_OK, "message": "成功",
+            "data": {"indexList": [int(x.get("index", i)) for i, x in enumerate(steps)]}}
 
 
 def _upload_stride(w: MockWorld, path: str, h, b):

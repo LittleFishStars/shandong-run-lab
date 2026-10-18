@@ -585,8 +585,10 @@ class ShandongClient:
             data = res.get("data") or {}
             idx_list = data.get("indexList")
             if isinstance(idx_list, list) and idx_list:
-                # indexList 是本次请求内的下标（与客户端一致）
-                accepted = [pts[j].lat_lng_index for j in idx_list if j < len(pts)]
+                # 服务端回显的是点的 index（RunLatLng.index / 本地 idx），不是本次请求内下标：
+                # 原版 ApiDataComponent 直接拿 indexList 调 DAO 更新（index = 主键）
+                wanted = {p.lat_lng_index for p in pts}
+                accepted = [int(i) for i in idx_list if int(i) in wanted]
             else:
                 accepted = list(all_ids)
             for i in range(0, len(accepted), batch):

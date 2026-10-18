@@ -382,11 +382,11 @@ def build_upload_pois(pts: Sequence[RunLatLng]) -> List[Dict[str, Any]]:
 
 
 def build_pace_list(paces: Sequence[IntervalPace]) -> List[Dict[str, Any]]:
-    return [p.to_upload_dict(i) for i, p in enumerate(paces)]
+    return [p.to_upload_dict(p.pace_index) for p in paces]
 
 
 def build_step_list(steps: Sequence[IntervalStep]) -> List[Dict[str, Any]]:
-    return [s.to_upload_dict(i) for i, s in enumerate(steps)]
+    return [s.to_upload_dict(s.step_index) for s in steps]
 
 
 def build_stride_entry(stride) -> Dict[str, Any]:
