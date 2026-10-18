@@ -507,6 +507,42 @@ def test_resume() -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_time_offset() -> None:
+    section("2.10 时间校准（原版 SyncTimeIntentService → r90.D()）")
+
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-time-"))
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+    try:
+        tr = app.client.transport
+        check(int(tr.time_offset_ms) == 0, "初始偏移为 0")
+        app.login("13800138000", "any-password", False)
+        check(tr.clock() == tr._now(), "登录后 clock() = 本地时钟 + 偏移")
+
+        # Mock 报一个 > 1000 的 reduceTimes，必须被采纳（原版阈值语义）
+        app.world.time_offset_ms = 65432
+        r = app.sync_time()
+        check(r.get("code") == 0, "手动校准成功", str(r.get("message")))
+        check(int(r.get("offset_ms") or 0) == 65432,
+              "采纳大于 1000ms 的 reduceTimes", f"offset_ms={r.get('offset_ms')}")
+        check(int(tr.time_offset_ms) == 65432, "偏移写回传输层")
+
+        # 公共字段 timestamp 跟着偏移走（原版 SignInterceptor 同源）
+        ts = int(tr.base_payload()["timestamp"])
+        check(ts >= int(time.time() * 1000) + 60000, "公共 timestamp 含偏移", f"ts={ts}")
+
+        # 小于等于阈值必须归零（避免小抖动被当成校准）
+        app.world.time_offset_ms = 700
+        r2 = app.sync_time()
+        check(int(r2.get("offset_ms") or 0) == 0, "小于等于 1000ms 归零",
+              f"offset_ms={r2.get('offset_ms')}")
+        check(int(tr.time_offset_ms) == 0, "归零后偏移清戻")
+    finally:
+        try:
+            app.close()
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 # ══════════════════════════════════════════════════════════════════
 def main() -> int:
     ap = argparse.ArgumentParser(description="闪动校园工作台 · 端到端自检")
@@ -529,6 +565,7 @@ def main() -> int:
     test_auto_run()
     test_elapsed_no_freeze()
     test_point_wire_fields()
+    test_time_offset()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

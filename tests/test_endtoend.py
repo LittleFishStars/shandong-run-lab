@@ -470,5 +470,142 @@ class 打卡点下发测试(unittest.TestCase):
         self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
         self.assertEqual(self.app.status().get("checkpoints"), [])
 
+class 时间校准测试(unittest.TestCase):
+    """公共字段 timestamp 与结算时间参都走「本地时钟 + 服务端校准偏移」。
+
+    原版链路：PrivacyActivity 同意隐私 → SyncTimeIntentService 拉
+    `common/syncTime` → data.reduceTimes > 1000 就 r90.i0(reduceTimes)，
+    否则归零 → r24.java:95 把它注入 hq1.f3188a → SignInterceptor 发
+    `System.currentTimeMillis() + f3188a` 作为 timestamp；aw8.c() 的
+    runImgRecord 时间参也是 `System.currentTimeMillis() + r90.D()`。
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="sdlab-time-"))
+        self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
+
+    def tearDown(self):
+        try:
+            self.app.close()
+        finally:
+            shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_登录后自动校准(self):
+        tr = self.app.client.transport
+        self.assertEqual(tr.time_offset_ms, 0)
+        self.app.login("13800138000", "any-password", False)
+        # Mock 默认偏移 0：断言链路跑通且没有把 0 变成垃圾值
+        self.assertEqual(int(tr.time_offset_ms), 0)
+        self.assertEqual(tr.clock(), tr._now())
+
+    def test_偏移进入公共字段与结算时间参(self):
+        self.app.login("13800138000", "any-password", False)
+        tr = self.app.client.transport
+        tr.time_offset_ms = 12345          # 模拟服务端算出 12.345 秒偏差
+        payload = tr.base_payload()
+        self.assertGreaterEqual(int(payload["timestamp"]),
+                                int(time.time() * 1000) + 12345 - 2000)
+        # 手动再校准会把 Mock 的偏移（0）写回去
+        r = self.app.sync_time()
+        self.assertEqual(r.get("code"), 0)
+        self.assertEqual(int(tr.time_offset_ms), 0)
+
+    def test_超大偏移回归(self):
+        """Mock 报一个 > 1000 的 reduceTimes 时必须被采纳（原版阈值语义）"""
+        self.app.client.transport.sync_time()
+        self.app.world.time_offset_ms = 98765
+        r = self.app.sync_time()
+        self.assertEqual(r.get("offset_ms"), 98765)
+        self.assertEqual(self.app.client.transport.time_offset_ms, 98765)
+
+    def test_小于阈值归零(self):
+        """reduceTimes <= 1000 时按原版归零（避免小抖动被当成校准）"""
+        self.app.client.transport.time_offset_ms = 555
+        self.app.world.time_offset_ms = 600
+        r = self.app.sync_time()
+        self.assertEqual(r.get("offset_ms"), 0)
+        self.assertEqual(self.app.client.transport.time_offset_ms, 0)
+        # 校准之后发出去的公共字段 timestamp 必须回到本地时钟
+        ts = int(self.app.client.transport.base_payload()["timestamp"])
+        self.assertLess(abs(ts - int(time.time() * 1000)), 2000)
+
+
+class 结算报文路径测试(unittest.TestCase):
+    """三条结算路径的报文差异（原版 km7 / aw8 分工）：
+
+    · 阳光跑 `km7.c()` → `aw8.c(params)` → `finishSunRun_v2`：带 runImgRecord
+    · 自由跑 `km7.b()` → 直接 `finishFreeRun`：**不带** runImgRecord
+    · 异常结束 `StopRunUtils.o()` → `aw8.b()/aw8.a()`：
+      `abnormalFinishSunRun` / `abnormalFinishActivityRun`，带 runImgRecord
+      与 `abnormalCodes = [checkData]`
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-fin-"))
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
+        cls.app.login("13800138000", "any-password", False)
+        cls.app.run_prepare()
+        cls.app.run_auto(target_m=1200, fence_index=0,
+                         do_upload=True, do_finish=True, sport_type=C.SPORT_TYPE_SUN)
+        cls.等完()
+        cls.run_code = str((cls.app.status().get("last") or {}).get("run_code") or "")
+
+    @classmethod
+    def 等完(cls):
+        end = time.time() + 超时上限
+        while time.time() < end:
+            pg = cls.app.poll(0).get("progress") or {}
+            if not pg.get("running"):
+                return
+            time.sleep(0.3)
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            cls.app.close()
+        finally:
+            shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def 报文(self, endpoint: str) -> dict:
+        for e in self.app.run_detail(self.run_code)["upload_log"]:
+            if e["endpoint"] == endpoint:
+                return json.loads(e["payload_json"])
+        self.fail(f"上传日志里没有 {endpoint}")
+
+    def test_阳光跑结算带runImgRecord(self):
+        body = self.报文("run/finishSunRun_v2")
+        self.assertEqual(len(body.get("runImgRecord") or ""), 32)
+        self.assertIsInstance(body["distance"], str)
+        self.assertIsInstance(body["duration"], str)
+        self.assertIsInstance(body["totalStep"], str)
+
+    def test_自由跑结算不带runImgRecord(self):
+        """km7.b() 不调 aw8.c()：自由跑路径没有这两个键"""
+        self.app.client.finish_run(self.run_code, sun=False)
+        body = self.报文("run/finishFreeRun")
+        self.assertNotIn("runImgRecord", body)
+        self.assertNotIn("abnormalCodes", body)
+        # 但公共字段 timestamp 仍在（拦截器加的）
+        self.assertTrue(body.get("timestamp"))
+
+    def test_异常结束带abnormalCodes(self):
+        r = self.app.client.finish_run(self.run_code, sun=True, abnormal_code=7003)
+        self.assertEqual(r.get("code"), C.CODE_OK, f"异常结束被拒：{r}")
+        body = self.报文("run/abnormalFinishSunRun")
+        self.assertEqual(body.get("abnormalCodes"), [7003])
+        self.assertEqual(len(body.get("runImgRecord") or ""), 32)
+
+    def test_活动跑异常结束走另一个端点(self):
+        r = self.app.client.finish_run(self.run_code, sport_type=C.SPORT_TYPE_SUN,
+                                       sun=True, abnormal_code=3)
+        self.assertEqual(r.get("code"), C.CODE_OK, f"异常结束被拒：{r}")
+        # sportType==1 走 abnormalFinishSunRun；换成别的 sportType 走 ActivityRun
+        r2 = self.app.client.finish_run(self.run_code, sport_type=2,
+                                        sun=True, abnormal_code=3)
+        self.assertEqual(r2.get("code"), C.CODE_OK, f"活动跑异常结束被拒：{r2}")
+        self.报文("run/abnormalFinishActivityRun")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

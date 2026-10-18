@@ -284,6 +284,7 @@ class App:
                            else {}),
             "logged_in": bool(c.logged_in),
             "user": c.user,
+            "time_offset_ms": int(getattr(c.transport, "time_offset_ms", 0) or 0),
             "device_id": c.transport.device_id,
             "device": self.cfg.get("device", {}),
             "run_cfg": self.cfg.get("run", {}),
@@ -326,6 +327,17 @@ class App:
             return res
         except Exception as e:  # noqa: BLE001
             self.bus.emit("log", f"✗ 登录异常：{type(e).__name__}: {e}", level="error")
+            return {"code": -1, "message": f"{type(e).__name__}: {e}", "data": None}
+
+    def sync_time(self) -> Dict[str, Any]:
+        """手动校准时钟（原版登录后由 SyncTimeIntentService 自动做）
+
+        返回 offset_ms；公共字段 timestamp 与结算 runImgRecord 的时间参都用它。
+        """
+        try:
+            return self.client.transport.sync_time()
+        except Exception as e:  # noqa: BLE001
+            self.bus.emit("log", f"✗ 时间校准失败：{type(e).__name__}: {e}", level="error")
             return {"code": -1, "message": f"{type(e).__name__}: {e}", "data": None}
 
     def logout(self) -> Dict[str, Any]:
