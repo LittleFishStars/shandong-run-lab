@@ -77,7 +77,6 @@ jobs:
           merge-multiple: true
 
       - name: 合并校验和
-      - name: 合并校验和
         working-directory: artifacts
         run: |
           rm -f SHA256SUMS-*
