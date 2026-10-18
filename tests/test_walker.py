@@ -167,7 +167,8 @@ class 采样与产出测试(unittest.TestCase):
         self.assertEqual(len(w.drain_points()), 3)
         self.assertEqual(w.drain_points(), [])
 
-    def test_采样点落在围栏内时偏移为0(self):
+    def test_围栏内采样点偏移恒为负一(self):
+        """原版 W1() 收到的 outFenceDisM 常态就是 -1（只有刚回围栏那一点才是进出围栏总距离）"""
         poly = [[LAT0 - 0.01, LNG0 - 0.01], [LAT0 - 0.01, LNG0 + 0.01],
                 [LAT0 + 0.01, LNG0 + 0.01], [LAT0 + 0.01, LNG0 - 0.01]]
         w = Walker(sim=FuckRunSim(seed=1))
@@ -176,8 +177,10 @@ class 采样与产出测试(unittest.TestCase):
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
         走(w, 10.0)
-        for p in w.drain_points():
-            self.assertEqual(p.off_fence_dis_m, 0)
+        pts = w.drain_points()
+        self.assertTrue(pts)
+        for p in pts:
+            self.assertEqual(p.off_fence_dis_m, -1)
 
 
 class 打卡判定测试(unittest.TestCase):

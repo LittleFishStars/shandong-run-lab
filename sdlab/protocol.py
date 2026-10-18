@@ -201,11 +201,11 @@ class RunLatLng:
     lat: float
     lng: float
     lat_lng_index: int = 0            # @JSONField("index")
-    run_time: int = 0                 # @JSONField("runTime")   跑步内相对 ms
-    collect_time: int = 0             # @JSONField("collectTime") 采集绝对 ms
-    state: int = STATE_INIT           # @JSONField("state")
-    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+    run_time: int = 0                 # @JSONField("runTime")   跑步内相对**秒**（原版 (int)Q0()）
+    collect_time: int = 0             # @JSONField("collectTime") 采集绝对毫秒（原版 addressInfo.getTime()）
     create_time: int = 0              # 建表时 System.currentTimeMillis()（会上传）
+    state: int = STATE_INIT           # @JSONField("state")  1 INIT / 2 UPLOADING / 4 FAIL / 8 SUCC
+    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 出围栏总距离；常态 -1（见 walker.W1 注释）
 
     # 会上传的物理量（原版无 serialize=false）
     accuracy: float = 6.0
@@ -607,7 +607,7 @@ class TrackGenerator:
     """生成符合校园跑步特征的轨迹
 
     设计目标（对齐 SchoolRule 的反作弊判定）：
-      · 起点/终点都在围栏内，全程 offFenceDisM = 0
+      · 起点/终点都在围栏内，全程 offFenceDisM = -1（原版裸跑不进出围栏时的常态）
       · 配速落在 [minPace, maxPace] 之间（默认 5'30"–8'00"/km）
       · 步幅稳定在 segmentStrideAvg 附近
       · 步频曲线符合人类特征（热身 → 稳定 → 疲劳），非恒定值
@@ -685,10 +685,11 @@ class TrackGenerator:
             collect = t0 + int(i * self.sample_s * 1000)
             pts.append(RunLatLng(
                 lat=lat, lng=lng, lat_lng_index=i,
-                run_time=int(i * self.sample_s * 1000),
+                run_time=int(round(i * self.sample_s)),
                 collect_time=collect,
+                create_time=collect,
                 state=STATE_INIT,
-                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+                off_fence_dis_m=-1,
                 accuracy=self.rng.uniform(3.0, 8.0),
                 speed=round(m_per_s, 2),
                 satellites=self.rng.randint(8, 14),
@@ -778,10 +779,11 @@ class TrackGenerator:
             lat, lng = self._offset(x, y)
             pts.append(RunLatLng(
                 lat=lat, lng=lng, lat_lng_index=i,
-                run_time=int(i * self.sample_s * 1000),
+                run_time=int(round(i * self.sample_s)),
                 collect_time=t0 + int(i * self.sample_s * 1000),
+                create_time=t0 + int(i * self.sample_s * 1000),
                 state=STATE_INIT,
-                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+                off_fence_dis_m=-1,
                 accuracy=self.rng.uniform(3.0, 8.0),
                 speed=round(m_per_s, 2),
                 satellites=self.rng.randint(8, 14),

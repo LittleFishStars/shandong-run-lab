@@ -16,8 +16,8 @@ from sdlab.store import RecordStore
 
 def 造点(i, state=C.STATE_INIT):
     return RunLatLng(lat=36.6615 + i * 1e-5, lng=117.0265, lat_lng_index=i,
-                     run_time=i * 3000, collect_time=1700000000000 + i * 3000,
-                     state=state)
+                     run_time=i * 3, collect_time=1700000000000 + i * 3000,
+                     create_time=1700000000000 + i * 3000, state=state)
 
 
 class 记录层测试(unittest.TestCase):

@@ -47,7 +47,6 @@ from .protocol import (
     IntervalPace,
     IntervalStep,
     RunLatLng,
-    distance_to_polygon_edge,
     haversine,
     StrideSegment,
     point_in_polygon,
@@ -399,7 +398,7 @@ class Walker:
         """每 sample_s 秒走一次原版 DataComponent.W1() 的落点流程
 
         与原版一一对应：
-          · 造 RunLatLng（runTime = 跑步内相对毫秒、collectTime = 绝对毫秒）
+          · 造 RunLatLng（runTime = 跑步内相对**秒**、collectTime = 绝对毫秒）
           · 与上一个**有效点**算球面直线距离（取整到米）→ subDistance
           · H0() 闸门：精度 / 速度符号 / 点间等效速度三项超限即判为无效点
           · 有效点才进 valid_points(f12593a) 并累加 runData.distance
@@ -419,15 +418,16 @@ class Walker:
             self.dropped_outside += 1
             return
 
-        off = 0
-        if self.polygon:
-            off = int(distance_to_polygon_edge(lat, lng, self.polygon))
+        # 原版 W1() 收到的 outFenceDisM 常态就是 -1（只有「刚回围栏」那一点才是
+        # v2() 算出的出围栏总距离，且会被从 subDistance 里扣掉）。这里围栏外的点
+        # 整点丢弃、不构成进出围栏，所以与运行在围栏内时的原版行为一致：恒 -1。
 
         ts = self.start_ms + int(self.elapsed_sec * 1000)
         point = RunLatLng(
             lat=lat, lng=lng, lat_lng_index=self._poi_index,
-            run_time=int(self.elapsed_sec * 1000), collect_time=ts,
-            state=STATE_INIT, off_fence_dis_m=off,
+            run_time=int(round(self.elapsed_sec)), collect_time=ts,
+            create_time=ts,
+            state=STATE_INIT, off_fence_dis_m=-1,
             accuracy=round(self.rng.uniform(5.0, 12.0), 1),
             speed=round(speed, 2),
             satellites=self.rng.randint(8, 13),

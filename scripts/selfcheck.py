@@ -104,7 +104,9 @@ def test_simulator() -> None:
     dist = sum(haversine(a.lat, a.lng, b.lat, b.lng) for a, b in zip(track, track[1:]))
     check(len(track) > 100, f"轨迹点数量合理（{len(track)} 点）")
     check(0.7 * 2000 <= dist <= 1.4 * 2000, f"轨迹总长度接近目标（{dist:.0f} m / 2000 m）")
-    check(all(p.off_fence_dis_m >= 0 for p in track), "所有轨迹点都在围栏内/围栏上")
+    # offFenceDisM 的语义是「离开围栏的总距离」，常态 -1；这里直接判点在不在围栏内
+    check(all(haversine(36.67, 117.05, p.lat, p.lng) <= 260.0 for p in track),
+          "所有轨迹点都在围栏内（离中心 ≤ 260 米）")
 
     sim = FuckRunSim(min_cadence=172.0, max_cadence=182.0, seed=7)
     sim.start(base_steps=12000.0)
@@ -326,6 +328,58 @@ def test_elapsed_no_freeze() -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_point_wire_fields() -> None:
+    section("2.9 轨迹点报文口径（runTime 整数秒 / createTime 非零 / 跑中增量上传）")
+
+    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-wire-"))
+    app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
+    try:
+        app.login("13800138000", "any-password", False)
+        app.run_prepare()
+        app.walk_start("real", 0.0, 0, 3.0, True, True, 1.0)
+        rc = (app.walk_status(-1) or {}).get("run_code") or ""
+        for _ in range(7):
+            app.walk_joystick(1.0, 0.0, 1.0)
+            time.sleep(3.0)
+        st = app.walk_status(-1) or {}
+        pts = app.store.get_points(rc, None, valid_only=False)
+        app.walk_stop()
+        st = app.walk_status(-1) or st
+
+        el = float((st.get("state") or {}).get("elapsed_sec") or 0)
+        last = pts[-1] if pts else None
+        check(bool(last) and el > 5 and last.run_time <= el + 1,
+              "runTime 是跑步内相对**秒**（原版 (int)Q0()），不是毫秒",
+              f"run_time={last.run_time if last else None} / elapsed_sec={el:.0f}")
+        check(bool(last) and last.create_time > 1_600_000_000_000,
+              "createTime 每点都有真实建点时刻（不是 0）",
+              f"create_time={last.create_time if last else None}")
+        check(bool(last) and last.off_fence_dis_m == -1,
+              "offFenceDisM 常态为 -1（原版裸跑不进出围栏）",
+              f"off_fence_dis_m={last.off_fence_dis_m if last else None}")
+        check(int(st.get("uploaded_points") or 0) > 0,
+              "跑中按 poiInterval(15s) 增量上传了轨迹（原版 m0()）",
+              f"uploaded_points={st.get('uploaded_points')} / errors={st.get('upload_errors')}")
+        n_succ = app.store.count_points(rc, C.STATE_SUCC)
+        n_init = app.store.count_points(rc, C.STATE_INIT)
+        check(n_succ > 0 and int(st.get("uploaded_points") or 0) <= n_succ,
+              "增量上传后状态位对得上（成功数 ≥ 会话内累计上传数，无残留 INIT 时全 SUCC）",
+              f"uploaded_points={st.get('uploaded_points')} / SUCC={n_succ} / INIT={n_init} / 总 {len(pts)}")
+
+        cps = app.store.checkpoint_targets(rc)
+        res = app.client.upload_checkpoints(rc, [])
+        sent = int(((res.get("data") or {}).get("count") or 0))
+        check((res.get("data") or {}).get("uploaded") == sent,
+              "uploadPassPoint 发全量 targetPoints（含未通过的）",
+              f"发 {sent} 个 / 库里有 {len(cps)} 个")
+    finally:
+        try:
+            app.close()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 # ══════════════════════════════════════════════════════════════════
 # 3~5. 全链路
 # ══════════════════════════════════════════════════════════════════
@@ -466,6 +520,7 @@ def main() -> int:
     test_checkpoints_source()
     test_auto_run()
     test_elapsed_no_freeze()
+    test_point_wire_fields()
     res = test_full_chain(args.verbose, args.fail_rate)
     if not args.skip_slow:
         test_resume()

@@ -87,6 +87,7 @@ const S = {
   previewPoints: [],     // 高级里「只规划路径」按围栏预估的预览点（开跑前地图上不画打卡点）
   autoRun: false,        // 自动跑：沿规划路线自动走；false = 手动（右下角摇杆控制），默认手动
   walkMsg: '',           // 主流程状态行上的临时文案（跑步中/刚规划完），空则按登录与围栏状态推导
+  progress: {},          // 轮询里的实时进度（不是 S.status.progress 那个快照）
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
 };
@@ -213,6 +214,9 @@ function renderStatus(st) {
 }
 
 function renderProgress(p) {
+  // 轮询拿到的实时进度存一份：S.status.progress 只是 refreshStatus 时的快照，
+  // 跑步中真正在变的是这里（700ms 一次），排查与自检都应该看这个。
+  S.progress = Object.assign({}, p || {});
   const pct = Math.max(0, Math.min(100, Number(p.percent || 0)));
   $('progress-fill').style.width = pct + '%';
   $('progress-text').textContent = `${pct}% · ${p.message || '就绪'}`

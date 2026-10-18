@@ -533,10 +533,14 @@ class ShandongClient:
 
         字段与结算里的 targetPoints 完全一致（code/lat/lng/passStatus/
         clockTime/sort/nfcEnable），统一走 store.checkpoint_targets 构造。
+
+        原版 `p0(getTargetPoints(), E())` 发的是**全量** targetPoints（含
+        passStatus=false 的），由服务端根据 passStatus 自行判定——这里同样发全量，
+        只发已通过的会让服务端看到一份“缺了点”的列表。
         """
-        targets = [t for t in self.store.checkpoint_targets(run_code) if t["passStatus"]]
+        targets = self.store.checkpoint_targets(run_code)
         if not targets:
-            return {"code": CODE_OK, "message": "无已通过打卡点", "data": None}
+            return {"code": CODE_OK, "message": "没有打卡点", "data": None}
         res = self.transport.post("upload_passpoint", self.transport.base_payload({
             "targetPoints": targets,
             "runRecordCode": run_code,

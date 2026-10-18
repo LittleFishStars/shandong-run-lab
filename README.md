@@ -243,11 +243,11 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 | 接口 | 原版方法 | 取数条件 | 发送门限 |
 | --- | --- | --- | --- |
-| `run/uploadRunRecord` | `ApiDataComponent.c0()` | `state ∈ {1,4}` **且** `isValid=1` | `size <= 3` 不发；**整表一次 POST**（200 只是状态回写分片） |
+| `run/uploadRunRecord` | `ApiDataComponent.c0()` | `state ∈ {1,4}` **且** `isValid=1` | `size <= 3` 不发；**整表一次 POST**（200 只是状态回写分片）；**跑中每 `poiInterval=15` 秒增量发一批**（`m0()`） |
 | `run/uploadStepsRecord` | `d0()` | `is_uploaded=0`（**不过滤 isValid**） | `size >= 3` 才发 |
 | `run/uploadPaceRecord` | `b0()` | `is_uploaded=0` 且 `isValid=1` | `size < 3` 不发 |
 | `run/uploadStrideRecord` | `n0()` | 每段即时发（`E0()` 每满 `strideStatisticsInterval` 米封一段） | 无门限，`strideList` **恒为单元素数组** |
-| `run/uploadPassPoint` | `p0()` | 打卡点 | 无已通过点时跳过 |
+| `run/uploadPassPoint` | `p0()` | 打卡点 | 发**全量** `targetPoints`（含 `passStatus=false`），不是只发已通过的 |
 
 ---
 
@@ -259,8 +259,9 @@ export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 # 单元测试（185 项）
 .venv/bin/python -m unittest discover -s tests
 
-# 端到端自检（61 项：密码学 / 仿真 / 跑步起点 / 打卡点来源 / 自动跑与手动摇杆 / 停下来时间照走 /
-#   全链路 / 失败注入+续传）
+# 端到端自检（67 项：密码学 / 仿真 / 跑步起点 / 打卡点来源 / 自动跑与手动摇杆 / 停下来时间照走 /
+#   轨迹点报文口径（runTime 整数秒 / createTime / offFenceDisM=-1 / 跑中增量上传）/ 全链路 /
+#   失败注入+续传）
 .venv/bin/python scripts/selfcheck.py -v
 
 # 前端桥自检（59 项：用和浏览器一模一样的 HTTP 调用驱动后端，含 app.js 语法校验、摇杆干跑、
@@ -272,7 +273,7 @@ export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 #   拉取配置后镜头飞到围栏、图上选起点、拉取配置后地图上没有打卡点、③ 开始跑步后才拿到服务端下发的打卡点、
 #   点「自动跑」才沿路线巡航、窗口压矮时右下角摇杆簇不被裁掉、摇杆中心点命中的是摇杆本身
 #   （卡片没被提示行撑出中栏）、实跑中摇杆与「自动跑」仍完整可见、首屏把布局自检写进事件流、
-#   停杆期间时长照走/配速跟着变大、④ 结束跑步上传结算）
+#   停杆期间时长照走/配速跟着变大、④ 结束跑步上传结算；实跑中后端 live 进度真实推进（看 S.progress））
 .venv/bin/python scripts/gui_probe.py --distance 1200 --speed 8
 
 # 真实服务端连通性自检（不需要账号；会真的去 api.huachenjie.com 打请求，并实测滑块验证码）

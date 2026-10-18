@@ -625,9 +625,14 @@ def main() -> int:
         js(window, "document.querySelector('#btn-run').click()")
         # 上一节（④ 结束跑步）把进度条留在 100%，直接采样会第一次就 break；
         # 先等这一次真的跑起来（progress.running 为真），再看进度。
-        wait_js(window, "!!(S.status && S.status.progress && S.status.progress.running)",
-                timeout=20.0)
-        # mock 模式下整场跑只要一两秒（仿真不是实时的），所以要密集采样：
+        wait_js(window, "!!(S.progress && S.progress.running)", timeout=20.0)
+        # 上一节（④ 结束跑步）把进度条留在 100%，而 #progress-fill 只在页面轮询
+        # （700ms 一次）时才重绘；点完按钮后的第一条采样很可能落在下一次轮询之前，
+        # 读到的是还没刷新的旧 100% → 直接 break，于是「跑步中」一次都采不到。
+        # 所以先等进度条真的掉下来，再开始采样。
+        wait_js(window,
+                "(parseFloat(document.querySelector('#progress-fill').style.width) || 0) < 100",
+                timeout=15.0, interval=0.2)
         # 只要采到任何一次 0 < 进度 < 100，就证明界面确实在跑步过程中刷新了。
         seen: list = []
         shot_taken = False
@@ -658,7 +663,7 @@ def main() -> int:
         done_deadline = time.time() + 180
         while time.time() < done_deadline:
             time.sleep(1.5)
-            if js(window, "!!(S.status && S.status.progress && !S.status.progress.running)") is True:
+            if js(window, "!!(S.progress && !S.progress.running)") is True:
                 break
         time.sleep(1.5)     # 让详情/记录列表跟上
 

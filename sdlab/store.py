@@ -296,7 +296,8 @@ class RecordStore:
         now = int(time.time() * 1000)
         rows = [(run_code, p.lat_lng_index, p.lat, p.lng, p.run_time, p.collect_time,
                  p.state, p.off_fence_dis_m, p.accuracy, p.speed, p.satellites,
-                 1 if p.is_valid else 0, 1 if p.is_uploaded else 0, now)
+                 1 if p.is_valid else 0, 1 if p.is_uploaded else 0,
+                 p.create_time or now)
                 for p in pts]
         with self._lock, self._connect() as con:
             con.executemany(
@@ -652,6 +653,7 @@ def _row_to_point(row: sqlite3.Row, run_code: str) -> RunLatLng:
         lat_lng_index=int(row["idx"]),
         run_time=int(row["run_time"]), collect_time=int(row["collect_time"]),
         state=int(row["state"]), off_fence_dis_m=int(row["off_fence_dis_m"]),
+        create_time=int(_try_col(row, "create_time", 0) or 0),
         accuracy=float(row["accuracy"] or 0.0), speed=float(row["speed"] or 0.0),
         satellites=int(row["satellites"] or 0),
         is_valid=bool(int(_try_col(row, "is_valid", 1))),

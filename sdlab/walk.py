@@ -21,7 +21,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
-from .constants import (CHECKPOINT_HIT_RADIUS_M, PACE_INTERVAL_M,
+from .constants import (CHECKPOINT_HIT_RADIUS_M, PACE_INTERVAL_M, POI_INTERVAL_S,
                         SPORT_TYPE_SUN, STATE_INIT, STEP_INTERVAL_S)
 from .protocol import (IntervalPace, IntervalStep, RunLatLng, StrideSegment,
                        evaluate_run)
@@ -57,6 +57,13 @@ class WalkSession:
         self.steps_total = 0                 # 已落库的步频段数
         self.paces_total = 0                 # 已落库的配速段数
         self.strides_total = 0               # 已落库的步幅段数
+
+        # 实跑时的轨迹增量上传（原版 ApiDataComponent.m0() 的 poiInterval 节流）
+        self.poi_interval_s = float(POI_INTERVAL_S)
+        self.uploaded_points = 0             # 已成功增量上传的点数
+        self.upload_errors = 0               # 增量上传失败次数
+        self._last_upload_at = 0.0           # 上次触发增量上传的墙钟时间
+        self._upload_thread: Optional[threading.Thread] = None
         self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
         self._step_segments: List[IntervalStep] = []     # 已从 Walker 取走的步频段
         self._pace_segments: List[IntervalPace] = []     # 已从 Walker 取走的配速段
@@ -263,9 +270,58 @@ class WalkSession:
             else:
                 self.pending = len(self._points)
         self._store_segments(w)
+        self._maybe_upload_points(time.time())
+
+    def _maybe_upload_points(self, now: float) -> None:
+        """实跑时按原版 poiInterval（默认 15 秒）节流，把待上传轨迹增量推给服务端
+
+        原版 SunshineRunService.D() 每来一个定位点都调 dataComponent.m0(runCode)，
+        节流与门槛都在 m0()/c0() 里：
+          · now - f35979a > poiInterval*1000 才发（CommonConfig 默认 15 秒）
+          · 待发点 <= 3 时 c0() 直接 onCompleted 不发
+        这里同样的条件满足才触发；真正发请求放后台单飞线程（原版是 RxJava 异步），
+        否则网络一慢就会把摇杆推进行卡住。
+        """
+        if self.mode != "real" or not self.run_code or self.engine is None:
+            return
+        # 待发点的口径是「库里还处在 INIT/FAIL 的有效点」——不是 self.pending
+        # （那是「尚未落库的点」，落库后立刻归零，拿它当门会让增量上传永远不发）
+        if self.store is None:
+            return
+        if self.store.count_points(self.run_code, STATE_INIT) <= 0:
+            return
+        if now - self._last_upload_at < self.poi_interval_s:
+            return
+        t = self._upload_thread
+        if t is not None and t.is_alive():
+            return
+        self._last_upload_at = now
+        t = threading.Thread(target=self._upload_points_once, daemon=True,
+                             name="sdlab-poi-upload")
+        self._upload_thread = t
+        t.start()
+
+    def _upload_points_once(self) -> None:
+        """后台把待上传轨迹发一次（失败只记数，不影响跑）"""
+        rc = self.run_code
+        try:
+            res = self.engine.client.upload_points(rc)
+            if int(res.get("code", -1)) == 0:
+                data = res.get("data") or {}
+                n = int(data.get("uploaded") or 0)
+                if n > 0:
+                    self.uploaded_points += n
+                    self._emit("log", f"轨迹增量上传：{n} 点（原版每 {int(self.poi_interval_s)} 秒一次）")
+            else:
+                self.upload_errors += 1
+                self._emit("log", f"轨迹增量上传失败：{res.get('message')}", level="warn")
+        except Exception as e:  # noqa: BLE001
+            self.upload_errors += 1
+            self._emit("log", f"轨迹增量上传异常：{type(e).__name__}: {e}", level="warn")
+        finally:
+            self._last_upload_at = time.time()
 
     def _maybe_emit(self, now: float) -> None:
-        """限频发事件：每 1 秒或每 50 米一次，避免把事件流刷爆"""
         if now - self._last_emit < 1.0 and (self.state.dist_m - self._last_emit_m) < 50.0:
             return
         self._last_emit = now
@@ -348,6 +404,10 @@ class WalkSession:
             "points": len(self._points),
             "stored": self._stored,
             "pending": self.pending,
+            # 实跑时的轨迹增量上传（原版 poiInterval 节流）
+            "uploaded_points": self.uploaded_points,
+            "upload_errors": self.upload_errors,
+            "poi_interval_s": self.poi_interval_s,
             "hits": self.hits_total,
             "steps": self.steps_total,
             "paces": self.paces_total,

@@ -21,7 +21,7 @@ from sdlab.protocol import (SNAP_MARGIN_M, RunLatLng, RuleSet, TrackGenerator,
 
 def 造点(lat, lng, i=0, 基准=1700000000000):
     return RunLatLng(lat=lat, lng=lng, lat_lng_index=i,
-                     run_time=i * 3000, collect_time=基准 + i * 3000)
+                     run_time=i * 3, collect_time=基准 + i * 3000)
 
 
 class 几何测试(unittest.TestCase):
@@ -93,7 +93,7 @@ class 轨迹生成测试(unittest.TestCase):
         self.assertGreaterEqual(len(pts), 240)
         for i, p in enumerate(pts):
             self.assertEqual(p.lat_lng_index, i)
-            self.assertEqual(p.run_time, i * 3000)
+            self.assertEqual(p.run_time, i * 3)
 
     def test_必经点全部命中(self):
         """三个打卡点都必须落在 12 米打卡半径内，否则服务端判无效"""
