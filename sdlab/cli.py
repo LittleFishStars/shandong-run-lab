@@ -609,6 +609,24 @@ def build_parser() -> argparse.ArgumentParser:
 _CONSOLE_HIDDEN = False
 
 
+def _harden_stdio() -> None:
+    """Windows 下把输出流的错字符改成替换，而不是抛 UnicodeEncodeError
+
+    真实控制台（Python 3.6+ 走 WriteConsoleW）本来就没事；但输出被重定向到文件/
+    管道时用的是 cp1252/cp936，打印 ✓、→ 这类符号会直接崩。只放宽错误策略，
+    不改编码，免得 cmd 里中文反而变乱码。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if not stream.isatty():
+                # 被重定向/管道捕获时统一吐 UTF-8，日志和 CI 都好处理
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            else:
+                stream.reconfigure(errors="replace")
+        except Exception:                                # noqa: BLE001
+            pass
+
+
 def _hide_console_if_double_clicked(argv: Optional[List[str]]) -> None:
     """Windows 下双击启动时把控制台黑窗藏掉（打包版专用）
 
@@ -651,6 +669,7 @@ def _report_fatal(e: BaseException) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    _harden_stdio()
     ap = build_parser()
     args = ap.parse_args(argv)
     if not getattr(args, "command", None):

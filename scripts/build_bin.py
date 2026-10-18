@@ -29,6 +29,13 @@ import sys
 import zipfile
 from pathlib import Path
 
+# Windows 的管道/重定向默认是 cp1252，中文与 ✓ 会直接抛 UnicodeEncodeError，先把输出钉成 UTF-8
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:                     # 没有 reconfigure（被重定向成别的对象）就算了
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build" / "pyinstaller"
@@ -143,8 +150,8 @@ def smoke(binary: Path) -> bool:
     common = ["--data-dir", str(home), "--config", str(home / "config.json")]
     for argv, expect in ((["--version"], "sdlab "), (["info", *common], "")):
         try:
-            p = subprocess.run([str(binary), *argv], capture_output=True, text=True,
-                               timeout=180, env=env)
+            p = subprocess.run([str(binary), *argv], capture_output=True, timeout=180,
+                               env=env, encoding="utf-8", errors="replace")
         except Exception as e:                                   # noqa: BLE001
             print(f"  ✗ {argv}: {type(e).__name__}: {e}")
             ok_all = False

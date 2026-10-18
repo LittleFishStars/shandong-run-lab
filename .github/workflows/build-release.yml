@@ -15,6 +15,11 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Windows runner 的默认管道编码是 cp1252，脚本里的中文/符号会炸
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
 jobs:
   build:
     name: build · ${{ matrix.label }}
