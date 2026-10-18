@@ -528,14 +528,14 @@ class RecordStore:
     def checkpoint_targets(self, run_code: str) -> List[Dict[str, Any]]:
         """构造结算/打卡用的 targetPoints
 
-        原版 `StartRunEntity.getTargetPoints()` 的字段与序列化名：
-            code(long) lat(double) lng(double) passStatus(bool)
-            clockTime(long) sort(int) nfcEnable(bool)
-        其余（pointName/simpleName/type/isClosingStatus/isInFence/
-        isSensitiveFenceAdded）都标了 @JSONField(serialize=false)，不上传。
+        原版 `com/huachenjie/common/bean/TargetPoints.java` 的类注解是
+        `@JSONType(includes = {"lat", "lng", "clockTime", "code", "passStatus"})`，
+        即 fastjson 只序列化这 5 个字段；其余（pointName/simpleName/type/
+        sort/isClosingStatus/isInFence/isSensitiveFenceAdded/nfcEnable）都
+        标了 @JSONField(serialize=false) 或不在 includes 里，一律不上报。
         """
         out: List[Dict[str, Any]] = []
-        for i, c in enumerate(self.get_checkpoints(run_code)):
+        for c in self.get_checkpoints(run_code):
             passed = int(c.get("passed") or 0) == 1
             out.append({
                 "code": int(c.get("code") or 0),
@@ -546,8 +546,6 @@ class RecordStore:
                 "lng": round(float(c.get("lng") or 0.0), 6),
                 "passStatus": bool(passed),
                 "clockTime": int(c.get("hit_ms") or 0),
-                "sort": int(c.get("sort") if c.get("sort") is not None else i),
-                "nfcEnable": bool(int(c.get("nfc") or 0)),
             })
         return out
 

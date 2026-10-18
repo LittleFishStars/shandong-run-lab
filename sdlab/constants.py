@@ -61,7 +61,9 @@ DES_KEYS: Tuple[bytes, ...] = (
 )
 
 # ══════════════════ 请求头默认值 ══════════════════
-DEFAULT_MODEL = "SM-A5460"
+# 原版 r24.java:76-96：modelName = Build.MANUFACTURER + "|" + Build.MODEL
+# （如 "samsung|SM-A5460"），UA 里的品牌单独取 Build.BRAND。
+DEFAULT_MODEL = "samsung|SM-A5460"
 DEFAULT_SYS_VER = "14"
 DEFAULT_PLATFORM = "2"
 DEFAULT_CHANNEL = "other"
