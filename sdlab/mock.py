@@ -284,9 +284,13 @@ def _login_password(w: MockWorld, path: str, h: Dict[str, str], b: Dict[str, Any
 def _user_info(w: MockWorld, path: str, h: Dict[str, str], b: Dict[str, Any]):
     if not w.require_login(h):
         return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
+    # 回显本次登录会话的身份（多个账号切换时 userId 必须对得上）
+    sess = w.sessions.get(str(h.get("Authorization") or "")) or {}
     return {"code": CODE_OK, "message": "成功", "data": {
-        "userId": "UMOCK001", "userName": "本地仿真用户",
-        "schoolCode": MOCK_SCHOOL["schoolCode"], "schoolName": MOCK_SCHOOL["schoolName"],
+        "userId": sess.get("userId") or "UMOCK001",
+        "userName": sess.get("userName") or "本地仿真用户",
+        "schoolCode": sess.get("schoolCode") or MOCK_SCHOOL["schoolCode"],
+        "schoolName": sess.get("schoolName") or MOCK_SCHOOL["schoolName"],
         "studentNo": "20260001", "sex": 2, "grade": "2026",
         "totalDistance": 128000, "totalTimes": 42,
     }}

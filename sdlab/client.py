@@ -27,6 +27,7 @@ from .constants import (
     BUILD_VERSION,
     CHECKPOINT_HIT_RADIUS_M,
     CODE_OK,
+    CODE_NEED_LOGIN,
     EP,
     DEFAULT_UPLOAD_BATCH,
     PACE_INTERVAL_M,
@@ -119,6 +120,7 @@ class ShandongClient:
             "schoolCode": str(merged.get("schoolCode", "") or ""),
             "schoolName": str(merged.get("schoolName", "") or ""),
             "userName": str(merged.get("userName", "") or ""),
+            "loginName": str(merged.get("loginName", "") or ""),
             "userType": merged.get("userType", 1),
             "deviceId": self.transport.device_id,
             "loginAt": (int(time.time() * 1000) if touch
@@ -137,6 +139,87 @@ class ShandongClient:
         if not self.transport.token:
             return
         self._save_session(self.user)
+
+    # ══════════════════ 历史账号（多用户切换） ══════════════════
+    @property
+    def accounts_key(self) -> str:
+        return "accounts" + ("_mock" if self.local_mode else "")
+
+    def accounts(self) -> List[Dict[str, Any]]:
+        """本机登录过的账号（含 token，界面层负责脱敏展示）"""
+        lst = self.store.kv_get(self.accounts_key)
+        if isinstance(lst, dict):
+            lst = lst.get("list")
+        return [a for a in (lst or []) if isinstance(a, dict) and a.get("token")]
+
+    def _remember_account(self) -> None:
+        """把当前会话登记进历史账号：按 userId 去重，最多 20 个"""
+        uid = str(self.user.get("userId") or "")
+        if not uid or not self.transport.token:
+            return
+        lst = [a for a in self.accounts() if str(a.get("userId")) != uid]
+        lst.insert(0, dict(self.user))
+        lst.sort(key=lambda a: int(a.get("loginAt") or 0), reverse=True)
+        self.store.kv_set(self.accounts_key, lst[:20])
+
+    def _apply_session(self, sess: Dict[str, Any]) -> None:
+        """把一条会话装进 transport 与本地库（传空则清当前会话）"""
+        self.transport.token = str(sess.get("token") or "")
+        self.transport.satoken = str(sess.get("satoken") or "")
+        self.transport.school_code = str(sess.get("schoolCode") or "")
+        self.transport.user_id = str(sess.get("userId") or "")
+        self.logged_in = bool(self.transport.token)
+        self.user = dict(sess or {})
+        if self.logged_in:
+            self.store.kv_set(self.kv_token_key, self.user)
+        else:
+            self.store.kv_delete(self.kv_token_key)
+
+    def _reset_school_state(self) -> None:
+        """换账号时清掉上个账号的学校/围栏/规则缓存，避免拿错学校去开跑"""
+        self.fence = {}
+        self.fences = []
+        self.semesters = []
+        self.run_plans = []
+        self.abstract = {}
+        self.common = {}
+        self.rule = RuleSet()
+
+    def switch_account(self, user_id: str) -> Dict[str, Any]:
+        """切换到本机登录过的账号：换 token → 刷新用户信息 → 记为当前会话
+
+        不重新输密码：原版会话就存在本地，等价于 SharedPreferences 里换一份 token。
+        token 过期（1516）时把该账号从历史里摘掉，并回滚到切换前的身份。
+        """
+        uid = str(user_id or "")
+        target = next((a for a in self.accounts() if str(a.get("userId")) == uid), None)
+        if not target:
+            return {"code": CODE_NEED_LOGIN, "message": "本机没有这个账号的登录态", "data": None}
+        old = dict(self.user) if self.logged_in else {}
+        self._apply_session(target)
+        self._reset_school_state()
+        res = self.load_user()
+        code = int(res.get("code", -1))
+        if code == CODE_NEED_LOGIN:
+            self._forget_account(uid)
+            self._apply_session(old)
+            return {"code": code, "message": "该账号登录已过期，请重新登录", "data": None}
+        if code == CODE_OK:
+            self._remember_account()          # 登录时间保留该账号原值
+        return res
+
+    def _forget_account(self, user_id: str) -> None:
+        lst = [a for a in self.accounts() if str(a.get("userId")) != str(user_id)]
+        self.store.kv_set(self.accounts_key, lst)
+
+    def forget_account(self, user_id: str) -> None:
+        """移除历史账号；若删的是当前账号，顺带清掉当前会话"""
+        self._forget_account(user_id)
+        if str(self.user.get("userId") or "") == str(user_id):
+            self.logout(remote=False)
+        elif self.bus:
+            self.bus.emit("state", "已移除该账号")
+
 
     def logout(self, remote: bool = True) -> None:
         """退出登录。remote=False 只清本地（token 已失效时用，不再发 logout 请求）"""
@@ -200,7 +283,9 @@ class ShandongClient:
         })
         res = self.transport.post("login_password", payload)
         if res.get("code") == CODE_OK and res.get("data"):
+            res["data"]["loginName"] = phone
             self._save_session(res["data"], touch=True)
+            self._remember_account()
             # 登录后立即校准时钟（原版在隐私协议同意时就已跑 SyncTimeIntentService，
             # 登录更晚；这里取等价时机）。失败不影响登录本身。
             try:

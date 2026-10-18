@@ -312,6 +312,7 @@ class App:
                            else {}),
             "logged_in": bool(c.logged_in),
             "user": c.user,
+            "accounts": self.list_accounts(),
             "time_offset_ms": int(getattr(c.transport, "time_offset_ms", 0) or 0),
             "device_id": c.transport.device_id,
             "device": self.cfg.get("device", {}),
@@ -371,6 +372,50 @@ class App:
     def logout(self) -> Dict[str, Any]:
         self.client.logout()
         return {"code": 0, "message": "已退出", "data": None}
+
+    # ══════════════════ 历史账号 ══════════════════
+    def list_accounts(self) -> List[Dict[str, Any]]:
+        """本机登录过的账号（脱敏），current=True 表示当前使用中"""
+        cur = str(self.client.user.get("userId") or "")
+        out: List[Dict[str, Any]] = []
+        for a in self.client.accounts():
+            uid = str(a.get("userId") or "")
+            out.append({
+                "userId": uid,
+                "userName": str(a.get("userName") or ""),
+                "schoolName": str(a.get("schoolName") or ""),
+                "loginName": _mask_login(a.get("loginName") or uid),
+                "loginAt": int(a.get("loginAt") or 0),
+                "current": uid == cur,
+            })
+        return out
+
+    def switch_account(self, user_id: str) -> Dict[str, Any]:
+        """用历史账号直接开工：换会话 → 刷新用户/学校/围栏，不需要重新输密码"""
+        if self.walk and getattr(self.walk, "run_code", ""):
+            return {"code": -1, "message": "跑步进行中，先结束后再切换账号", "data": None}
+        res = self.client.switch_account(user_id)
+        if int(res.get("code", -1)) == CODE_OK:
+            self.engine.checkpoints = []
+            self.engine.checkpoints_source = ""
+            self.engine.preview_points = []
+            self._last_result = None
+            try:
+                self.client.load_common_config()
+                self.client.load_semesters()
+                self.client.load_fences()
+            except Exception as e:  # noqa: BLE001
+                self.bus.emit("log", f"切换后刷新学校数据失败：{e}", level="warn")
+            self.bus.emit("state", "已切换账号："
+                          f"{self.client.user.get('userName') or user_id}")
+        return res
+
+    def forget_account(self, user_id: str) -> Dict[str, Any]:
+        """移除历史账号（当前账号被移除时顺带退出登录）"""
+        if self.walk and getattr(self.walk, "run_code", ""):
+            return {"code": -1, "message": "跑步进行中，先结束后再操作", "data": None}
+        self.client.forget_account(user_id)
+        return {"code": 0, "message": "已移除", "data": None}
 
     # ══════════════════ 跑一次（后台线程） ══════════════════
     def run_auto(self, target_m: Optional[float] = None, fence_index: int = 0,
@@ -695,3 +740,9 @@ class App:
 def _version() -> str:
     from .constants import APP_VERSION
     return APP_VERSION
+
+
+def _mask_login(name: Any) -> str:
+    """手机号/学号脱敏：138****8000；短账号原样返回"""
+    s = str(name or "")
+    return s[:3] + "****" + s[-4:] if len(s) >= 7 else s

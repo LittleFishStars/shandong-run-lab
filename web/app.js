@@ -166,6 +166,19 @@ function renderStatus(st) {
     'token': { html: esc(String(u.token || '').slice(0, 18)) + '…', cls: 'mono' },
   }) : `<span class="v">未登录${st.mode === 'mock' ? '（本地 Mock 模式任意手机号可登录）' : ''}</span>`;
 
+  // 历史账号：能选一个以前登过的账号直接开工，不用重新输密码
+  const accounts = st.accounts || [];
+  const accSel = $('in-account');
+  const keepUid = accSel.value || (accounts.find(a => a.current) || {}).userId || '';
+  accSel.innerHTML = accounts.length
+    ? accounts.map(a => `<option value="${a.userId}">${esc(a.userName || a.loginName || a.userId)}`
+        + `${a.schoolName ? ' · ' + esc(a.schoolName) : ''}${a.current ? '（当前）' : ''}</option>`).join('')
+    : '<option value="">（本机登录过的账号会出现在这里）</option>';
+  if (keepUid && accounts.some(a => a.userId === keepUid)) accSel.value = keepUid;
+  const hasAcc = !!accSel.value && accounts.length > 0;
+  $('btn-account-use').disabled = !hasAcc;
+  $('btn-account-del').disabled = !hasAcc;
+
   // 规则
   const r = st.rule || {};
   $('rule-info').innerHTML = r.singleMinDistance !== undefined ? kv({
@@ -1189,6 +1202,29 @@ $('btn-login').addEventListener('click', async () => {
 });
   $('btn-logout').addEventListener('click', async () => {
     await Bridge.call('logout'); toast('已退出登录'); refreshStatus();
+  });
+
+  // 历史账号：不重新输密码，直接换 token 开工
+  $('in-account').addEventListener('change', () => {
+    const has = !!$('in-account').value;
+    $('btn-account-use').disabled = !has;
+    $('btn-account-del').disabled = !has;
+  });
+  $('btn-account-use').addEventListener('click', async () => {
+    const uid = $('in-account').value;
+    if (!uid) return;
+    const r = await Bridge.call('switch_account', uid);
+    if (r && r.code === 0) {
+      toast('已切换账号：' + ((r.data && r.data.userName) || '该账号'), 'ok');
+      refreshStatus();
+    } else toast('切换失败：' + ((r && r.message) || '未知错误'), 'err');
+  });
+  $('btn-account-del').addEventListener('click', async () => {
+    const uid = $('in-account').value;
+    if (!uid) return;
+    const r = await Bridge.call('forget_account', uid);
+    if (r && r.code === 0) { toast('已移除该账号', 'ok'); refreshStatus(); }
+    else toast('移除失败：' + ((r && r.message) || '未知错误'), 'err');
   });
 
   // 跑步

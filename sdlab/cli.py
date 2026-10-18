@@ -186,6 +186,48 @@ def cmd_login(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_accounts(args: argparse.Namespace) -> int:
+    from datetime import datetime as _dt
+    app = build_app(args)
+    try:
+        act = (args.action or "list").lower()
+        if act == "list":
+            lst = app.list_accounts()
+            if not lst:
+                print(dim("本机还没有登录过的账号（先 sdlab login）"))
+                return 0
+            for a in lst:
+                mark = "●" if a.get("current") else " "
+                at = int(a.get("loginAt") or 0)
+                when = _dt.fromtimestamp(at / 1000).strftime("%m-%d %H:%M") if at else "-"
+                print(f" {mark} {a.get('loginName') or '-':<14} {a.get('userName') or '-':<10} "
+                      f"{a.get('schoolName') or '-':<12} 上次登录 {when}  id={a.get('userId')}")
+            return 0
+        uid = str(args.uid or "")
+        if not uid:
+            print(bad("请给出账号 id（先用 sdlab users 看列表）"))
+            return 1
+        if act in ("use", "switch"):
+            r = app.switch_account(uid)
+            if r.get("code") != 0:
+                print(bad(f"切换失败：{r.get('message')}"))
+                return 1
+            u = r.get("data") or {}
+            print(ok(f"已切换：{u.get('userName') or uid} @ {u.get('schoolName') or ''}"))
+            return 0
+        if act in ("rm", "remove", "del"):
+            r = app.forget_account(uid)
+            if r.get("code") != 0:
+                print(bad(f"移除失败：{r.get('message')}"))
+                return 1
+            print(ok("已移除该账号"))
+            return 0
+        print(bad(f"未知操作：{act}（list / use / rm）"))
+        return 1
+    finally:
+        app.close()
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     app = build_app(args)
     st = app.status()
@@ -520,6 +562,11 @@ def build_parser() -> argparse.ArgumentParser:
     mk.add_argument("--latency", type=int, default=0, help="人为延迟（毫秒），调试加载态")
     mk.add_argument("--fail-rate", type=float, default=0.0, help="随机失败率 0~1，调试重试与断点续传")
     mk.set_defaults(func=cmd_mock)
+
+    us = sp.add_parser("users", parents=[common], help="历史账号：列表/切换/移除（不重新输密码）")
+    us.add_argument("action", nargs="?", default="list", help="list（默认）/ use / rm")
+    us.add_argument("uid", nargs="?", default="", help="账号 id（use / rm 需要）")
+    us.set_defaults(func=cmd_accounts)
 
     ck = sp.add_parser("check", parents=[common], help="运行自检")
     ck.add_argument("--only", choices=["selfcheck", "webcheck"], help="只跑其中一个")

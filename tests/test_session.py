@@ -99,6 +99,47 @@ class 登录持久化测试(unittest.TestCase):
         finally:
             app2.close()
 
+    def _login_as(self, phone):
+        r = self.app.login(phone, "pw", False)
+        self.assertEqual(r.get("code"), 0, r)
+        return str(self.app.client.user.get("userId")), self.app.client.transport.token
+
+    def test_多账号登记与切换(self):
+        uid1, token1 = self._login_as("13800138001")
+        uid2, token2 = self._login_as("13800138002")
+        self.assertNotEqual(uid1, uid2)
+        lst = self.app.list_accounts()
+        self.assertEqual(len(lst), 2)
+        self.assertEqual(lst[0]["userId"], uid2)        # 最近登录的在前
+        self.assertTrue(lst[0]["current"])
+        self.assertIn("****", lst[0]["loginName"])     # 手机号脱敏
+
+        r = self.app.switch_account(uid1)              # 不重新输密码
+        self.assertEqual(r.get("code"), 0, r)
+        self.assertEqual(self.app.client.transport.token, token1)
+        self.assertEqual(str(self.app.client.user.get("userId")), uid1)
+
+        # 历史账号落库：新进程也能看到、能选（Mock 服务端每次重启，旧 token 不认；
+        # 真实服务端 token 是持久的，切换由同进程用例覆盖）
+        self.app.close()
+        app2 = App(data_dir=self.tmp, config_path=self.cfg, mode="mock")
+        try:
+            ids = [a["userId"] for a in app2.list_accounts()]
+            self.assertIn(uid1, ids)
+            self.assertIn(uid2, ids)
+        finally:
+            app2.close()
+
+    def test_移除账号(self):
+        uid1, _ = self._login_as("13800138003")
+        uid2, _ = self._login_as("13800138004")
+        self.app.forget_account(uid1)
+        self.assertEqual([a["userId"] for a in self.app.list_accounts()], [uid2])
+        # 移除当前账号 = 顺带退出登录
+        self.app.forget_account(uid2)
+        self.assertFalse(self.app.client.logged_in)
+        self.assertEqual(self.app.list_accounts(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

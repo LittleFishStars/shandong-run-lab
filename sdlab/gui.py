@@ -64,6 +64,16 @@ class JsApi:
     def logout(self) -> Dict[str, Any]:
         return self.app.logout()
 
+    # —— 历史账号（多用户直接切换）——
+    def list_accounts(self) -> List[Dict[str, Any]]:
+        return self.app.list_accounts()
+
+    def switch_account(self, user_id: str) -> Dict[str, Any]:
+        return self.app.switch_account(str(user_id))
+
+    def forget_account(self, user_id: str) -> Dict[str, Any]:
+        return self.app.forget_account(str(user_id))
+
     # —— 跑步 ——
     def prepare(self) -> Dict[str, Any]:
         return self.app.run_prepare()
