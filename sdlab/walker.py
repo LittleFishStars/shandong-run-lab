@@ -788,7 +788,9 @@ class Walker:
             "distance_m": round(st.dist_m, 2),
             "duration_s": round(duration, 2),
             "move_sec": round(st.move_sec, 2),
-            "total_step": int(st.steps),
+            # 与步频段 endStep 同源（原版 L0()）：段和是服务端校验依据，
+            # 用 sensor 快照 st.steps 可能与最后一段差几步
+            "total_step": int(self.total_steps or st.steps),
             "avg_speed_mps": round(speed, 3),
             "pace_s_per_km": round(pace, 2),
             "stride_m": round(st.dist_m / st.steps, 3) if st.steps else 0.0,
