@@ -539,8 +539,11 @@ class RecordStore:
             passed = int(c.get("passed") or 0) == 1
             out.append({
                 "code": int(c.get("code") or 0),
-                "lat": round(float(c.get("hit_lat") or c.get("lat") or 0.0), 6),
-                "lng": round(float(c.get("hit_lng") or c.get("lng") or 0.0), 6),
+                # 坐标必须用服务端下发的桩点：原版 targetPoints 从开跑响应
+                # 反序列化后只改 passStatus/clockTime，lat/lng 永不改写。
+                # 换成打卡位置会让服务端按 (code, lat, lng) 匹配不到桩点。
+                "lat": round(float(c.get("lat") or 0.0), 6),
+                "lng": round(float(c.get("lng") or 0.0), 6),
                 "passStatus": bool(passed),
                 "clockTime": int(c.get("hit_ms") or 0),
                 "sort": int(c.get("sort") if c.get("sort") is not None else i),
