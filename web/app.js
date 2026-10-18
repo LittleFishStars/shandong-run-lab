@@ -86,6 +86,7 @@ const S = {
   startPoint: null,      // 跑步起点 {lat,lng}；null = 没选过，一律按围栏中心
   previewPoints: [],     // 高级里「只规划路径」按围栏预估的预览点（开跑前地图上不画打卡点）
   autoRun: false,        // 自动跑：沿规划路线自动走；false = 手动（右下角摇杆控制），默认手动
+  paused: false,         // 手动实走是否已暂停（后端 walker.paused 的镜像，只用于按钮文案）
   walkMsg: '',           // 主流程状态行上的临时文案（跑步中/刚规划完），空则按登录与围栏状态推导
   progress: {},          // 轮询里的实时进度（不是 S.status.progress 那个快照）
   walkTimer: null,
@@ -941,6 +942,9 @@ async function walkStart(mode) {
     syncAutoUi();
     $('map').closest('.map-card').classList.add('walking');
     $('btn-walk-stop').disabled = false;
+    $('btn-walk-pause').disabled = false;
+    S.paused = false;
+    $('btn-walk-pause').textContent = '暂停';
     S.walkMsg = '';                       // 交给实时数据（pumpWalk 每 500ms 刷一次）
     syncFlowInfo();
     toast(mode === 'real' ? '已开跑，轨迹实时入库（结束跑步会顺带上传结算）' : '干跑已开始（不落库、不上传）', 'ok');
@@ -951,10 +955,24 @@ async function walkStart(mode) {
   }
 }
 
+// 暂停 / 继续：后端 walk_pause 停止计时与采样，结算时上报实际 pauseCount/pauseTimes
+async function walkPause() {
+  const want = !S.paused;
+  const r = await Bridge.call('walk_pause', want);
+  if (!r || r.code !== 0) { toast('切换失败：' + ((r && r.message) || '?'), 'err'); return; }
+  S.paused = want;
+  $('btn-walk-pause').textContent = want ? '继续' : '暂停';
+  toast(want ? '已暂停：计时与计步都停' : '已继续', 'ok');
+  refreshStatus();
+}
+
 async function walkStop() {
   const r = await Bridge.call('walk_stop');
   S.walk = r || S.walk;
   $('btn-walk-stop').disabled = true;
+  $('btn-walk-pause').disabled = true;
+  S.paused = false;
+  $('btn-walk-pause').textContent = '暂停';
   $('map').closest('.map-card').classList.remove('walking');
   S.walkMsg = '';
   syncFlowInfo();
@@ -1000,6 +1018,9 @@ async function walkEnd() {
     stopWalkTimer();
     $('map').closest('.map-card').classList.remove('walking');
     $('btn-walk-stop').disabled = true;
+    $('btn-walk-pause').disabled = true;
+    S.paused = false;
+    $('btn-walk-pause').textContent = '暂停';
     const st = (r && r.state) || {};
     S.walkMsg = '';
     syncFlowInfo();
@@ -1071,6 +1092,9 @@ async function pumpWalk() {
   if (done) {
     stopWalkTimer();
     $('btn-walk-stop').disabled = true;
+    $('btn-walk-pause').disabled = true;
+    S.paused = false;
+    $('btn-walk-pause').textContent = '暂停';
     $('map').closest('.map-card').classList.remove('walking');
     S.walkMsg = '';
     syncFlowInfo();
@@ -1211,6 +1235,7 @@ $('btn-login').addEventListener('click', async () => {
   $('btn-walk-real').addEventListener('click', startRun);   // ③ 开始跑步（先画路径再开跑）
   $('btn-flow-end').addEventListener('click', walkEnd);      // ④ 结束跑步（停止 + 上传结算）
   $('btn-walk-stop').addEventListener('click', walkStop);
+  $('btn-walk-pause').addEventListener('click', walkPause);
   $('btn-walk-up').addEventListener('click', walkUpload);
   $('btn-walk-save').addEventListener('click', walkSave);
   bindJoystick();

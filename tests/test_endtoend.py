@@ -154,6 +154,22 @@ class 全链路测试(unittest.TestCase):
             crypto.run_img_record(body["runRecordCode"], body["timestamp"]),
             body["runImgRecord"])
 
+    def test_结算报文带暂停字段(self):
+        """DataComponent.t1() 的 pauseCount / pauseTimes 是实际值（Long/Int），
+        这趟没暂停所以都是 0，但字段必须存在且为整数。"""
+        self.前置()
+        日志 = self.app.run_detail(self.run_code)["upload_log"]
+        finish = [e for e in 日志 if e["endpoint"] == "run/finishSunRun_v2"]
+        self.assertTrue(finish, "没有结算记录")
+        body = json.loads(finish[0]["payload_json"])
+        self.assertIsInstance(body.get("pauseCount"), int)
+        self.assertIsInstance(body.get("pauseTimes"), int)
+        self.assertEqual(body["pauseCount"], 0)
+        self.assertEqual(body["pauseTimes"], 0)
+        run = self.app.store.get_run(self.run_code)
+        self.assertIn("pause_count", run)
+        self.assertIn("pause_times_s", run)
+
     def test_上传日志有记录(self):
         self.前置()
         日志 = self.app.run_detail(self.run_code)["upload_log"]

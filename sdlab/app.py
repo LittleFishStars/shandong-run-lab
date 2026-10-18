@@ -449,6 +449,13 @@ class App:
         """
         return self.walk.set_auto(bool(on))
 
+    def walk_pause(self, on: bool = True) -> Dict[str, Any]:
+        """暂停 / 继续：暂停期间不计时、不计步、不采样（原版 userPause）。
+
+        结算时把 pauseCount 与 pauseTimes 上报成实际值，而不是恒 0。
+        """
+        return self.walk.pause(bool(on))
+
     def walk_stop(self) -> Dict[str, Any]:
         out = self.walk.stop()
         self._progress = {**self._progress, "running": False, "percent": 0}

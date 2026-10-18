@@ -495,6 +495,7 @@ class RuleSet:
     day_max_times: int = 3
     week_min_times: int = 3
     max_frequency: int = 5
+    gps_white_flag: bool = False            # SchoolRule.gpsWhiteFlag（DataComponent.D1()：H0 只看 gpsFilterAccuracy）
 
     @classmethod
     def from_rule(cls, rule: Optional[Dict[str, Any]]) -> "RuleSet":
@@ -520,6 +521,7 @@ class RuleSet:
         r.day_max_times = int(_first(rule, "dayMaxTimes", default=r.day_max_times))
         r.week_min_times = int(_first(rule, "weekMinTimes", default=r.week_min_times))
         r.max_frequency = int(_first(rule, "maxFrequency", default=r.max_frequency))
+        r.gps_white_flag = bool(_first(rule, "gpsWhiteFlag", default=r.gps_white_flag))
         return r
 
     def to_dict(self) -> Dict[str, Any]:
@@ -547,7 +549,9 @@ def evaluate_run(pts: Sequence[RunLatLng], duration_s: int, total_step: int,
                  stride_exception_segments: int = 0,
                  checkpoints_total: int = 3,
                  checkpoints_done: int = 0,
-                 sport_type: int = SPORT_TYPE_SUN) -> RunValidity:
+                 sport_type: int = SPORT_TYPE_SUN,
+                 cheat_level: int = 0, white_flag: bool = False,
+                 gps_white_flag: bool = False) -> RunValidity:
     """复刻客户端 DataComponent.W0 的本地有效性判定
 
     判定顺序与客户端一致：GPS → 分段步幅 → 距离 → 打卡点 → 配速。
@@ -574,8 +578,11 @@ def evaluate_run(pts: Sequence[RunLatLng], duration_s: int, total_step: int,
     if not gps_enabled:
         add(INVALID_GPS, "定位服务未开启")
 
-    # ② 分段步幅异常
-    if stride_exception_segments > rule.segment_stride_exception_num:
+    # ② 分段步幅异常：原版 W0() 里这一项由 L1() 门控 —— 只有服务端下发的
+    # cheatLevel 是 3/4（严查）且异常段数超限、又不是白名单（whiteFlag 或
+    # SchoolRule.gpsWhiteFlag）时才加，普通学校即使步幅异常也不进本地列表。
+    if (int(cheat_level) in (3, 4) and not white_flag and not gps_white_flag
+            and stride_exception_segments > rule.segment_stride_exception_num):
         add(INVALID_STRIDE, "分段步频距离异常")
 
     # ③ 距离不足 / 超限

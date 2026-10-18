@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS runs (
     finish_json  TEXT DEFAULT '{}',      -- 结算报文
     uploaded     INTEGER DEFAULT 0,      -- 是否已完成结算上传
     source       TEXT DEFAULT 'sim',     -- sim 仿真 / walk 实走 / real 真实
+    clock_mode   INTEGER DEFAULT 0,      -- 开跑返回的 clockMode（2/3=顺序打卡）
+    white_flag   INTEGER DEFAULT 0,      -- 开跑返回的 whiteFlag（GPS 白名单）
+    cheat_level  INTEGER DEFAULT 0,      -- 开跑返回的 cheatLevel（3/4 影响步频异常）
+    pause_count  INTEGER DEFAULT 0,      -- 暂停次数（结算 pauseCount）
+    pause_times_s INTEGER DEFAULT 0,     -- 暂停总秒数（结算 pauseTimes）
     created_at   INTEGER DEFAULT 0
 );
 
@@ -128,6 +133,10 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     hit_lat      REAL DEFAULT 0,
     hit_lng      REAL DEFAULT 0,
     passed       INTEGER DEFAULT 0,
+    code         INTEGER DEFAULT 0,      -- 服务端下发的点位 code（上传必须原值）
+    sort         INTEGER DEFAULT 0,      -- 服务端排序（顺序打卡用）
+    nfc          INTEGER DEFAULT 0,      -- nfcEnable
+    type         INTEGER DEFAULT 0,      -- 点位 type
     UNIQUE(run_code, idx)
 );
 
@@ -216,13 +225,16 @@ class RecordStore:
         with self._lock, self._connect() as con:
             con.execute(
                 """INSERT INTO runs(run_code, sport_type, fence_code, fence_name, school_code,
-                                    semester_code, run_plan_code, start_ms, created_at, source)
-                   VALUES(?,?,?,?,?,?,?,?,?,?)
+                                    semester_code, run_plan_code, start_ms, created_at, source,
+                                    clock_mode, white_flag, cheat_level)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(run_code) DO UPDATE SET start_ms=excluded.start_ms""",
                 (run_code, sport_type, kw.get("fence_code", ""), kw.get("fence_name", ""),
                  kw.get("school_code", ""), kw.get("semester_code", ""),
                  kw.get("run_plan_code", ""), int(kw.get("start_ms", time.time() * 1000)),
-                 int(time.time() * 1000), kw.get("source", "sim")))
+                 int(time.time() * 1000), kw.get("source", "sim"),
+                 int(kw.get("clock_mode", 0) or 0), int(kw.get("white_flag", 0) or 0),
+                 int(kw.get("cheat_level", 0) or 0)))
             con.commit()
 
     def finish_run(self, run_code: str, **kw: Any) -> None:
@@ -231,6 +243,7 @@ class RecordStore:
             "end_ms": "end_ms", "duration_s": "duration_s", "distance_m": "distance_m",
             "total_step": "total_step", "pace_s_per_km": "pace_s_per_km",
             "status": "status", "uploaded": "uploaded", "source": "source",
+            "pause_count": "pause_count", "pause_times_s": "pause_times_s",
         }
         for key, col in mapping.items():
             if key in kw:
@@ -469,11 +482,17 @@ class RecordStore:
     def add_checkpoints(self, run_code: str, points: Sequence[Dict[str, Any]]) -> int:
         if not points:
             return 0
-        rows = [(run_code, i, float(p["lat"]), float(p["lng"]), float(p.get("radius_m", CHECKPOINT_HIT_RADIUS_M)))
+        rows = [(run_code, i, float(p["lat"]), float(p["lng"]),
+                 float(p.get("radius_m") or CHECKPOINT_HIT_RADIUS_M),
+                 int(p.get("code") or 0),
+                 int(p.get("sort") if p.get("sort") is not None else i),
+                 int(1 if (p.get("nfcEnable") or p.get("nfc")) else 0),
+                 int(p.get("type") or 0))
                 for i, p in enumerate(points)]
         with self._lock, self._connect() as con:
             con.executemany(
-                "INSERT OR IGNORE INTO checkpoints(run_code,idx,lat,lng,radius_m) VALUES(?,?,?,?,?)",
+                "INSERT OR IGNORE INTO checkpoints(run_code,idx,lat,lng,radius_m,code,sort,nfc,type) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
                 rows)
             con.commit()
         return len(rows)
@@ -519,13 +538,13 @@ class RecordStore:
         for i, c in enumerate(self.get_checkpoints(run_code)):
             passed = int(c.get("passed") or 0) == 1
             out.append({
-                "code": int(c.get("idx", i)),
+                "code": int(c.get("code") or 0),
                 "lat": round(float(c.get("hit_lat") or c.get("lat") or 0.0), 6),
                 "lng": round(float(c.get("hit_lng") or c.get("lng") or 0.0), 6),
                 "passStatus": bool(passed),
                 "clockTime": int(c.get("hit_ms") or 0),
-                "sort": int(c.get("idx", i)),
-                "nfcEnable": False,
+                "sort": int(c.get("sort") if c.get("sort") is not None else i),
+                "nfcEnable": bool(int(c.get("nfc") or 0)),
             })
         return out
 
@@ -632,18 +651,34 @@ def _try_col(row: sqlite3.Row, name: str, default: Any = 0) -> Any:
 
 
 def _ensure_columns(con: sqlite3.Connection) -> None:
-    """轻量迁移：为旧库补上 points 的 is_valid / is_uploaded / create_time 列"""
-    try:
-        cols = {r[1] for r in con.execute("PRAGMA table_info(points)")}
-    except sqlite3.Error:
-        return
-    if not cols:
-        return
+    """轻量迁移：为旧库补列（points / runs / checkpoints 三张表）"""
+
+    def cols_of(table: str) -> set:
+        try:
+            return {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        except sqlite3.Error:
+            return set()
+
+    # 首次连接时表还没建（SCHEMA 在 __init__ 里执行），空集直接跳过
+    pts, runs, cps = cols_of("points"), cols_of("runs"), cols_of("checkpoints")
     for name, ddl in (("is_valid", "INTEGER DEFAULT 1"),
                       ("is_uploaded", "INTEGER DEFAULT 0"),
                       ("create_time", "INTEGER DEFAULT 0")):
-        if name not in cols:
+        if pts and name not in pts:
             con.execute(f"ALTER TABLE points ADD COLUMN {name} {ddl}")
+    # 开跑响应里的会话级设置（clockMode / whiteFlag / cheatLevel）
+    for name, ddl in (("clock_mode", "INTEGER DEFAULT 0"),
+                      ("white_flag", "INTEGER DEFAULT 0"),
+                      ("cheat_level", "INTEGER DEFAULT 0"),
+                      ("pause_count", "INTEGER DEFAULT 0"),
+                      ("pause_times_s", "INTEGER DEFAULT 0")):
+        if runs and name not in runs:
+            con.execute(f"ALTER TABLE runs ADD COLUMN {name} {ddl}")
+    # 打卡点的服务端原值（上传必须原样带回，不能拿本地序号顶替）
+    for name, ddl in (("code", "INTEGER DEFAULT 0"), ("sort", "INTEGER DEFAULT 0"),
+                      ("nfc", "INTEGER DEFAULT 0"), ("type", "INTEGER DEFAULT 0")):
+        if cps and name not in cps:
+            con.execute(f"ALTER TABLE checkpoints ADD COLUMN {name} {ddl}")
     con.commit()
 
 

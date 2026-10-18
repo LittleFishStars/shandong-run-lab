@@ -22,7 +22,7 @@ import time
 from typing import Any, Dict, List, Optional, Sequence
 
 from .constants import (CHECKPOINT_HIT_RADIUS_M, PACE_INTERVAL_M, POI_INTERVAL_S,
-                        SPORT_TYPE_SUN, STATE_INIT, STEP_INTERVAL_S)
+                        SPORT_TYPE_SUN, STATE_FAIL, STATE_INIT, STEP_INTERVAL_S)
 from .protocol import (IntervalPace, IntervalStep, RunLatLng, StrideSegment,
                        evaluate_run)
 from .simulator import FuckRunSim
@@ -64,6 +64,8 @@ class WalkSession:
         self.upload_errors = 0               # 增量上传失败次数
         self._last_upload_at = 0.0           # 上次触发增量上传的墙钟时间
         self._upload_thread: Optional[threading.Thread] = None
+        # 原版每 60 秒的步频段上传（DataComponent.Y1() → o0()）
+        self._step_upload_thread: Optional[threading.Thread] = None
         self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
         self._step_segments: List[IntervalStep] = []     # 已从 Walker 取走的步频段
         self._pace_segments: List[IntervalPace] = []     # 已从 Walker 取走的配速段
@@ -133,6 +135,18 @@ class WalkSession:
         # 服务端实测 strideStatisticsInterval=200（APK 默认 100）
         if common_cfg.get("strideStatisticsInterval"):
             w.stride_interval_m = float(common_cfg["strideStatisticsInterval"])
+        # 开跑响应里的会话设置（StartRunEntity）：clockMode 2/3 = 顺序打卡，
+        # whiteFlag = GPS 白名单。干跑没有真实开跑响应，保持默认。
+        cli = getattr(self.engine, "client", None) if self.engine is not None else None
+        if cli is not None:
+            w.clock_mode = int(getattr(cli, "run_clock_mode", 0) or 0)
+            # D1()：SchoolRule.gpsWhiteFlag（不是开跑响应的 whiteFlag，后者只参与 L1() 作弊判定）
+            rule = getattr(cli, "rule", None)
+            w.gps_white_flag = bool(getattr(rule, "gps_white_flag", False))
+            # 原版 R1() 拿 "段步幅（厘米） > SchoolRule.segmentStrideAvg" 计异常。
+            # 下发值单位不统一（可能是 0.85 米也可能是 70 厘米），小于 10 按米换算。
+            avg = float(getattr(rule, "segment_stride_avg", 0) or 0)
+            w.segment_stride_avg_cm = avg * 100.0 if 0 < avg < 10 else avg
         w.set_polygon(polygon or [])
         if speed_mps:
             w.set_target_speed(float(speed_mps))
@@ -193,6 +207,9 @@ class WalkSession:
         if self.walker:
             self.state = self.walker.state()
         # 最后一步可能还没被循环 drain 到，补一次，否则停止时少一个采样点/少一段
+        # 暂停中停止：先把本次暂停时长累积到 pause_sec（原版 savePauseTime+pauseTime）
+        if self.walker and self.walker.paused:
+            self.walker.resume()
         self._drain(self.walker)
         self.pending = 0
         # 原版结算时的尾段处理：不满一个 interval 的步频尾段与尚未封口的配速尾段
@@ -271,6 +288,45 @@ class WalkSession:
                 self.pending = len(self._points)
         self._store_segments(w)
         self._maybe_upload_points(time.time())
+        # 原版 Y1() 里 (Q0()-1)%60==0 的步频上传节拍
+        self._maybe_upload_steps(w, time.time())
+
+    def _maybe_upload_steps(self, w: Optional[Walker], now: float) -> None:
+        """原版每 60 秒的步频上传（DataComponent.Y1() → ApiDataComponent.o0()）
+
+        原版在 (Q0()-1) % 60 == 0 时置一次节拍，然后把库里**未上传**的步频段
+        整批发 uploadStepsRecord（c.onNext() 里只判非空，不判段数）。
+        这里同样一个节拍只发一次，发请求放后台线程，避免卡推杆。
+        """
+        if self.mode != "real" or not self.run_code or self.engine is None or w is None:
+            return
+        if not w.step_upload_due:
+            return
+        w.step_upload_due = False
+        t = self._step_upload_thread
+        if t is not None and t.is_alive():
+            return
+        t = threading.Thread(target=self._upload_steps_once, daemon=True,
+                             name="sdlab-step-upload")
+        self._step_upload_thread = t
+        t.start()
+
+    def _upload_steps_once(self) -> None:
+        """后台把未上传步频段发一次（失败只记数，不影响跑）"""
+        rc = self.run_code
+        try:
+            res = self.engine.client.upload_steps(rc)
+            if int(res.get("code", -1)) == 0:
+                n = int((res.get("data") or {}).get("uploaded") or 0)
+                if n > 0:
+                    self.steps_total += n
+                    self._emit("log", f"步频增量上传：{n} 段（原版每 60 秒一次）")
+            else:
+                self.upload_errors += 1
+        except Exception as exc:  # noqa: BLE001
+            self.upload_errors += 1
+            self._emit("log", f"步频增量上传失败：{type(exc).__name__}: {exc}",
+                       level="warn")
 
     def _maybe_upload_points(self, now: float) -> None:
         """实跑时按原版 poiInterval（默认 15 秒）节流，把待上传轨迹增量推给服务端
@@ -288,7 +344,8 @@ class WalkSession:
         # （那是「尚未落库的点」，落库后立刻归零，拿它当门会让增量上传永远不发）
         if self.store is None:
             return
-        if self.store.count_points(self.run_code, STATE_INIT) <= 0:
+        if (self.store.count_points(self.run_code, STATE_INIT)
+                + self.store.count_points(self.run_code, STATE_FAIL)) <= 0:
             return
         if now - self._last_upload_at < self.poi_interval_s:
             return
@@ -577,7 +634,8 @@ class WalkSession:
             return
         w = self.walker
         s = w.summary()
-        duration = int(round(s.get("duration_s") or 0))
+        # 原版 duration 取 Q0()（整秒截断），不是四舍五入
+        duration = int(s.get("duration_s") or 0)
         distance = float(s.get("distance_m") or 0)
         total_step = int(s.get("total_step") or 0)
         stride = float((self.cfg.get("run") or {}).get("stride_m", 0.85) or 0.85)
@@ -585,17 +643,23 @@ class WalkSession:
         validity: Optional[Dict[str, Any]] = None
         try:
             rule = self.engine.client.rule if self.engine is not None else None
+            cli = self.engine.client if self.engine is not None else None
             validity = evaluate_run(
                 self.all_points(), duration, total_step, rule,
                 stride_exception_segments=self._stride_exceptions(self._step_segments, stride),
                 checkpoints_total=len(w.targets), checkpoints_done=self.hits_total,
-                sport_type=self.sport_type).to_dict()
+                sport_type=self.sport_type,
+                cheat_level=int(getattr(cli, "run_cheat_level", 0) or 0),
+                white_flag=bool(getattr(cli, "run_white_flag", False)),
+                gps_white_flag=bool(w.gps_white_flag)).to_dict()
         except Exception as e:  # noqa: BLE001
             self.error = self.error or f"有效性判定失败：{type(e).__name__}: {e}"
         self.store.finish_run(
             self.run_code, end_ms=self.started_ms + int(duration * 1000),
             duration_s=duration, distance_m=round(distance, 2), total_step=total_step,
             pace_s_per_km=round(pace, 2), source="walk",
+            pause_count=int(s.get("pause_count") or 0),
+            pause_times_s=int(s.get("pause_times_s") or 0),
             **(({"status": int(validity["isValid"])}) if validity else {}),
             **(({"valid": validity}) if validity else {}))
         if validity is not None:
@@ -604,6 +668,22 @@ class WalkSession:
                        f"打卡 {self.hits_total}/{len(w.targets)} / "
                        f"有效={validity.get('isValid')}",
                        run_code=self.run_code, valid=validity)
+
+    def pause(self, on: bool = True) -> Dict[str, Any]:
+        """暂停 / 继续（原版 RunStateChangeListener.State.userPause）
+
+        暂停期间 Q0() 停止推进、不计步、不采样；结算时 pauseCount 与
+        pauseTimes 上报实际值（DataComponent.t1() 的 pauseCount/pauseTimes）。
+        """
+        w = self.walker
+        if w is None or not w.running:
+            return {"code": -1, "message": "还没在跑", "data": None}
+        st = w.pause() if on else w.resume()
+        self.state = st
+        self._emit("state", "已暂停（计时也停）" if on else "已继续",
+                   run_code=self.run_code, state=st.to_dict())
+        return {"code": 0, "message": "已暂停" if on else "已继续",
+                "data": self.status()}
 
     # ══════════════════ 内部 ══════════════════
     def _emit(self, kind: str, msg: str, **data: Any) -> None:
@@ -622,6 +702,10 @@ def build_walk_targets(checkpoints: Sequence[Dict[str, Any]]) -> List[Dict[str, 
             "lat": float(cp["lat"]), "lng": float(cp["lng"]),
             "radius_m": float(cp.get("radius_m") or CHECKPOINT_HIT_RADIUS_M),
             "passed": int(cp.get("passed") or 0),
+            # 服务端原值：顺序打卡按 sort，上传/结算按 code
+            "code": int(cp.get("code") or 0),
+            "sort": int(cp.get("sort") if cp.get("sort") is not None else cp.get("index", 0)),
+            "nfcEnable": bool(cp.get("nfcEnable") or cp.get("nfc")),
         })
     return out
 

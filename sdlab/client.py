@@ -76,6 +76,11 @@ class ShandongClient:
         self.common: Dict[str, Any] = {}     # 服务端 common/getConfig 原始返回
         self.user: Dict[str, Any] = {}
         self.logged_in = False
+        # 开跑响应里的会话级设置（StartRunEntity）：clockMode 2/3 = 顺序打卡，
+        # whiteFlag = GPS 白名单，cheatLevel 3/4 影响步频异常判定
+        self.run_clock_mode = 0
+        self.run_white_flag = False
+        self.run_cheat_level = 0
         # True = 走本地 Mock 服务端。会话按模式分开存，否则 Mock 的假 token
         # 会被带到真实模式里发给 api.huachenjie.com，一直莫名其妙的 1516。
         self.local_mode = bool(local_mode)
@@ -368,23 +373,37 @@ class ShandongClient:
             data = res["data"]
             code = str(data.get("runRecordCode", ""))
             if code:
+                # StartRunEntity 的会话级设置：clockMode 决定打卡是否必须按序
+                # （I1()：2/3 = 顺序模式），whiteFlag 是 GPS 白名单，cheatLevel 影响步频异常
+                self.run_clock_mode = int(data.get("clockMode") or 0)
+                self.run_white_flag = bool(data.get("whiteFlag"))
+                self.run_cheat_level = int(data.get("cheatLevel") or 0)
                 self.store.create_run(code, sport_type=sport_type,
                                       fence_code=payload["fenceCode"],
                                       fence_name=self.fence.get("fenceName", ""),
                                       school_code=payload["schoolCode"],
                                       run_plan_code=run_plan_code,
                                       start_ms=int(data.get("startTime") or time.time() * 1000),
+                                      clock_mode=self.run_clock_mode,
+                                      white_flag=int(self.run_white_flag),
+                                      cheat_level=self.run_cheat_level,
                                       source="real" if not self.local_mode else "sim")
-                # 打卡点：优先用服务端下发的 targetPoints，否则按围栏均匀取点
+                # 打卡点：服务端 targetPoints 的 code/sort/nfcEnable/type 必须原样带回，
+                # 不能拿本地序号顶替（结算与 uploadPassPoint 里 code 就是服务端点位标识）
                 cps = data.get("targetPoints") or self._fallback_checkpoints()
                 norm = []
                 for i, p in enumerate(cps):
                     if isinstance(p, dict) and p.get("lat") is not None:
                         norm.append({"lat": float(p["lat"]), "lng": float(p["lng"]),
-                                     "radius_m": float(p.get("radius_m", 0) or CHECKPOINT_HIT_RADIUS_M)})
+                                     "radius_m": float(p.get("radius_m", 0) or CHECKPOINT_HIT_RADIUS_M),
+                                     "code": int(p.get("code") or 0),
+                                     "sort": int(p.get("sort") if p.get("sort") is not None else i),
+                                     "nfcEnable": bool(p.get("nfcEnable")),
+                                     "type": int(p.get("type") or 0)})
                     else:
                         lat2, lng2 = self._polygon_point(i, max(1, len(cps)))
-                        norm.append({"lat": lat2, "lng": lng2, "radius_m": CHECKPOINT_HIT_RADIUS_M})
+                        norm.append({"lat": lat2, "lng": lng2,
+                                     "radius_m": CHECKPOINT_HIT_RADIUS_M, "code": 0, "sort": i})
                 self.store.add_checkpoints(code, norm)
             if self.bus:
                 self.bus.emit("state", f"已开跑：runRecordCode={code}")
@@ -621,6 +640,9 @@ class ShandongClient:
 
         valid = run.get("valid") or {}
         distance = float(run.get("distance_m") or valid.get("distanceM") or 0)
+        # 原版结算的 pauseCount/pauseTimes 是实际值（DataComponent.t1()），不是恒 0
+        pause_count = int(run.get("pause_count") or 0)
+        pause_times = int(run.get("pause_times_s") or 0)
         duration = int(run.get("duration_s") or valid.get("durationS") or 0)
         total_step = int(run.get("total_step") or valid.get("totalStep") or 0)
         common_cfg = self.cfg.get("common", {}) or {}
@@ -642,8 +664,8 @@ class ShandongClient:
             "paceInterval": int(common_cfg.get("paceInterval") or PACE_INTERVAL_M),
             "targetPoints": self.store.checkpoint_targets(run_code),
             "alignType": align_type,
-            "pauseCount": 0,
-            "pauseTimes": 0,
+            "pauseCount": pause_count,
+            "pauseTimes": pause_times,
             "sportType": sport_type,
         })
         if sun:

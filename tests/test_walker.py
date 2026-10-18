@@ -770,5 +770,55 @@ def _距离(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return 2 * r * math.asin(min(1.0, math.sqrt(a)))
 
 
+class 暂停恢复测试(unittest.TestCase):
+    """原版 RunStateChangeListener.State.userPause：暂停时 Q0() 不推进，
+    结算上报 pauseCount / pauseTimes（DataComponent.t1()）。"""
+
+    def test_暂停期间不计时不计步不采样(self):
+        w = Walker(sim=FuckRunSim(seed=7))
+        w.set_target_speed(3.0)
+        w.start(LAT0, LNG0)
+        w.set_joystick(1.0, 0.0, 1.0)
+        走(w, 6.0)                       # 6 秒才会触发两次采样（sample_s=3），dist_m 才非 0
+        before = w.state()
+        n_samples = len(w.samples)
+
+        st = w.pause()
+        self.assertTrue(w.paused)
+        self.assertAlmostEqual(st.elapsed_sec, before.elapsed_sec, places=6)
+        走(w, 10.0)                      # 暂停中再推 10 秒：时间、距离、采样都不动
+        self.assertAlmostEqual(w.state().elapsed_sec, before.elapsed_sec, places=6)
+        self.assertEqual(w.state().dist_m, before.dist_m)
+        self.assertEqual(len(w.samples), n_samples)
+
+        w.resume()
+        走(w, 4.0)                       # 恢复后要再跨一次采样节流（3 秒）才会新增有效点
+        st = w.state()
+        self.assertGreater(st.elapsed_sec, before.elapsed_sec)
+        self.assertGreater(st.dist_m, before.dist_m)
+        s = w.summary()
+        self.assertEqual(s["pause_count"], 1)
+        self.assertAlmostEqual(s["pause_times_s"], 10.0, places=6)
+        self.assertFalse(s["paused"])
+
+    def test_多次暂停累计次数与时长(self):
+        w = Walker(sim=FuckRunSim(seed=7))
+        w.start(LAT0, LNG0)
+        w.pause()
+        走(w, 4.0)
+        w.resume()
+        w.pause()
+        走(w, 6.0)
+        w.resume()
+        s = w.summary()
+        self.assertEqual(s["pause_count"], 2)
+        self.assertAlmostEqual(s["pause_times_s"], 10.0, places=6)
+
+    def test_未开跑时的暂停被忽略(self):
+        w = Walker(sim=FuckRunSim(seed=7))
+        w.pause()
+        self.assertFalse(w.paused)
+        self.assertEqual(w.pause_count, 0)
+
 if __name__ == "__main__":
     unittest.main()

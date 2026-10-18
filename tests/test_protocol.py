@@ -247,9 +247,22 @@ class 有效性判定测试(unittest.TestCase):
         self.assertIn(C.INVALID_CHECKPOINT, [r["type"] for r in res.reasons])
 
     def test_步幅异常判58(self):
-        res = self.判定(stride_exception_segments=99)
+        # 原版这一项由 L1() 门控：只有 cheatLevel 3/4（严查学校）才进本地列表
+        res = self.判定(stride_exception_segments=99, cheat_level=3)
         self.assertFalse(res.is_valid)
         self.assertIn(C.INVALID_STRIDE, [r["type"] for r in res.reasons])
+
+    def test_普通学校步幅异常不判58(self):
+        # cheatLevel 0/1/2：即使异常段数超限，也不在 invalidReasons 里（服务端自己判）
+        res = self.判定(stride_exception_segments=99, cheat_level=0)
+        self.assertTrue(res.is_valid)
+        self.assertNotIn(C.INVALID_STRIDE, [r["type"] for r in res.reasons])
+
+    def test_白名单学校步幅异常不判58(self):
+        # whiteFlag / gpsWhiteFlag 任一为真都短路 L1()
+        for kw in ({"white_flag": True}, {"gps_white_flag": True}):
+            res = self.判定(stride_exception_segments=99, cheat_level=3, **kw)
+            self.assertTrue(res.is_valid, kw)
 
     def test_判定结果可序列化(self):
         d = self.判定().to_dict()

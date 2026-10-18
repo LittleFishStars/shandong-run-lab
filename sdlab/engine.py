@@ -328,8 +328,10 @@ class RunEngine:
                                 stride_exception_segments=self._stride_exceptions(steps, stride),
                                 checkpoints_total=len(self.store.get_checkpoints(run_code)),
                                 checkpoints_done=hits,
-                                sport_type=int(run.get("sport_type", SPORT_TYPE_SUN))
-                                if run else SPORT_TYPE_SUN)
+                                sport_type=int(run.get("sport_type", SPORT_TYPE_SUN)),
+                                cheat_level=int(run.get("cheat_level") or 0),
+                                white_flag=bool(run.get("white_flag") or 0),
+                                gps_white_flag=bool(getattr(c.rule, "gps_white_flag", False)))
         vd = validity.to_dict()
         self.store.finish_run(run_code,
                               end_ms=start_ms + seconds * 1000,
@@ -367,15 +369,13 @@ class RunEngine:
 
         段的时间字段是秒，所以直接当秒用。
         """
-        bad = 0
-        for s in steps:
-            secs = max(0.001, float(s.time))
-            if secs <= 0:
-                continue
-            derived = (s.step * stride) / secs          # 该段等效速度 m/s
-            if s.step <= 0 or derived < 0.6 or derived > 6.0:
-                bad += 1
-        return bad
+        # 原版 R1()：段步幅（厘米）超过 SchoolRule.segmentStrideAvg 且该段起点
+        # 距起点 >= 200 米才计一次；仿真里步幅是常量，所以要么全计要么都不计。
+        base = float(getattr(self.client.rule, "segment_stride_avg", 0) or 0)
+        base = base * 100.0 if 0 < base < 10 else base
+        if base <= 0 or stride * 100.0 <= base:
+            return 0
+        return sum(1 for s in steps if int(s.step) * stride >= 200)
 
     def _polygon_inradius(self, poly: Sequence[Sequence[float]]) -> float:
         """多边形内切圆半径的粗略估计：面积 / 半周长"""

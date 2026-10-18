@@ -153,12 +153,19 @@ class Walker:
         self._poi_index = 0
         self._last_sample_at = 0.0
         self._sensor: Dict[str, Any] = {}
+        # 暂停/恢复（原版 RunStateChangeListener.State.userPause）：暂停期间 Q0 不走、
+        # 不计步、不采样；pauseCount/pauseTimes 结算时上报（DataComponent.t1()）
+        self.paused = False
+        self.pause_count = 0
+        self.pause_sec = 0.0
         # ── 记录链路（照抄 CommonConfig / DataComponent / ApiDataComponent 的口径）──
         self.run_code = ""
         self.step_interval_s = STEP_INTERVAL_S    # CommonConfig.stepInterval（秒）
         self.pace_interval_m = PACE_INTERVAL_M    # CommonConfig.paceInterval（米）
         self.stride_interval_m = STRIDE_STATISTICS_M  # strideStatisticsInterval（服务端实测 200）
         self.gps_white_flag = False               # D1()：GPS 白名单模式
+        self.clock_mode = 0                       # 开跑返回的 clockMode（2/3=顺序打卡）
+        self._next_target = 0                     # 顺序模式下下一个必须命中的打卡点
         # ── 阈值：默认取 APK 常量，运行时可由服务端 common/getConfig 覆盖 ──
         self.run_filter_accuracy = RUN_FILTER_ACCURACY   # 服务端实测 30（APK 默认 50）
         self.gps_filter_accuracy = GPS_FILTER_ACCURACY   # 服务端实测 150
@@ -202,6 +209,7 @@ class Walker:
         self._last_stride_time_ms = 0                    # runData.lastSegmentStepTime
         self._last_stride_index = 0                      # runData.lastSegmentStepIndex
         self._stride_exception_num = 0                   # runData.lastSegmentStepExceptionNum
+        self.segment_stride_avg_cm = 0.0                 # SchoolRule.segmentStrideAvg（厘米，0=不判）
         self._km_marks: List[int] = []
         self._last_km = 0
 
@@ -228,7 +236,9 @@ class Walker:
     def set_target_points(self, cps: Sequence[Dict[str, Any]]) -> None:
         """打卡桩：直接吃 `store.get_checkpoints()` 的 dict 形态"""
         self.targets = [dict(c) for c in (cps or [])]
-
+        # 顺序打卡（clockMode 2/3）按服务端 sort 排；sort 缺省回落到本地 index
+        self.targets.sort(key=lambda c: (int(c.get("sort") or 0), int(c.get("index") or 0)))
+        self._next_target = 0
     def set_polygon(self, polygon: Sequence[Sequence[float]]) -> None:
         self.polygon = [list(p) for p in (polygon or [])]
 
@@ -260,6 +270,7 @@ class Walker:
             self._last_sample_at = 0.0
             # 起始 POI 序号与原版一致：随机 150–300，避免多条记录序号都一样
             self._poi_index = 150 + self.rng.randint(0, 150)
+            self._next_target = 0
             for cp in self.targets:
                 cp["passed"] = 0
                 cp.pop("hit_lat", None)
@@ -275,6 +286,19 @@ class Walker:
         self.sim.stop()
         return self.state()
 
+    # ══════════════════ 暂停 / 恢复 ══════════════════
+    def pause(self) -> WalkState:
+        """手动暂停：Q0() 停止推进（原版 userPause），暂停次数 +1"""
+        if self.running and not self.paused:
+            self.paused = True
+            self.pause_count += 1
+        return self.state()
+
+    def resume(self) -> WalkState:
+        """继续（暂停时长由 tick 在暂停期间累计，等价原版 pauseTime/savePauseTime）"""
+        self.paused = False
+        return self.state()
+
     # ══════════════════ 单帧推进 ══════════════════
     def tick(self, dt: float) -> WalkState:
         """推进 dt 秒（虚拟时间）；返回推进后的状态
@@ -282,6 +306,9 @@ class Walker:
         步行方向优先取路径（auto_route），否则取摇杆；速度为 0 时只走时间不走路，
         这样"站着不动"也能被界面区分出来（距离不变、配速掉下去）。
         """
+        if self.paused:                 # 暂停：时针停、暂停时长按虚拟时间累计
+            self.pause_sec += float(dt)
+            return self.state()
         if dt <= 0:
             return self.state()
         dx, dy, mag = self.dir_x, self.dir_y, self.mag
@@ -307,6 +334,8 @@ class Walker:
         self.elapsed_sec += dt
         self._refresh_sensor()
         self.total_steps = int(self._sensor.get("steps") or 0)
+        # 原版 x2() 每次定位回调都跑（GPS 约 1Hz），这里每帧判一次保证手感，
+        # 采样点处还会再判一次（与 W1 同源）；两边幂等，已 pass 的桩不会重复记
         self._check_targets()
         # 每秒回调 → 步频切段 + 每 60 秒的步频上传节拍（原版 onDurationChange → Y1()）
         self._advance_clock()
@@ -376,9 +405,20 @@ class Walker:
 
     # ══════════════════ 打卡与采样 ══════════════════
     def _check_targets(self) -> None:
+        """照抄 DataComponent.x2() + F0()：**每个定位回调**判一次打卡
+
+        · x2()：targetPoints[i].isInFence = 距当前定位 <= validDistance（25 米）
+        · F0()：未打卡且 inFence——非顺序模式（I1()=false）任意顺序直接过；
+          顺序模式（clockMode 2/3）必须命中 nextPointIndex，游标才前移
+        · 原版打卡时间取 System.currentTimeMillis()，这里同样用墙钟
+        · 围栏外的点原版也会打卡（x2() 在 D() 的围栏过滤之前），这里同样不拦
+        """
         now = int(time.time() * 1000)
-        for cp in self.targets:
+        sequential = self.clock_mode in (2, 3)      # 原版 I1()
+        for idx, cp in enumerate(self.targets):
             if int(cp.get("passed") or 0) == 1:
+                continue
+            if sequential and idx != self._next_target:
                 continue
             try:
                 tlat, tlng = float(cp["lat"]), float(cp["lng"])
@@ -390,6 +430,8 @@ class Walker:
                 cp["hit_lat"] = self.lat
                 cp["hit_lng"] = self.lng
                 cp["hit_ms"] = now
+                if sequential:
+                    self._next_target = idx + 1
                 # 命中的桩必须立刻交给调用方：实跑时要落库（mark_checkpoint_hit），
                 # 否则本地库 checkpoints.passed 恒为 0，上传时等于一个都没打
                 self._hits.append(dict(cp))
@@ -411,6 +453,8 @@ class Walker:
         if self.elapsed_sec - self._last_sample_at < self.sample_s - 1e-9:
             return
         self._last_sample_at = self.elapsed_sec
+        # 原版 K() 的顺序是 x2() → D()：先按本次定位判打卡，再走围栏过滤
+        self._check_targets()
         lat = _round6(self.lat)
         lng = _round6(self.lng)
 
@@ -425,7 +469,8 @@ class Walker:
         ts = self.start_ms + int(self.elapsed_sec * 1000)
         point = RunLatLng(
             lat=lat, lng=lng, lat_lng_index=self._poi_index,
-            run_time=int(round(self.elapsed_sec)), collect_time=ts,
+            # 原版 W1 里是 (int) Q0()：整秒**截断**，不是四舍五入
+            run_time=int(self.elapsed_sec), collect_time=ts,
             create_time=ts,
             state=STATE_INIT, off_fence_dis_m=-1,
             accuracy=round(self.rng.uniform(5.0, 12.0), 1),
@@ -659,9 +704,9 @@ class Walker:
             self._stride_seq = max(self._stride_seq, self._last_stride_index)
             self._stride_out[self._last_stride_index] = seg
             self._stride_dirty.append(self._last_stride_index)
-            # R1：段距离 >= 200 且段步幅超过全局平均 → 步幅异常计数
-            avg_cm = (self.dist_m * 100.0 / self.total_steps) if self.total_steps else 0.0
-            if seg_dist >= 200 and stride_cm > avg_cm:
+            # R1：上一段起点 >= 200 米 且 段步幅（厘米）超过 SchoolRule.segmentStrideAvg
+            # 才计异常（原版 DataComponent.R1()，基准是下发值不是全局均值）
+            if seg_dist >= 200 and self.segment_stride_avg_cm > 0 and stride_cm > self.segment_stride_avg_cm:
                 self._stride_exception_num += 1
 
         self._last_stride_index += 1
@@ -754,6 +799,9 @@ class Walker:
             "step_segments": len(self._step_out),
             "pace_segments": len(self._pace_out),
             "arrived": st.arrived,
+            "pause_count": int(self.pause_count),
+            "pause_times_s": round(self.pause_sec, 2),
+            "paused": bool(self.paused),
         }
 
 

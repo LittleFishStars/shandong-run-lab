@@ -107,6 +107,9 @@ class JsApi:
     def walk_auto(self, on: bool = True) -> Dict[str, Any]:
         return self.app.walk_auto(bool(on))
 
+    def walk_pause(self, on: bool = True) -> Dict[str, Any]:
+        return self.app.walk_pause(bool(on))
+
     def walk_upload(self, do_finish: bool = True) -> Dict[str, Any]:
         return self.app.walk_upload(bool(do_finish))
 
