@@ -88,6 +88,9 @@ class MockWorld:
         self.verify_sign = verify_sign
         self.rng = random.Random(seed)
         self.lock = threading.Lock()
+        # 服务端侧的时间校准偏移（原版 common/syncTime 的 reduceTimes）；
+        # 真实环境是服务端算的，本地仿真固定 0，测试时可直接改这个字段。
+        self.time_offset_ms = 0
 
         self.runs: Dict[str, MockRun] = {}
         self.sessions: Dict[str, Dict[str, Any]] = {}
@@ -169,6 +172,9 @@ class MockWorld:
     def emit(self, msg: str, level: str = "info") -> None:
         if self.bus:
             self.bus.emit("mock", msg, level=level)
+    def now_ms(self) -> int:
+        """服务端侧毫秒时间（本地时钟 + 校准偏移）"""
+        return int(time.time() * 1000) + int(self.time_offset_ms)
 
     def check_sign(self, headers: Dict[str, str], body: Dict[str, Any]) -> bool:
         """像真服务端一样校验 sign（仅 uploadRunRecord 会调用）"""
@@ -187,6 +193,21 @@ class MockWorld:
     def require_login(self, headers: Dict[str, str]) -> bool:
         return bool(headers.get("Authorization"))
 
+    def require_headers(self, headers: Dict[str, str]) -> bool:
+        """校验原版拦截器必须注入的头（Mock 侧的一致性守门）
+
+        原版 ParamsInterceptor/EncryptInterceptor 规则：
+          · **所有 POST** 都带 sign；
+          · @FormUrlEncoded 请求额外带 app/api/v/e/pv/k，且 app 恒为 run-front。
+        只在 verify_sign 打开时生效，方便失败注入场景关掉。
+        """
+        if not self.verify_sign:
+            return True
+        if not headers.get("sign"):
+            return False
+        if "e" in headers and not headers.get("app"):
+            return False
+        return True
 
 # ══════════════════ 各接口实现 ══════════════════
 def _captcha_get(w: MockWorld, path: str, h: Dict[str, str], b: Dict[str, Any]):
@@ -530,9 +551,16 @@ def _get_config(w: MockWorld, path: str, h, b):
 
 
 def _sync_time(w: MockWorld, path: str, h, b):
-    """GET common/syncTime：真实响应 data.serverTime 为毫秒字符串"""
+    """GET common/syncTime
+
+    真实响应有 serverTime 与 reduceTimes 两个键（2026-10-18 实网探到）：
+    reduceTimes 是服务端算好的「本地与服务器时间差」，原版拿它直接写 r90.i0()。
+    Mock 默认偏移 0（本地仿真不需要跨机校时）。
+    """
+    now = w.now_ms()
     return {"code": 0, "message": "成功",
-            "data": {"serverTime": str(int(time.time() * 1000))}}
+            "data": {"serverTime": str(now),
+                     "reduceTimes": str(w.time_offset_ms)}}
 
 
 def _mock_nfc_status(w: MockWorld, path: str, h, b):
@@ -541,6 +569,30 @@ def _mock_nfc_status(w: MockWorld, path: str, h, b):
 
 def _logout(w: MockWorld, path: str, h, b):
     return {"code": 0, "message": "成功", "data": None}
+
+
+def _query_unfinish_run(w: MockWorld, path: str, h, b):
+    """run/queryUnFinishRun：原版 km7.a() 只传 {sportType}
+
+    Mock 侧没有跨会话的未完成记录，固定回「没有」；客户端拿到空 data 即可
+    走新开跑。字段校验仍靠 require_headers。
+    """
+    if not w.require_login(h):
+        return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
+    return {"code": CODE_OK, "message": "成功", "data": None}
+
+
+def _resume_run(w: MockWorld, path: str, h, b):
+    """run/resume：原版字段 {sportType, runRecordCode}，用于继续未结算的跑步"""
+    if not w.require_login(h):
+        return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
+    code = str(b.get("runRecordCode", ""))
+    if not code:
+        return {"code": CODE_MISSING_PARAM, "message": "缺少 runRecordCode", "data": None}
+    return {"code": CODE_OK, "message": "成功", "data": {
+        "runRecordCode": code,
+        "targetPoints": _mock_target_points(w),
+    }}
 
 
 def _not_found(w, path: str, h, b):
@@ -569,8 +621,8 @@ _ROUTES = {
     "run/plan/selectList": _plan_list,
     "run/startSunRun_v2": _start_sun_run,
     "run/startFreeRun": _start_sun_run,
-    "run/resume": _start_sun_run,
-    "run/queryUnFinishRun": _not_found,
+    "run/resume": _resume_run,
+    "run/queryUnFinishRun": _query_unfinish_run,
     "run/uploadRunRecord": _upload_record,
     "run/uploadPassPoint": _upload_passpoint,
     "run/uploadPaceRecord": _upload_pace,
@@ -578,6 +630,9 @@ _ROUTES = {
     "run/uploadStrideRecord": _upload_stride,
     "run/finishSunRun_v2": _finish_sun_run,
     "run/finishFreeRun": _finish_sun_run,
+    # 异常结束的两个端点（原版 aw8.b()/aw8.a()）共用同一套校验
+    "run/abnormalFinishSunRun": _finish_sun_run,
+    "run/abnormalFinishActivityRun": _finish_sun_run,
     "run/nfc/verification-status": _mock_nfc_status,
     "run/querySchoolRunSummary": _query_summary,
     "run/queryRunRecordCount": _query_summary,
@@ -612,7 +667,12 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         headers = {k: v for k, v in self.headers.items()}
-        res = self.world.handle(path, headers, body)
+        # 原版 ParamsInterceptor：POST 必须带 sign（form 请求还要 app/api/v/e/pv/k）
+        if not self.world.require_headers(headers):
+            res = {"code": -1, "message": "缺少 sign 或拦截器头（与原版不一致）",
+                   "data": None}
+        else:
+            res = self.world.handle(path, headers, body)
         payload = json.dumps(res, ensure_ascii=False).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")

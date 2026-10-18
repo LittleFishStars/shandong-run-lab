@@ -76,7 +76,13 @@ class Transport:
         self.timeout = float(self.cfg.get("timeout", 20))
         self.retry = int(self.cfg.get("retry", 2))
         self.proxy = (self.cfg.get("proxy") or "").strip()
-        self.clock = clock or (lambda: int(time.time() * 1000))
+        # clock：毫秒时钟。原版 SignInterceptor 发 timestamp 时用的是
+        # (System.currentTimeMillis() + hq1.f3188a)，而 hq1.f3188a 由
+        # r24.java:95 `hq1VarA.c(r90.D(), ...)` 注入 = SyncTimeIntentService
+        # 拉 common/syncTime 得到的 data.reduceTimes。这里用 time_offset_ms
+        # 存同一个偏移量，clock() 自动加上——公共字段与结算 timestamp 同源。
+        self.time_offset_ms = 0
+        self.clock = clock or self._now
         # 会话态
         self.token = ""
         self.satoken = ""
@@ -85,53 +91,113 @@ class Transport:
         # 统计
         self.stats = {"requests": 0, "errors": 0, "signed": 0}
 
+    # ══════════════════ 时间校准 ══════════════════
+    def _now(self) -> int:
+        """本地毫秒时钟 + 服务端校准偏移（原版 System.currentTimeMillis() + r90.D()）"""
+        return int(time.time() * 1000) + int(self.time_offset_ms)
+
+    def sync_time(self) -> Dict[str, Any]:
+        """拉 common/syncTime 校准时钟（原版 SyncTimeIntentService）
+
+        原版 `SyncTimeIntentService.b.onCCSuccess()`：
+            long reduceTimes = data.getLongValue("reduceTimes");
+            if (reduceTimes > 1000) r90.i0(reduceTimes); else r90.i0(0L);
+        即「服务端与本地的时间差」，超过 1 秒才采纳，否则归零。
+        这个值随后被 r24.java 注入 hq1.f3188a，成为所有请求
+        `timestamp` 与结算 `runImgRecord` 时间参的来源。
+        """
+        res = self.post("sync_time")
+        data = res.get("data") or {}
+        off = 0
+        try:
+            red = int(data.get("reduceTimes") or 0)
+        except (TypeError, ValueError):
+            red = 0
+        if red > 1000:
+            off = red
+        # 服务端只给 reduceTimes 时用它；万一没给则退而用它和 serverTime 的差
+        if not off and data.get("serverTime"):
+            try:
+                off = int(data["serverTime"]) - int(time.time() * 1000)
+            except (TypeError, ValueError):
+                off = 0
+            if abs(off) <= 1000:
+                off = 0
+        self.time_offset_ms = off
+        if self.bus:
+            self.bus.emit("log", f"时间校准：服务端与本地相差 {off} ms（原版 r90.D()）")
+        return {"code": res.get("code", -1), "message": res.get("message", ""),
+                "offset_ms": off, "data": data}
     # ══════════════════ 公共报文 ══════════════════
-    def base_payload(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """9 个公共字段（顺序与官方客户端一致）"""
+    def public_fields(self) -> Dict[str, str]:
+        """SignInterceptor.m() 注入的 9 个指纹字段，值一律为字符串
+
+        顺序与原版一致：modelName/appVersion/buildVersion/channel/appCode/
+        deviceId/systemVersion/platform/timestamp。原版 get/JSON body 两种
+        请求都会注入它（GET 进 query，POST 进 body）。
+        """
         dev = self.cfg.get("device", {}) or {}
-        o: Dict[str, Any] = {
-            "modelName": dev.get("model", DEFAULT_MODEL),
+        return {
+            "modelName": str(dev.get("model", DEFAULT_MODEL)),
             "appVersion": APP_VERSION,
             "buildVersion": BUILD_VERSION,
-            "channel": dev.get("channel", DEFAULT_CHANNEL),
-            "appCode": dev.get("app_code", APP_CODE),
+            "channel": str(dev.get("channel", DEFAULT_CHANNEL)),
+            "appCode": str(dev.get("app_code", APP_CODE)),
             "deviceId": self.device_id,
-            "systemVersion": dev.get("system_version", DEFAULT_SYS_VER),
-            "platform": dev.get("platform", DEFAULT_PLATFORM),
+            "systemVersion": str(dev.get("system_version", DEFAULT_SYS_VER)),
+            "platform": str(dev.get("platform", DEFAULT_PLATFORM)),
             "timestamp": str(self.clock()),
         }
+
+    def base_payload(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """9 个公共字段（兼容旧调用：值已字符串化，与 Java String.valueOf 一致）"""
+        o: Dict[str, Any] = dict(self.public_fields())
         if extra:
             o.update(extra)
         return o
 
     def user_agent(self) -> str:
+        """原版 r24.c()："ShanDong/%s (%s;Android %s)"，%s 依次是 versionName、
+        **Build.BRAND**、Build.VERSION.RELEASE"""
         dev = self.cfg.get("device", {}) or {}
         model = str(dev.get("model", DEFAULT_MODEL))
-        brand = model.split("|")[0].split("-")[0].lower()
-        return f"{USER_AGENT_PREFIX}/{APP_VERSION} ({brand};Android {dev.get('system_version', DEFAULT_SYS_VER)})"
+        brand = str(dev.get("brand") or "").strip()
+        if not brand:
+            brand = model.split("|")[0].split("-")[0].lower()
+        return (f"{USER_AGENT_PREFIX}/{APP_VERSION} "
+                f"({brand};Android {dev.get('system_version', DEFAULT_SYS_VER)})")
 
     def headers(self, v: Optional[str] = None, api: Optional[str] = None,
-                h5: bool = False, encrypt: bool = False) -> Dict[str, str]:
-        h = {
-            "Content-Type": "application/json; charset=utf-8",
-            "User-Agent": self.user_agent(),
-            "app": HEADER_APP,
-            # e=1 的接口：服务端会解密 ENCRYPT_FIELDS 里的字段（见 constants.py）
-            "e": HEADER_E_ENC if encrypt else HEADER_E,
-            "pv": HEADER_PV,
-            "Accept": "*/*",
-        }
+                h5: bool = False, encrypt: bool = False,
+                method: str = "POST", form: bool = True) -> Dict[str, str]:
+        """复刻拦截器实际注入的头
+
+        · POST：Content-Type=application/json（原版 MediaType.parse 不带 charset）、
+          User-Agent 覆盖为 ShanDong/<ver>、有 token/satoken 才加对应头；
+        · @FormUrlEncoded 请求另加 app/pv/k 与 api/v/e，e 默认空串、@Headers({"e:1"}) 为 "1"；
+        · GET：原版只有 9 个 query 指纹，没有任何自定义头。
+        """
+        if method.upper() == "GET":
+            h: Dict[str, str] = {}
+        else:
+            h = {"Content-Type": "application/json", "User-Agent": self.user_agent()}
+            if form:
+                h["app"] = HEADER_APP
+                h["pv"] = HEADER_PV
+                h["k"] = ""
+                # 原版 HeaderInfo.getE() 默认返回空串，仅 @Headers({"e:1"}) 才是 "1"
+                h["e"] = HEADER_E_ENC if encrypt else ""
+                if api:
+                    h["api"] = api
+                if v:
+                    h["v"] = v
+            if self.token:
+                h["Authorization"] = self.token
+            if self.satoken:
+                h["satoken"] = self.satoken
         if h5:
             h["Origin"] = H5_ORIGIN
             h["Referer"] = H5_ORIGIN + "/"
-        if self.token:
-            h["Authorization"] = self.token
-        if self.satoken:
-            h["satoken"] = self.satoken
-        if v:
-            h["v"] = v
-        if api:
-            h["api"] = api
         return h
 
     # ══════════════════ 核心调用 ══════════════════
@@ -142,33 +208,49 @@ class Transport:
         """发送业务请求（按 EP.method 自动选 GET / POST）
 
         name_or_path 可以是 `EP` 里的接口名，也可以是完整路径。
+        9 指纹与 sign 都由本层统一注入（与原版 SignInterceptor 一致），
+        payload 只需放业务字段。
         """
         if ep is None and name_or_path in _EP_NAMES:
             ep = endpoint(name_or_path)
         if ep is None:
             ep = Endpoint(name_or_path, name_or_path.split("/")[-1],
                           name_or_path.split("/")[0] if "/" in name_or_path else "")
-        body = payload if payload is not None else self.base_payload()
+        body = payload if payload is not None else {}
         if ep.method == "GET":
             return self.get(name_or_path, body, v=ep.v, api=ep.api, path=ep.path)
-        sign_it = ep.need_sign if need_sign is None else need_sign
+        # 原版 ParamsInterceptor.c()：POST 一律签名（无论 FormBody 还是 JSON body）
+        sign_it = True if need_sign is None else bool(need_sign)
         return self._do_post(ep.path, body, ep.v, ep.api, sign_it,
-                             raw_url=raw_url, h5=h5, env=env, encrypt=ep.encrypt)
-
+                             raw_url=raw_url, h5=h5, env=env,
+                             encrypt=ep.encrypt, form=ep.form)
     def post_raw(self, url: str, payload: Dict[str, Any], v: str = "",
-                 api: str = "", h5: bool = True, encrypt: bool = False) -> Dict[str, Any]:
-        """直连完整 URL（不走 EP 表）；encrypt=True 时发 e:1 并加密 ENCRYPT_FIELDS"""
-        return self._do_post(url, payload, v, api, False, raw_url=url, h5=h5, encrypt=encrypt)
+                 api: str = "", h5: bool = True, encrypt: bool = False,
+                 form: bool = True, sign_it: bool = False) -> Dict[str, Any]:
+        """直连完整 URL（不走 EP 表）
+
+        captcha 走的是 H5 层请求，不在 Retrofit 拦截器链里，因此默认不签名。
+        """
+        return self._do_post(url, payload, v, api, sign_it, raw_url=url,
+                             h5=h5, encrypt=encrypt, form=form)
 
     def _do_post(self, path: str, body: Dict[str, Any], v: str, api: str,
                  sign_it: bool, raw_url: Optional[str] = None, h5: bool = False,
-                 env: int = 0, encrypt: bool = False) -> Dict[str, Any]:
-        # e:1 接口：先把 ENCRYPT_FIELDS 里的字段加密再序列化（原版 EncryptInterceptor 同位置）
+                 env: int = 0, encrypt: bool = False, form: bool = True) -> Dict[str, Any]:
+        # ① 原版 EncryptInterceptor 只处理 @FormUrlEncoded：它先把表单值收集成
+        #    Map<String,String>，所以线缆上是"全字符串值"的 JSON 体。
+        if form:
+            body = {k: _java_str(x) for k, x in body.items()}
+        # ② e:1 接口在转 JSON 之后加密 ENCRYPT_FIELDS（原版同位置）
         if encrypt:
             body = crypto.encrypt_body_fields(body)
+        # ③ SignInterceptor.m()：补齐 9 指纹（已存在的不覆盖），追加在末尾
+        for k, x in self.public_fields().items():
+            body.setdefault(k, x)
         url = raw_url or f"{self.base_url}/{path.lstrip('/')}"
         text = json.dumps(body, separators=(",", ":"), ensure_ascii=False)
-        headers = self.headers(v=v, api=api, h5=h5, encrypt=encrypt)
+        headers = self.headers(v=v, api=api, h5=h5, encrypt=encrypt,
+                               method="POST", form=form)
         sign_value = ""
         if sign_it:
             sign_value = crypto.get_sign(text, env=env)
@@ -214,15 +296,18 @@ class Transport:
         return {"code": -1, "message": last_err or "网络请求失败", "data": None}
 
     def get(self, name_or_path: str, params: Optional[Dict[str, Any]] = None,
-            v: str = "", api: str = "", path: str = "") -> Dict[str, Any]:
+            v: str = "", api: str = "", path: str = "", h5: bool = False) -> Dict[str, Any]:
         path = path or name_or_path
         if path in _EP_NAMES:
             ep = endpoint(path)
             path, v, api = ep.path, ep.v, ep.api
         url = f"{self.base_url}/{path.lstrip('/')}"
-        if params:
-            url += "?" + urllib.parse.urlencode(params)
-        headers = self.headers(v=v, api=api)
+        # 原版 ParamsInterceptor.d()：GET 只把 9 指纹拼进 query，不带任何头也不签名
+        q = {k: _java_str(x) for k, x in (params or {}).items()}
+        for k, x in self.public_fields().items():
+            q.setdefault(k, x)
+        url += "?" + urllib.parse.urlencode(q)
+        headers = self.headers(method="GET", h5=h5)
         t0 = time.monotonic()
         try:
             status, text = self._send(url, headers, None)
@@ -237,7 +322,7 @@ class Transport:
                               code=int(data.get("code", -1)), status=status)
             if self.store:
                 self.store.log_api("GET", path, v, api, False,
-                                   json.dumps(params or {}, ensure_ascii=False),
+                                   json.dumps(q, ensure_ascii=False),
                                    text, int(data.get("code", -1)), elapsed)
             return data
         except Exception as e:
@@ -283,6 +368,19 @@ class Transport:
         self.satoken = ""
         self.school_code = ""
         self.user_id = ""
+
+
+def _java_str(value: Any) -> str:
+    """等价于 Java String.valueOf：布尔小写、整数值浮点去掉 .0、其余 str()
+
+    原版 EncryptInterceptor 把 @FormUrlEncoded 的字段收集成 Map<String,String>，
+    所以线缆上 2000、true、14 这类值都是字符串，而不是 JSON 数字/布尔。
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        return str(int(value)) if value.is_integer() else repr(value)
+    return str(value)
 
 
 def _open(req, timeout: float, proxy: str = ""):

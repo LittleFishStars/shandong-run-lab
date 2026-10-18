@@ -8,8 +8,10 @@ GUI 与 CLI 都只跟这一层打交道。
 对齐客户端行为的关键点：
   · token/satoken 双凭据、deviceId 持久化（report 07 §2）
   · 开跑九参数顺序（schoolCode, fenceCode, activityCode, lat, lng,
-    minRunDis, useCreditSword, runPlanCode, sportType）
-  · **只有 uploadRunRecord 带 sign**，结算报文里 distance 与 dis 双写
+    targetDistance, useCreditSword, runPlanCode, sportType）——第 6 个字段名取自
+    @Field(FreeRunActivity.y)，是 targetDistance 而不是 minRunDis
+  · 9 指纹与 sign 由 net 层统一注入：原版**所有 POST 都带 sign**（GET 不签）
+  · 结算报文只有 distance（**无 dis**，那是地图覆盖物配置键），值为 String
   · 服务端回 indexList → 本地按段标记 SUCC / FAIL → 断点续传
 """
 from __future__ import annotations
@@ -121,7 +123,7 @@ class ShandongClient:
     def logout(self) -> None:
         try:
             if self.logged_in:
-                self.transport.post("logout", self.transport.base_payload(), need_sign=False)
+                self.transport.post("logout")
         except Exception:
             pass
         self.transport.reset_session()
@@ -180,6 +182,13 @@ class ShandongClient:
         res = self.transport.post("login_password", payload)
         if res.get("code") == CODE_OK and res.get("data"):
             self._save_session(res["data"])
+            # 登录后立即校准时钟（原版在隐私协议同意时就已跑 SyncTimeIntentService，
+            # 登录更晚；这里取等价时机）。失败不影响登录本身。
+            try:
+                self.transport.sync_time()
+            except Exception as _e:      # noqa: BLE001
+                if self.bus:
+                    self.bus.emit("log", f"时间校准失败（不影响登录）：{_e}", level="warn")
             if self.bus:
                 self.bus.emit("state", f"登录成功：{self.user.get('userName', '')}"
                                       f"（{self.user.get('schoolName', '')}）")
@@ -219,12 +228,26 @@ class ShandongClient:
             self.fence = self.fences[0]
         return res
 
-    def load_rule(self, fence_code: str = "", semester_code: str = "") -> Dict[str, Any]:
-        """拉取 SchoolRule 并转成判定用的 RuleSet"""
+    def load_rule(self, fence_code: str = "", semester_code: str = "",
+                  activity_code: str = "", run_plan_code: str = "",
+                  sub_school_code: str = "",
+                  sport_type: int = SPORT_TYPE_SUN) -> Dict[str, Any]:
+        """拉取 SchoolRule 并转成判定用的 RuleSet
+
+        原版签名（RunRequestModel.d，字段名取自 @Field）：
+            schoolCode, subSchoolCode, targetDistance(int), activityCode,
+            runPlanCode, fenceCode, sportType
+        七个字段一个不能少；**semesterCode 不在这个接口里**（旧实现发错）。
+        """
+        target = int(self.cfg.get("run", {}).get("target_distance_m", 2000))
         res = self.transport.post("sunrun_config", self.transport.base_payload({
+            "schoolCode": str(self.fence.get("schoolCode") or self.transport.school_code),
+            "subSchoolCode": str(sub_school_code or self.fence.get("subSchoolCode") or ""),
+            "targetDistance": target,
+            "activityCode": str(activity_code or self.fence.get("activityCode") or ""),
+            "runPlanCode": str(run_plan_code),
             "fenceCode": fence_code or self.fence.get("fenceCode", ""),
-            "targetDistance": str(int(self.cfg.get("run", {}).get("target_distance_m", 2000))),
-            "semesterCode": semester_code,
+            "sportType": sport_type,
         }))
         data = res.get("data") or {}
         rule = data.get("schoolRule") if isinstance(data.get("schoolRule"), dict) else data
@@ -248,7 +271,8 @@ class ShandongClient:
         """
         self.load_common_config()
         res = self.transport.post("sunrun_abstract", self.transport.base_payload({
-            "runPlanCode": run_plan_code, "semesterCode": semester_code,
+            "semesterCode": semester_code, "runPlanCode": run_plan_code,
+            "sportType": SPORT_TYPE_SUN,
         }))
         data = res.get("data")
         if isinstance(data, dict) and data:
@@ -280,9 +304,14 @@ class ShandongClient:
                               f"验证码 {'开' if data.get('captchaEnable') else '关'}")
         return res
 
-    def load_sunrun_abstract(self, semester_code: str = "") -> Dict[str, Any]:
+    def load_sunrun_abstract(self, semester_code: str = "",
+                             run_plan_code: str = "",
+                             sport_type: int = SPORT_TYPE_SUN) -> Dict[str, Any]:
+        """原版 querySunRunAbstractInfoV2：semesterCode + runPlanCode + sportType"""
         res = self.transport.post("sunrun_abstract", self.transport.base_payload({
             "semesterCode": semester_code,
+            "runPlanCode": run_plan_code,
+            "sportType": sport_type,
         }))
         self.abstract = res.get("data") or {}
         return res
@@ -328,7 +357,8 @@ class ShandongClient:
             "fenceCode": fence_code or self.fence.get("fenceCode", ""),
             "activityCode": activity_code,
             "lat": lat, "lng": lng,
-            "minRunDis": min_run_dis,
+            # @Field(FreeRunActivity.y) long → 字段名 targetDistance（不是 minRunDis）
+            "targetDistance": int(min_run_dis),
             "useCreditSword": use_credit_sword,
             "runPlanCode": run_plan_code,
             "sportType": sport_type,
@@ -359,6 +389,24 @@ class ShandongClient:
             if self.bus:
                 self.bus.emit("state", f"已开跑：runRecordCode={code}")
         return res
+
+    def start_free_run(self, lat: float = 0.0, lng: float = 0.0,
+                       aim_distance: int = 0, aim_duration: int = 0,
+                       aim_calorie: int = 0) -> Dict[str, Any]:
+        """自由跑开跑：原版 km7.g() → IRunApi.startFreeRun(@FieldMap Map<String,String>)
+
+        lat/lng 是 BigDecimal.toString()，全是字符串；三个 aim* 为 0 时**整个键都不发**
+        （原版 `if (aimDistance != 0)`），接口里也没有 sportType。
+        """
+        if not lat or not lng:
+            lat, lng = self.fence_center()
+        body: Dict[str, Any] = {"lat": repr(float(lat)), "lng": repr(float(lng))}
+        for key, val in (("aimDistance", aim_distance),
+                         ("aimDuration", aim_duration),
+                         ("aimCalorie", aim_calorie)):
+            if val:
+                body[key] = int(val)
+        return self.transport.post("start_free_run", body)
 
     def _fallback_checkpoints(self) -> List[Dict[str, Any]]:
         n = max(1, int(self.rule.required_point_counts or 3))
@@ -552,15 +600,19 @@ class ShandongClient:
         return self._with_count(res, len(targets) if res.get("code") == CODE_OK else 0, len(targets))
 
     def finish_run(self, run_code: str, sport_type: int = SPORT_TYPE_SUN,
-                   sun: bool = True) -> Dict[str, Any]:
+                   sun: bool = True, abnormal_code: int = 0) -> Dict[str, Any]:
         """结算：完整照搬原版 DataComponent.t1()/StopRunUtils.q() 的报文
 
         轨迹走 run/uploadRunRecord、步频走 uploadStepsRecord、配速走
-        uploadPaceRecord，结算只交聚合摘要；但 **runImgRecord / timestamp 必须带**：
-        原版 km7.c() 进 IRunApi.j()（= run/finishSunRun_v2）之前先调 aw8.c(params)，
-        aw8.c() 会塞 `runImgRecord = HcjNative.encodeRun(code, vc, vn, ts, l43.b())`
-        与 `timestamp = String.valueOf(now + r90.D())`（r90.D() 是服务端时间偏移，
-        默认 0）。encodeRun 已还原为 MD5 拼接（crypto.run_img_record）。
+        uploadPaceRecord，结算只交聚合摘要。
+
+        **runImgRecord / timestamp 只属于阳光跑**：原版两条结算路径不同——
+          · 阳光跑：`km7.c(params)` → `aw8.c(params)` → `IRunApi.j()`
+            （= run/finishSunRun_v2），aw8.c() 塞 `runImgRecord = encodeRun(...)`
+            与 `timestamp`；
+          · 自由跑：`km7.b(params)` → `IRunApi.a()`（= run/finishFreeRun），
+            **直接发，不调 aw8.c()**，所以没有这两个键。
+        encodeRun 已还原为 MD5 拼接（crypto.run_img_record）。
         """
         run = self.store.get_run(run_code) or {}
         pending_steps = self.store.get_steps(run_code, only_pending=True)
@@ -593,15 +645,16 @@ class ShandongClient:
             "pauseCount": 0,
             "pauseTimes": 0,
             "sportType": sport_type,
-            # 原版 aw8.c() 无条件塞的两个键（结算/异常结束/自由跑三条路径都有）
-            # 注意：aw8.c() 在拦截器之后执行，所以 timestamp 被它覆盖掉公共字段里的那个
-            # env 取原版 l43.b()（默认 4 → 落“其余”分支 → 生产密钥）；它不进报文，
-            # 所以 Mock 端也必须用同一个默认值重算
-            "runImgRecord": crypto.run_img_record(
-                run_code, ts_str, BUILD_VERSION, APP_VERSION,
-                env=int((self.cfg.get("common", {}) or {}).get("envCode") or 0)),
-            "timestamp": ts_str,
         })
+        if sun:
+            # 原版 aw8.c() 只在阳光跑路径上调。它在拦截器之后执行，所以 timestamp
+            # 会覆盖公共字段里的那个；env 取原版 l43.b()（默认 4 → 落“其余”分支
+            # → 生产密钥），它不进报文，所以 Mock 端必须用同一个默认值重算。
+            payload["runImgRecord"] = crypto.run_img_record(
+                run_code, ts_str, BUILD_VERSION, APP_VERSION,
+                env=int((self.cfg.get("common", {}) or {}).get("envCode") or 0))
+            payload["timestamp"] = ts_str
+
         reasons = self.store.invalid_reasons(run_code)
         if reasons:
             payload["invalidReasons"] = reasons
@@ -609,8 +662,15 @@ class ShandongClient:
             payload["stepList"] = build_step_list(pending_steps)
         if pending_paces:
             payload["paceList"] = build_pace_list(pending_paces)
-
-        endpoint = "finish_sun_run" if sun else "finish_free_run"
+        # 异常结束（原版 StartRunUtils.o0 → StopRunUtils.o → aw8.a()/aw8.b()）：
+        # 未完成的跑步走 abnormalFinishSunRun / abnormalFinishActivityRun，
+        # 报文与正常结算同构，额外带 abnormalCodes = [checkData]。
+        # sportType == 1（阳光跑）走 aw8.b()，其余走 aw8.a()。
+        endpoint = ("abnormal_finish" if sport_type == SPORT_TYPE_SUN
+                    else "abnormal_finish_activity") if abnormal_code else (
+            "finish_sun_run" if sun else "finish_free_run")
+        if abnormal_code:
+            payload["abnormalCodes"] = [int(abnormal_code)]
         res = self.transport.post(endpoint, payload)
         ok = res.get("code") == CODE_OK
         if ok:
@@ -658,20 +718,50 @@ class ShandongClient:
         out["finish"] = self.finish_run(run_code, sport_type=int(run.get("sport_type", 1)))
         return {"code": out["finish"].get("code", -1), "message": "续传完成", "data": out}
 
+    def query_unfinish_run(self, sport_type: int = SPORT_TYPE_SUN) -> Dict[str, Any]:
+        """服务端未完成跑步：原版 km7.a() → queryUnFinishRun(@FieldMap {sportType})
+
+        值是 **String**（String.valueOf(sportType)），而且只有这一个字段。
+        """
+        return self.transport.post("unfinish_run", {"sportType": str(sport_type)})
+
+    def resume_server_run(self, run_code: str,
+                          sport_type: int = SPORT_TYPE_SUN) -> Dict[str, Any]:
+        """申请续跑：原版 run/resume = {sportType, runRecordCode}（@FormUrlEncoded）"""
+        return self.transport.post("resume_run", {
+            "sportType": str(sport_type), "runRecordCode": run_code,
+        })
+
     # ══════════════════ 查询 ══════════════════
-    def list_sun_runs(self, page: int = 1, size: int = 10) -> Dict[str, Any]:
+    def list_sun_runs(self, page: int = 1, size: int = 10,
+                      semester_code: str = "", run_plan_code: str = "") -> Dict[str, Any]:
+        """原版 pageSunRunRecord：pageSize + pageNum + semesterCode + runPlanCode"""
         return self.transport.post("sunrun_list", self.transport.base_payload({
             "pageNum": page, "pageSize": size,
+            "semesterCode": semester_code, "runPlanCode": run_plan_code,
         }))
 
-    def run_summary(self, sport_type: int = SPORT_TYPE_SUN, time_type: int = 3) -> Dict[str, Any]:
+    def run_summary(self, sport_type: int = SPORT_TYPE_SUN,
+                    time_type: int = 3) -> Dict[str, Any]:
+        """近 N 天统计：原版 querySchoolRunSummary 只收一个 time（毫秒时间戳）
+
+        RunRequestModel$nearbyRunStd$2 传的是 System.currentTimeMillis()，
+        没有 sportType/timeType——两个参数仅为兼容旧调用而保留。
+        """
         return self.transport.post("run_summary", self.transport.base_payload({
-            "sportType": sport_type, "timeType": time_type,
+            "time": int(self.transport.clock()),
         }))
 
-    def rank_distance(self, cycle: int = 30, sex: int = 2) -> Dict[str, Any]:
+    def rank_distance(self, cycle: int = 30, sex: int = 2, scope: int = 1,
+                      rank_type: int = 1, run_plan_code: str = "") -> Dict[str, Any]:
+        """原版 rank/distance 五字段：sex, scope, rankCycle, type, runPlanCode
+
+        scope/type 的取值在反编译中无调用点可循（调用方不在已反编译的 dex），
+        默认 1 为占位，调用方可显式覆盖。
+        """
         return self.transport.post("rank_distance", self.transport.base_payload({
-            "rankCycle": cycle, "sex": sex,
+            "sex": sex, "scope": scope, "rankCycle": cycle,
+            "type": rank_type, "runPlanCode": run_plan_code,
         }))
 
     def unfinished(self) -> List[Dict[str, Any]]:

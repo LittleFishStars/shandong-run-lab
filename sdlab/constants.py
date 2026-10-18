@@ -161,10 +161,15 @@ class Endpoint(NamedTuple):
     path: str
     v: str
     api: str
+    # 标注字段：原版所有 POST 都签名（ParamsInterceptor.c()），GET 不签；保留此字段便于阅读
     need_sign: bool = False
     method: str = "POST"
     # True = APK 里标了 @Headers({"e:1"})：发 e:1 并加密 ENCRYPT_FIELDS 中的字段
     encrypt: bool = False
+    # True = APK 标 @FormUrlEncoded：EncryptInterceptor 会把它改写成 JSON 体，
+    #        并补 app/api/v/e/pv/k 头（e 默认空串，仅 @Headers({"e:1"}) 为 "1"）
+    # False = @Body 直接发 JSON：ParamsInterceptor.h() 只补 9 指纹 + sign，不加这些头
+    form: bool = True
 
 
 # fmt: off
@@ -179,49 +184,59 @@ EP = {
     "login_password":   Endpoint("auth/loginPassword",       "loginPassword",     "auth", encrypt=True),
     "login_sms_send":   Endpoint("account/sendAuthCode",     "sendAuthCode",      "account", encrypt=True),
     "login_sms":        Endpoint("account/login_v3",         "login_v3",          "account", encrypt=True),
-    "login_oneclick":   Endpoint("account/oneClick/login",   "login",             "account/oneClick"),
+    # account/oneClick/login：@Field geTuiToken, gyuid（两段路径 → v=oneClick）
+    "login_oneclick":   Endpoint("account/oneClick/login",   "oneClick",         "account"),
     "logout":           Endpoint("account/logout",           "logout",            "account"),
 
     # ── 用户 / 学校 ──
     "user_info":        Endpoint("account/queryCommonUserInfo", "queryCommonUserInfo", "account"),
-    "school_details":   Endpoint("api/school/details",       "details",           "api"),
+    # 注意：原版 20 个 *Api.java 里**没有** api/school/details，此项已删除。
     "semesters":        Endpoint("attend/semesterSelector",  "semesterSelector",  "attend"),
 
     # ── 围栏 / 规则 ──
     "fence_list":       Endpoint("school/querySchoolFences", "querySchoolFences", "school"),
-    "fence_filter":     Endpoint("school/filterUsableFence", "filterUsableFence", "school"),
+    "fence_filter":     Endpoint("school/filterUsableFence", "filterUsableFence", "school", form=False),
     "sunrun_abstract":  Endpoint("run/querySunRunAbstractInfoV2", "querySunRunAbstractInfoV2", "run"),
     "sunrun_config":    Endpoint("run/checkSunRunConfig",    "checkSunRunConfig", "run"),
     "precheck_in":      Endpoint("run/getPreRunCheckIn",     "getPreRunCheckIn",  "run"),
-    "plan_list":        Endpoint("run/plan/selectList",      "selectList",        "run/plan"),
+    # run/plan/selectList：两段路径 → v=plan
+    "plan_list":        Endpoint("run/plan/selectList",      "plan",              "run"),
 
     # ── 跑步主链路 ──
     "start_sun_run":    Endpoint("run/startSunRun_v2",       "startSunRun_v2",    "run"),
     "start_free_run":   Endpoint("run/startFreeRun",         "startFreeRun",      "run"),
     "resume_run":       Endpoint("run/resume",               "resume",            "run"),
-    "upload_record":    Endpoint("run/uploadRunRecord",      "uploadRunRecord",   "run", True),
-    "upload_pace":      Endpoint("run/uploadPaceRecord",     "uploadPaceRecord",  "run"),
-    "upload_step":      Endpoint("run/uploadStepsRecord",    "uploadStepsRecord", "run"),
-    "upload_stride":    Endpoint("run/uploadStrideRecord",   "uploadStrideRecord", "run"),
-    "upload_passpoint": Endpoint("run/uploadPassPoint",      "uploadPassPoint",   "run"),
-    "finish_sun_run":   Endpoint("run/finishSunRun_v2",      "finishSunRun_v2",   "run"),
-    "finish_free_run":  Endpoint("run/finishFreeRun",        "finishFreeRun",     "run"),
-    "abnormal_finish":  Endpoint("run/abnormalFinishSunRun", "abnormalFinishSunRun", "run"),
+    # @Body 直接发 JSON 的接口（ParamsInterceptor.h()：只补 9 指纹 + sign）
+    "upload_record":    Endpoint("run/uploadRunRecord",      "uploadRunRecord",   "run", True, form=False),
+    "upload_pace":     Endpoint("run/uploadPaceRecord",     "uploadPaceRecord",  "run", form=False),
+    "upload_step":     Endpoint("run/uploadStepsRecord",    "uploadStepsRecord", "run", form=False),
+    "upload_stride":   Endpoint("run/uploadStrideRecord",   "uploadStrideRecord", "run", form=False),
+    "upload_passpoint": Endpoint("run/uploadPassPoint",      "uploadPassPoint",   "run", form=False),
+    "finish_sun_run":   Endpoint("run/finishSunRun_v2",      "finishSunRun_v2",   "run", form=False),
+    "finish_free_run":  Endpoint("run/finishFreeRun",        "finishFreeRun",     "run", form=False),
+    "abnormal_finish":  Endpoint("run/abnormalFinishSunRun", "abnormalFinishSunRun", "run", form=False),
+    # 活动跑（sportType != 1）的异常结束；原版 aw8.a() → ISunshineApi.F()
+    "abnormal_finish_activity": Endpoint("run/abnormalFinishActivityRun",
+                                         "abnormalFinishActivityRun", "run", form=False),
     "unfinish_run":     Endpoint("run/queryUnFinishRun",     "queryUnFinishRun",  "run"),
-    "nfc_status":       Endpoint("run/nfc/verification-status", "verification-status", "run"),
+    # run/nfc/verification-status：两段路径 → v=nfc
+    "nfc_status":       Endpoint("run/nfc/verification-status", "nfc",            "run"),
 
     # ── 记录 / 排行 ──
     "run_summary":      Endpoint("run/querySchoolRunSummary", "querySchoolRunSummary", "run"),
     "run_count":        Endpoint("run/queryRunRecordCount",  "queryRunRecordCount", "run"),
     "run_detail":       Endpoint("run/runRecordDetail",      "runRecordDetail",   "run"),
-    "free_detail":      Endpoint("run/free/detail",          "detail",            "run/free"),
+    # run/free/detail：两段路径 → v=free
+    "free_detail":      Endpoint("run/free/detail",          "free",             "run"),
     "sunrun_list":      Endpoint("run/pageSunRunRecord",     "pageSunRunRecord",  "run"),
     "freerun_list":     Endpoint("run/pageFreeRunRecordList", "pageFreeRunRecordList", "run"),
     "reward_list":      Endpoint("run/listUserReward",       "listUserReward",    "run"),
     "rank_distance":    Endpoint("rank/distance",            "distance",          "rank"),
     "rank_progress":    Endpoint("rank/runProgress",         "runProgress",       "rank"),
 
-    # ── 验证码（H5 同源，JSON 直连）──
+    # ── 验证码（AJ-Captcha）──
+    # 原版 20 个 *Api.java 里没有 captcha 路由，它由 H5/WebView 侧发起；
+    # 这里保留同源直连（run-front/captcha/* + Origin/Referer=mh5），实测可用。
     "captcha_get":      Endpoint("captcha/get",              "get",               "captcha"),
     "captcha_check":    Endpoint("captcha/check",            "check",             "captcha"),
 }
