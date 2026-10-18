@@ -91,11 +91,14 @@ jobs:
       - name: 创建 / 更新 Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # 这层没有 checkout，gh 找不到 .git，必须显式给仓库
           TAG: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 \
-            && gh release upload "$TAG" artifacts/* --clobber \
-            || gh release create "$TAG" artifacts/* \
-                 --title "sdlab ${TAG#v}" \
-                 --notes "Linux / Windows 单文件可执行程序。校验和见 SHA256SUMS。" \
-                 --generate-notes
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/* --clobber
+          else
+            gh release create "$TAG" artifacts/* \
+              --title "sdlab ${TAG#v}" \
+              --notes "Linux / Windows 单文件可执行程序。校验和见 SHA256SUMS。" \
+              --generate-notes
+          fi
