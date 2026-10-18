@@ -134,6 +134,26 @@ class 全链路测试(unittest.TestCase):
         self.assertEqual(run["uploaded"], 1)
         self.assertEqual(int(run["status"] or 0), 1, "服务端判定无效")
 
+    def test_结算报文带runImgRecord且距离是字符串(self):
+        """原版 km7.c() 在进 finishSunRun_v2 之前调 aw8.c()，无条件塞
+        runImgRecord 与 timestamp；distance 走 String.valueOf(...)"""
+        self.前置()
+        日志 = self.app.run_detail(self.run_code)["upload_log"]
+        finish = [e for e in 日志 if e["endpoint"] == "run/finishSunRun_v2"]
+        self.assertTrue(finish, "没有结算记录")
+        body = json.loads(finish[0]["payload_json"])
+        self.assertTrue(body.get("runImgRecord"), f"缺 runImgRecord：{body}")
+        self.assertTrue(body.get("timestamp"), f"缺 timestamp：{body}")
+        self.assertEqual(len(body["runImgRecord"]), 32)
+        self.assertIsInstance(body["distance"], str, "distance 必须是 String")
+        self.assertIsInstance(body["duration"], str)
+        self.assertIsInstance(body["totalStep"], str)
+        # 服务端（Mock）重算必须与客户端声明一致
+        from sdlab import crypto
+        self.assertEqual(
+            crypto.run_img_record(body["runRecordCode"], body["timestamp"]),
+            body["runImgRecord"])
+
     def test_上传日志有记录(self):
         self.前置()
         日志 = self.app.run_detail(self.run_code)["upload_log"]

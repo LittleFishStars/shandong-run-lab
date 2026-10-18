@@ -449,6 +449,7 @@ def _finish_sun_run(w: MockWorld, path: str, h, b):
 
     # 客户端声明的 runImgRecord 必须与 Mock 算出来的一致（防篡改码）
     ts = str(b.get("timestamp", ""))
+    # env 不进报文（原版是编译期常量 l43.b()），两边都用默认 0 → 生产密钥
     expect_img = crypto.run_img_record(code, ts, str(b.get("buildVersion", "")),
                                        str(b.get("appVersion", "")))
     claimed = str(b.get("runImgRecord", ""))

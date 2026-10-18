@@ -82,9 +82,17 @@ def test_crypto() -> None:
     check(abs(float(data["x"]) - (int(100.0 - C.SLIDER_MARGIN) + C.SLIDER_OFFSET)) < 1e-6,
           "滑块坐标伪装公式一致", f"raw=100 → x={data['x']}")
 
-    # 结算码：MD5(runCode+buildVersion+appVersion+key+ts)
+    # encodeRun（结算防篡改码）：公式与原版 liby.so 一致，用预言机真样本守
     code = crypto.calculate_run_img_record("SDLABTEST", "1750000000000")
     check(len(code) == 32 and code.islower(), "结算码 runImgRecord 为 32 位小写 MD5", code)
+    oracle = [('{"x":1}', '26101017', '8.7.7', 'A', 0,
+               '05017afe6ac20923b6ee765aa503ccb0'),
+              ('a', '', '', '', 0, '8233e43470579ae9f0a581da8cdc7706'),
+              ('a', '1', '2', '3', 0, '1ad3dd1ef9e043ed81733362911c497e')]
+    hit = sum(1 for a, b, c, d, env, want in oracle
+              if crypto.run_img_record(a, d, build_version=b, app_version=c, env=env) == want)
+    check(hit == len(oracle), "encodeRun 与原版预言机逐字节一致",
+          f"{hit}/{len(oracle)}")
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -256,10 +256,10 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 ```bash
 export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 
-# 单元测试（185 项）
+# 单元测试（187 项）
 .venv/bin/python -m unittest discover -s tests
 
-# 端到端自检（67 项：密码学 / 仿真 / 跑步起点 / 打卡点来源 / 自动跑与手动摇杆 / 停下来时间照走 /
+# 端到端自检（68 项：密码学 / 结算码原生预言机 / 仿真 / 跑步起点 / 打卡点来源 / 自动跑与手动摇杆 / 停下来时间照走 /
 #   轨迹点报文口径（runTime 整数秒 / createTime / offFenceDisM=-1 / 跑中增量上传）/ 全链路 /
 #   失败注入+续传）
 .venv/bin/python scripts/selfcheck.py -v

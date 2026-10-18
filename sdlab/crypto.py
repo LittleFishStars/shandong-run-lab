@@ -27,9 +27,11 @@ from .constants import (
     APP_VERSION,
     BUILD_VERSION,
     DES_KEYS,
+    ENCODE_RUN_KEY_1_10,
+    ENCODE_RUN_KEY_9_11,
+    ENCODE_RUN_KEY_PROD,
     ENCRYPT_FIELDS,
     FIELD_KEY,
-    RUN_IMG_RECORD_KEY,
     SIGN_ENV_TEST,
     SIGN_KEY_PROD,
     SIGN_KEY_TEST,
@@ -189,16 +191,39 @@ def decrypt_slider_point(cipher_b64: str) -> Optional[Dict[str, Any]]:
 
 
 # ══════════════════ 跑步防篡改 ══════════════════
+def encode_run_key(env: int = 0) -> str:
+    """按 env 选 encodeRun 的拼接密钥
+
+    原版 liby.so+0x1e068 的选择逻辑（反汇编还原）：
+        env == 1 || env == 10        → 第一把
+        (env & ~2) == 9  (即 9 / 11) → 第二把
+        其余                          → 生产密钥
+    """
+    env = int(env)
+    if env in (1, 10):
+        return ENCODE_RUN_KEY_1_10
+    if env in (9, 11):
+        return ENCODE_RUN_KEY_9_11
+    return ENCODE_RUN_KEY_PROD
+
+
 def run_img_record(run_record_code: str, timestamp_str: str,
                    build_version: str = BUILD_VERSION,
-                   app_version: str = APP_VERSION) -> str:
-    """结算防篡改码
+                   app_version: str = APP_VERSION,
+                   env: int = 0) -> str:
+    """结算防篡改码 = 原版 HcjNative.encodeRun(code, vc, vn, timestamp, env)
 
-    MD5(runRecordCode + buildVersion + appVersion + RUN_IMG_RECORD_KEY + timestamp)
+    反汇编 liby.so+0x1df60 还原后：
+        MD5(runRecordCode + versionCode + versionName + KEY + timestamp)
+    其中 KEY 按 env 三选一（见 encode_run_key）。
+
+    已用黑盒预言机 6 组样本逐字节验证 6/6 一致（report/17）。
+    调用点原版：aw8.c() → `HcjNative.encodeRun(str, "26101017", "8.7.7",
+    String.valueOf(now + r90.D()), l43.b())`。
     """
-    raw = f"{run_record_code}{build_version}{app_version}{RUN_IMG_RECORD_KEY}{timestamp_str}"
+    raw = (f"{run_record_code}{build_version}{app_version}"
+           f"{encode_run_key(env)}{timestamp_str}")
     return hashlib.md5(raw.encode("utf-8")).hexdigest().lower()
-
 
 calculate_run_img_record = run_img_record
 

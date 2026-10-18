@@ -18,9 +18,11 @@ import math
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from . import protocol
+from . import crypto, protocol
 from .captcha import CaptchaSolver
 from .constants import (
+    APP_VERSION,
+    BUILD_VERSION,
     CHECKPOINT_HIT_RADIUS_M,
     CODE_OK,
     EP,
@@ -553,9 +555,12 @@ class ShandongClient:
                    sun: bool = True) -> Dict[str, Any]:
         """结算：完整照搬原版 DataComponent.t1()/StopRunUtils.q() 的报文
 
-        原版报文里**没有** pois / stepList / paceList / runImgRecord / timestamp：
         轨迹走 run/uploadRunRecord、步频走 uploadStepsRecord、配速走
-        uploadPaceRecord，结算只交聚合摘要。
+        uploadPaceRecord，结算只交聚合摘要；但 **runImgRecord / timestamp 必须带**：
+        原版 km7.c() 进 IRunApi.j()（= run/finishSunRun_v2）之前先调 aw8.c(params)，
+        aw8.c() 会塞 `runImgRecord = HcjNative.encodeRun(code, vc, vn, ts, l43.b())`
+        与 `timestamp = String.valueOf(now + r90.D())`（r90.D() 是服务端时间偏移，
+        默认 0）。encodeRun 已还原为 MD5 拼接（crypto.run_img_record）。
         """
         run = self.store.get_run(run_code) or {}
         pending_steps = self.store.get_steps(run_code, only_pending=True)
@@ -570,9 +575,14 @@ class ShandongClient:
         align_type = int(common_cfg.get("amapGPSLevel") or 3)
         is_valid = bool(run.get("status", 1 if valid.get("isValid", True) else 0))
 
+        # 原版 aw8.c() 的 timestamp = String.valueOf(now + r90.D())
+        # r90.D() 是服务端时间校准偏移（f44400a，默认 0），Transport.clock 已含此偏移
+        ts_str = str(self.transport.clock())
         payload = self.transport.base_payload({
             "runRecordCode": run_code,
-            "distance": int(round(distance)),          # 原版 key 是 distance（x 常量）
+            # 原版 t1()/StopRunUtils.q() 里是 String.valueOf(...)，类型必须是 String
+            # （SchoolActivitySuccessActivity.x = "distance"）
+            "distance": str(int(round(distance))),
             "duration": str(duration),
             "totalStep": str(max(0, total_step)),
             "status": int(is_valid),
@@ -583,6 +593,14 @@ class ShandongClient:
             "pauseCount": 0,
             "pauseTimes": 0,
             "sportType": sport_type,
+            # 原版 aw8.c() 无条件塞的两个键（结算/异常结束/自由跑三条路径都有）
+            # 注意：aw8.c() 在拦截器之后执行，所以 timestamp 被它覆盖掉公共字段里的那个
+            # env 取原版 l43.b()（默认 4 → 落“其余”分支 → 生产密钥）；它不进报文，
+            # 所以 Mock 端也必须用同一个默认值重算
+            "runImgRecord": crypto.run_img_record(
+                run_code, ts_str, BUILD_VERSION, APP_VERSION,
+                env=int((self.cfg.get("common", {}) or {}).get("envCode") or 0)),
+            "timestamp": ts_str,
         })
         reasons = self.store.invalid_reasons(run_code)
         if reasons:
@@ -606,9 +624,11 @@ class ShandongClient:
             all_pts = self.store.get_points(run_code, None, valid_only=False)
             self.store.set_point_states(
                 run_code, [p.lat_lng_index for p in all_pts], STATE_SUCC)
+        # payload 里存真实报文（便于事后核对 runImgRecord 等防篡改字段），
+        # 打卡进度另放 message 里
         self.store.log_upload(run_code, EP[endpoint].path if endpoint in EP else endpoint, ok,
-                              str(res.get("message")),
-                              {"checkpoints": f"{done_cp}/{total_cp}"}, res)
+                              f"{res.get('message')}｜打卡 {done_cp}/{total_cp}",
+                              payload, res)
         self.store.finish_run(run_code, finish={"endpoint": endpoint, "response": res})
         if self.bus:
             self.bus.emit("state" if ok else "log",

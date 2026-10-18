@@ -48,8 +48,11 @@ SLIDER_KEY = b"Ukp3hmSe7BmMcgbE"
 SLIDER_MARGIN = 6.5
 SLIDER_OFFSET = 16.5
 
-# 跑步防篡改静态盐
-RUN_IMG_RECORD_KEY = "2V8BQ8MYXWU10Y9Z"
+# 跑步防篡改密钥（encodeRun 的拼接盐，按 env 三选一）
+#   实测自 liby.so 解密代码 0x1e068 处的密钥选择逻辑（见 report/17）
+ENCODE_RUN_KEY_PROD = "QCxhZB6oagpOaQ2jitHucZd8bX34ZEVp"    # 常规
+ENCODE_RUN_KEY_1_10 = "STnuKS6lwrCo4OSSJup7sEMZ5SZYMNcq"    # env ∈ {1, 10}
+ENCODE_RUN_KEY_9_11 = "9dLCADYy64tKQXoHYTGfrs4VlY0Yg4sI"    # env ∈ {9, 11}
 
 # 多媒体资源解密 DES 密钥组（8 个轮换）
 DES_KEYS: Tuple[bytes, ...] = (

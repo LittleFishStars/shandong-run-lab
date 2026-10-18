@@ -86,11 +86,45 @@ class 滑块伪装测试(unittest.TestCase):
 
 
 class 结算码测试(unittest.TestCase):
-    """runImgRecord = md5(runRecordCode + buildVersion + appVersion + 固定盐 + timestamp)"""
+    """encodeRun = MD5(json + versionCode + versionName + KEY(env) + timestamp)
 
-    def test_已知向量(self):
-        self.assertEqual(crypto.run_img_record("CODE", "1700000000000"),
-                         "e8f923dc6492f7759b4803663adbf800")
+    期望值全部来自原版 liby.so 的黑盒预言机实测（report/06 §3.6 原始采样），
+    反汇编 liby.so+0x1df60 后按同一公式逐字节复现 6/6，见 report/17。
+    """
+
+    # (json, versionCode, versionName, 第四参, env) → 原版输出
+    ORACLE = [
+        ('{"x":1}', '26101017', '8.7.7', 'A', 0,
+         '05017afe6ac20923b6ee765aa503ccb0'),
+        ('{"x":1}', '26101017', '8.7.7', 'A', 1,
+         'd50261b552022a6a2ac2d7fd8dd05bd3'),
+        ('', '26101017', '8.7.7', 'A', 0,
+         'b214b94f429ec0fb54cb08487df5583b'),
+        ('a', '26101017', '8.7.7', 'A', 0,
+         '1427f4ef3b283e88ca2f4c7349566836'),
+        ('a', '', '', '', 0,
+         '8233e43470579ae9f0a581da8cdc7706'),
+        ('a', '1', '2', '3', 0,
+         '1ad3dd1ef9e043ed81733362911c497e'),
+    ]
+
+    def test_原版预言机六组全中(self):
+        for a, b, c, d, env, want in self.ORACLE:
+            with self.subTest(inp=(a, b, c, d, env)):
+                self.assertEqual(
+                    crypto.run_img_record(a, d, build_version=b, app_version=c, env=env),
+                    want)
+
+    def test_env选密钥(self):
+        # 三把密钥互不相同，env 分组必须与原版 0x1e068 的分支一致
+        self.assertEqual(crypto.encode_run_key(0), crypto.ENCODE_RUN_KEY_PROD)
+        self.assertEqual(crypto.encode_run_key(1), crypto.ENCODE_RUN_KEY_1_10)
+        self.assertEqual(crypto.encode_run_key(10), crypto.ENCODE_RUN_KEY_1_10)
+        self.assertEqual(crypto.encode_run_key(9), crypto.ENCODE_RUN_KEY_9_11)
+        self.assertEqual(crypto.encode_run_key(11), crypto.ENCODE_RUN_KEY_9_11)
+        self.assertEqual(len({crypto.ENCODE_RUN_KEY_PROD,
+                              crypto.ENCODE_RUN_KEY_1_10,
+                              crypto.ENCODE_RUN_KEY_9_11}), 3)
 
     def test_换码就换结果(self):
         a = crypto.run_img_record("CODE1", "1700000000000")
