@@ -162,6 +162,7 @@ function renderStatus(st) {
     '姓名': u.userName || '--',
     '学校': u.schoolName || '--',
     '学号': u.userId || '--',
+    '上次登录': u.loginAt ? new Date(Number(u.loginAt)).toLocaleString('zh-CN') : '--',
     'token': { html: esc(String(u.token || '').slice(0, 18)) + '…', cls: 'mono' },
   }) : `<span class="v">未登录${st.mode === 'mock' ? '（本地 Mock 模式任意手机号可登录）' : ''}</span>`;
 

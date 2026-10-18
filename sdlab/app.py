@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .bus import DEFAULT_MODE, ConfigStore, EventBus, default_data_dir
 from .client import ShandongClient
+from .constants import CODE_NEED_LOGIN, CODE_OK
 from .engine import RunEngine
 from .protocol import haversine, point_in_polygon, snap_into_polygon
 from .mock import MockServer, MockWorld
@@ -85,6 +86,7 @@ class App:
 
         self._build()
         self.bus.emit("state", f"运行模式：{'本地 Mock（离线可跑）' if self.is_local else '真实服务端'}")
+        self._restore_session_bg()
 
     # ══════════════════ 组装 ══════════════════
     def _build(self) -> None:
@@ -98,6 +100,32 @@ class App:
         # 摇杆实走会话与引擎共用同一个 store/bus：实跑模式落的库就是 engine 后续要上传的库
         self.walk = WalkSession(self.cfg, bus=self.bus, store=self.store, engine=self.engine)
         self.bus.subscribe(self._on_event)
+
+    def _restore_session_bg(self) -> None:
+        """启动时校验本地会话：成功则补用户信息，1516 才清掉本地 token
+
+        网络异常（离线、DNS 失败）时保留会话——原版断网也能进 App，只是服务端请求
+        会失败；把 token 当成过期删掉反而要用户重登。
+        """
+        c = self.client
+        if not c.logged_in:
+            return
+
+        def work() -> None:
+            try:
+                res = c.load_user()
+            except Exception as e:  # noqa: BLE001
+                self.bus.emit("log", f"会话校验跳过（{type(e).__name__}: {e}）", level="warn")
+                return
+            code = int((res or {}).get("code", -1))
+            if code == CODE_OK:
+                self.bus.emit("state", "已恢复登录："
+                              f"{c.user.get('userName') or c.user.get('userId')}")
+            elif code == CODE_NEED_LOGIN:
+                c.logout(remote=False)
+                self.bus.emit("log", "登录已过期，请重新登录", level="warn")
+
+        threading.Thread(target=work, daemon=True, name="sdlab-session-restore").start()
 
     def _on_event(self, ev: Dict[str, Any]) -> None:
         # 任何事件只要带着 run_code，就记下来：界面跑步中要靠它拉轨迹画地图。
@@ -658,10 +686,9 @@ class App:
         }
 
     def close(self) -> None:
-        try:
-            self.client.logout()
-        except Exception:
-            pass
+        # ★ 这里不能 logout：原版只在用户主动「退出登录」时清掉本地 token，
+        # 进程退出（命令行跑完一条命令也算）时不清。之前 close() 顺手登出，
+        # 导致每次启动都要重新登录，登录数据持久化的意义就没了。
         self.stop_mock()
 
 

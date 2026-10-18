@@ -105,17 +105,24 @@ class ShandongClient:
             self.logged_in = True
             self.user = s
 
-    def _save_session(self, data: Dict[str, Any]) -> None:
+    def _save_session(self, data: Dict[str, Any], touch: bool = False) -> None:
+        """写会话（与已有字段合并，刷新用户信息时不会把 token 冲掉）
+
+        touch=True 只在登录成功时传：刷新用户信息不该改「上次登录时间」。
+        """
+        merged = dict(self.user) if isinstance(self.user, dict) else {}
+        merged.update(data or {})
         keep = {
-            "token": str(data.get("token", "")),
-            "satoken": str(data.get("satoken", "")),
-            "userId": str(data.get("userId", "")),
-            "schoolCode": str(data.get("schoolCode", "")),
-            "schoolName": str(data.get("schoolName", "")),
-            "userName": str(data.get("userName", "")),
-            "userType": data.get("userType", 1),
+            "token": str(merged.get("token", "") or ""),
+            "satoken": str(merged.get("satoken", "") or ""),
+            "userId": str(merged.get("userId", "") or ""),
+            "schoolCode": str(merged.get("schoolCode", "") or ""),
+            "schoolName": str(merged.get("schoolName", "") or ""),
+            "userName": str(merged.get("userName", "") or ""),
+            "userType": merged.get("userType", 1),
             "deviceId": self.transport.device_id,
-            "loginAt": int(time.time() * 1000),
+            "loginAt": (int(time.time() * 1000) if touch
+                        else int(merged.get("loginAt") or time.time() * 1000)),
         }
         self.transport.token = keep["token"]
         self.transport.satoken = keep["satoken"]
@@ -125,9 +132,16 @@ class ShandongClient:
         self.user = keep
         self.store.kv_set(self.kv_token_key, keep)
 
-    def logout(self) -> None:
+    def _persist_user(self) -> None:
+        """用户信息刷新后回写会话（token 与登录时间保持不变）"""
+        if not self.transport.token:
+            return
+        self._save_session(self.user)
+
+    def logout(self, remote: bool = True) -> None:
+        """退出登录。remote=False 只清本地（token 已失效时用，不再发 logout 请求）"""
         try:
-            if self.logged_in:
+            if remote and self.logged_in:
                 self.transport.post("logout")
         except Exception:
             pass
@@ -186,7 +200,7 @@ class ShandongClient:
         })
         res = self.transport.post("login_password", payload)
         if res.get("code") == CODE_OK and res.get("data"):
-            self._save_session(res["data"])
+            self._save_session(res["data"], touch=True)
             # 登录后立即校准时钟（原版在隐私协议同意时就已跑 SyncTimeIntentService，
             # 登录更晚；这里取等价时机）。失败不影响登录本身。
             try:
@@ -209,6 +223,7 @@ class ShandongClient:
             self.user = {**self.user, **res["data"]}
             self.transport.school_code = str(res["data"].get("schoolCode",
                                                              self.transport.school_code))
+            self._persist_user()
         return res
 
     def load_semesters(self) -> Dict[str, Any]:

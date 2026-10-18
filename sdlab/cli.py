@@ -130,12 +130,23 @@ def cmd_info(args: argparse.Namespace) -> int:
     st = app.status()
     sim = FuckRunSim(seed=1)
     sim.start(0, 0)
+    from datetime import datetime as _dt
+    _u = st.get("user") or {}
+    if st.get("logged_in"):
+        _at = int(_u.get("loginAt") or 0)
+        _when = _dt.fromtimestamp(_at / 1000).strftime("%m-%d %H:%M") if _at else "未知"
+        _login = (f"已恢复 {_u.get('userName') or _u.get('userId') or '已登录用户'}"
+                  f"（上次登录 {_when}）")
+    else:
+        _login = "未登录"
+
     rows = [
         ("工作台版本", f"v{__version__}"),
         ("复刻的 App 版本", f"{APP_VERSION} / build {C.BUILD_VERSION}"),
         ("数据目录", st["data_dir"]),
         ("配置文件", st["config_path"]),
         ("运行模式", "本地 Mock（不联网）" if st["mode"] == "mock" else "真实服务端"),
+        ("登录状态", _login),
         ("Mock 地址", st.get("mock_url") or "未启动"),
         ("密码学后端", f"{backend} —— {backend_desc}"),
         ("deviceId", st.get("device_id", "")),
