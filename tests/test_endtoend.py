@@ -622,6 +622,88 @@ class 结算报文路径测试(unittest.TestCase):
         self.assertEqual(r2.get("code"), C.CODE_OK, f"活动跑异常结束被拒：{r2}")
         self.报文("run/abnormalFinishActivityRun")
 
+    # ── 报文键集：以 DataComponent.t1() 为唯一判据 ──
+    def test_阳光跑结算键集与原版t1完全一致(self):
+        """DataComponent.t1(isValid, cheatType) 落的 map + aw8.c() 的两个键
+        + ApiDataComponent.J() 可能补的三个列表。
+        多一个或少一个都算不一致——服务端按字段名取值。"""
+        body = self.报文("run/finishSunRun_v2")
+        # t1() 的 12 个业务字段（顺序无关）
+        base = {"runRecordCode", "duration", "distance", "totalStep", "status",
+                "stepInterval", "paceInterval", "targetPoints", "alignType",
+                "pauseCount", "pauseTimes", "sportType"}
+        # aw8.c()：runImgRecord + timestamp
+        sun = {"runImgRecord", "timestamp"}
+        # J()：只有非空才 put
+        optional = {"pois", "stepList", "paceList"}
+        # t1() 里的条件字段（本次正常流程不该出现）
+        conditional = {"cheatList", "invalidReasons", "faceCheckRecordList"}
+        # 拦截器注入的 9 个公共字段
+        public = {"modelName", "appVersion", "buildVersion", "channel", "appCode",
+                  "deviceId", "systemVersion", "platform"}
+        keys = set(body)
+        self.assertTrue(base <= keys, f"缺 t1 字段：{sorted(base - keys)}")
+        self.assertTrue(sun <= keys, f"缺 aw8.c 字段：{sorted(sun - keys)}")
+        self.assertTrue(keys <= base | sun | optional | conditional | public,
+                        f"多出原版没有的字段：{sorted(keys - (base | sun | optional | conditional | public))}")
+        # targetPoints 元素：原版 @JSONType(includes=…) 只序列化 5 个字段
+        for p in body["targetPoints"]:
+            self.assertEqual(set(p), {"clockTime", "code", "lat", "lng", "passStatus"},
+                             f"targetPoints 字段不符：{sorted(p)}")
+
+
+class 结算残留点补发测试(unittest.TestCase):
+    """ApiDataComponent.J()：state∈{1 INIT, 4 FAIL} 且 isValid 的点会被塞进结算
+
+    单独开一个类，因为它会把点表改脏（打回 FAIL），不能污染上面共享的那趟跑。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-pois-"))
+        cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
+        cls.app.login("13800138000", "any-password", False)
+        cls.app.run_prepare()
+        cls.app.run_auto(target_m=1200, fence_index=0,
+                         do_upload=True, do_finish=True, sport_type=C.SPORT_TYPE_SUN)
+        end = time.time() + 超时上限
+        while time.time() < end:
+            if not (cls.app.poll(0).get("progress") or {}).get("running"):
+                break
+            time.sleep(0.3)
+        cls.run_code = str((cls.app.status().get("last") or {}).get("run_code") or "")
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            cls.app.close()
+        finally:
+            shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def 报文(self, endpoint: str) -> dict:
+        for e in self.app.run_detail(self.run_code)["upload_log"]:
+            if e["endpoint"] == endpoint:
+                return json.loads(e["payload_json"])
+        self.fail(f"上传日志里没有 {endpoint}")
+
+    def test_结算补发未成功轨迹点pois(self):
+        # 首次结算（run_auto 里做的）没有残留点
+        self.assertNotIn("pois", self.报文("run/finishSunRun_v2"),
+                         "测试前提：首次结算时没有残留点")
+        # 把这趟的点打回 FAIL，模拟“轨迹上传失败后直接结算”
+        ids = [p.lat_lng_index
+               for p in self.app.store.get_points(self.run_code, None, valid_only=True)]
+        self.assertGreater(len(ids), 20, "测试前提：这趟得有不少点")
+        self.app.store.set_point_states(self.run_code, ids[:10], C.STATE_FAIL)
+        app_ok = self.app.client.finish_run(self.run_code, sun=True)
+        self.assertEqual(app_ok.get("code"), C.CODE_OK, f"第二次结算被拒：{app_ok}")
+        # upload_log 是 ORDER BY id DESC，[0] = 最新
+        body = self.报文("run/finishSunRun_v2")
+        self.assertIn("pois", body, "残留点没跟结算一起发出去")
+        self.assertEqual(len(body["pois"]), 10)
+        # 元素字段与 RunLatLng.to_upload_dict()（原版 uploadRunRecord 同构）一致
+        one = self.app.store.get_points(self.run_code, None, valid_only=True)[0]
+        self.assertEqual(set(body["pois"][0]), set(one.to_upload_dict()))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

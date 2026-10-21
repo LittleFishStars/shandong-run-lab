@@ -51,6 +51,7 @@ from .protocol import (
     build_step_list,
     build_stride_list,
     build_target_points,
+    build_upload_pois,
     tail_points,
 )
 from .store import RecordStore
@@ -738,6 +739,12 @@ class ShandongClient:
         run = self.store.get_run(run_code) or {}
         pending_steps = self.store.get_steps(run_code, only_pending=True)
         pending_paces = self.store.get_paces(run_code, only_pending=True)
+        # 原版 ApiDataComponent.J()（阳光跑结算的 OnSubscribe）会把「未上传成功且有效」
+        # 的轨迹点再塞进结算报文：states 只取 {1 INIT, 4 FAIL}，空列表则不 put。
+        # 所以轨迹先传过一次也不代表结算里一定没有 pois——上传失败/不足 4 点门槛
+        # 的残留点会跟着结算一起走。
+        pending_pts = self.store.get_points(run_code, [STATE_INIT, STATE_FAIL],
+                                           valid_only=True)
         done_cp, total_cp = self.store.checkpoints_progress(run_code)
 
         valid = run.get("valid") or {}
@@ -782,6 +789,9 @@ class ShandongClient:
         reasons = self.store.invalid_reasons(run_code)
         if reasons:
             payload["invalidReasons"] = reasons
+        # 原版 ApiDataComponent.J() 的注入顺序：pois → stepList → paceList
+        if pending_pts:
+            payload["pois"] = build_upload_pois(pending_pts)
         if pending_steps:
             payload["stepList"] = build_step_list(pending_steps)
         if pending_paces:

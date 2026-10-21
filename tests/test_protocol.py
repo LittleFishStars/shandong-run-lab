@@ -191,12 +191,12 @@ class 报文构造测试(unittest.TestCase):
     def test_默认打卡点按四分位取(self):
         目标 = build_target_points(self.pts)
         self.assertEqual(len(目标), 3)
-        # 字段名照搬原版 TargetPoints 的 fastjson 序列化
+        # 原版类头是 @JSONType(includes = {"lat","lng","clockTime","code","passStatus"})
+        # → fastjson 只序列化这 5 个字段，sort/nfcEnable 都不发
+        允许 = {"code", "lat", "lng", "passStatus", "clockTime"}
         for p in 目标:
-            for 字段 in ("code", "lat", "lng", "passStatus", "clockTime", "sort", "nfcEnable"):
-                self.assertIn(字段, p)
-            self.assertNotIn("index", p, "原版字段名是 code/sort，不是 index")
-        self.assertEqual([p["sort"] for p in 目标], [0, 1, 2])
+            self.assertEqual(set(p), 允许, f"targetPoints 字段不符：{sorted(p)}")
+            self.assertNotIn("index", p, "原版字段名是 code，不是 index")
         时间 = [int(p["clockTime"]) for p in 目标]
         self.assertEqual(时间, sorted(时间))
         self.assertTrue(all(p["passStatus"] in (True, False) for p in 目标))

@@ -416,12 +416,17 @@ def build_stride_list(stride) -> List[Dict[str, Any]]:
 def build_target_points(pts: Sequence[RunLatLng],
                         checkpoint_indices: Optional[Sequence[int]] = None
                         ) -> List[Dict[str, Any]]:
-    """构造打卡点（uploadPassPoint / 结算的 targetPoints）
+    """构造打卡点（uploadPassPoint / 结算的 targetPoints）的**参考实现**
 
-    ★ 字段名、类型均照搬原版 TargetPoints 的 fastjson 序列化结果：
-      code(long) lat(double) lng(double) passStatus(bool) clockTime(long) sort(int) nfcEnable(bool)
-    其余（pointName/simpleName/type/isClosingStatus/isInFence/isSensitiveFenceAdded）
-    都标了 @JSONField(serialize=false)，不上传。
+    ★ 真正的报文字段以 store.checkpoint_targets 为准（它用服务端下发的
+    桩点坐标，只有 passStatus/clockTime 会变）。这里只保留一个纯函数版本
+    给单测与导出用，字段集必须与它逐字一致。
+
+    ★ 原版类头是
+      `@JSONType(includes = {"lat", "lng", "clockTime", "code", "passStatus"})`，
+    所以 fastjson **只序列化这 5 个字段**——sort / nfcEnable / type /
+    isClosingStatus / isInFence / isSensitiveFenceAdded / pointName /
+    simpleName 全都被 includes 白名单排掉，一个都不许发。
     """
     if checkpoint_indices is None:
         n = len(pts)
@@ -431,16 +436,18 @@ def build_target_points(pts: Sequence[RunLatLng],
         if 0 <= idx < len(pts):
             p = pts[idx]
             out.append({"code": i, "lat": round(p.lat, 6), "lng": round(p.lng, 6),
-                        "passStatus": bool(p.is_valid), "clockTime": p.collect_time,
-                        "sort": i, "nfcEnable": False})
+                        "passStatus": bool(p.is_valid), "clockTime": p.collect_time})
     return out
 
 
 def tail_points(pts: Sequence[RunLatLng], k: int = 4) -> List[Dict[str, Any]]:
     """最后 4 个点
 
-    ★ 注意：原版结算报文 t1() 里**没有 pois**——pois 只出现在 uploadRunRecord。
-    这个函数保留给轨迹接口与导出用。
+    ★ 原版 pois 出现在两处：
+      1. run/uploadRunRecord（km7.j，整张表一次发）；
+      2. 结算报文——ApiDataComponent.J() 会把 state∈{1 INIT,4 FAIL} 且 valid
+         的残留点作为 pois 塞进结算（`listB3` 非空才 put）。
+    这里取尾部 k 个，只给导出/展示用。
     """
     return [p.to_upload_dict() for p in list(pts)[-k:]]
 
