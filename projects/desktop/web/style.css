@@ -19,16 +19,16 @@ button { font-family: inherit; }
 /* ── 登录页 ── */
 #view-login.active { display: grid; place-items: center; }
 .login-layout {
-  width: min(1000px, 92vw); display: grid; grid-template-columns: 1fr 380px;
-  gap: 80px; align-items: center;
+  width: min(920px, 92vw); display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0; align-items: center; margin: 0 auto;
 }
-.login-brand { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: 20px; justify-self: center; }
 .app-icon {
-  width: 112px; height: 112px; border-radius: 24px; display: block;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .12);
+  width: 112px; height: 112px; display: block;
+  border-radius: 0; box-shadow: none; background: transparent;
 }
 .login-brand-name { font-size: 30px; font-weight: 600; letter-spacing: 2px; }
-.login-card { border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .08); }
+.login-card { border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .08); justify-self: center; width: 100%; max-width: 380px; }
 .login-card .ant-card-body { padding: 32px; }
 .login-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .login-actions .ant-btn { height: 38px; padding: 0 22px; }
@@ -85,7 +85,7 @@ button { font-family: inherit; }
   padding: 28px 24px; display: flex; flex-direction: column; gap: 20px; min-height: 0;
 }
 .side-brand { display: flex; justify-content: center; padding-top: 6px; }
-.side-brand .app-icon { width: 96px; height: 96px; border-radius: 22px; }
+.side-brand .app-icon { width: 96px; height: 96px; border-radius: 0; }
 .side-actions { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: auto; }
 .btn-start {
   width: 148px; height: 148px !important; border-radius: 50% !important;
@@ -249,14 +249,13 @@ button { font-family: inherit; }
   .btn-start { width: 128px; height: 128px !important; font-size: 22px !important; }
 }
 @media (max-height: 760px) {
-  .side-brand .app-icon { width: 72px; height: 72px; border-radius: 18px; }
+  .side-brand .app-icon { width: 72px; height: 72px; border-radius: 0; }
   .btn-start { width: 118px; height: 118px !important; font-size: 20px !important; }
 }
 
 /* ── React 根与页面容器 ── */
 .app-root { height: 100%; }
 .login-page { height: 100%; display: grid; place-items: center; }
-.login-layout { width: min(1000px, 92vw); display: grid; grid-template-columns: 1fr 380px; gap: 80px; align-items: center; }
 .pick-page { height: 100%; display: flex; flex-direction: column; }
 .more-page { height: 100%; display: flex; flex-direction: column; }
 .map-canvas { position: absolute; inset: 0; }
