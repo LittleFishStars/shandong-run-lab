@@ -30,7 +30,7 @@
   <section class="col col-left">
     <div class="card">
       <div class="card-head">
-        <h2>① 登录</h2>
+        <h2>登录</h2>
         <span class="hint" id="login-hint">真实服务端登录</span>
       </div>
       <div class="card-body">
@@ -73,7 +73,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>② 阳光跑</h2>
+        <h2>阳光跑</h2>
         <span class="hint">跑步参数（别的操作都在地图卡的「高级 / 调试」里）</span>
       </div>
       <div class="card-body">
@@ -113,7 +113,7 @@
           </label>
         </div>
         <div class="row">
-          <span class="hint">③ 开始跑步 · ④ 结束跑步 在中间地图卡上方；整场仿真在「高级 / 调试」里</span>
+          <span class="hint">② 开始跑步 · ③ 结束跑步 在中间地图卡上方；整场仿真在「高级 / 调试」里</span>
         </div>
         <div class="progress">
           <div class="progress-bar"><i id="progress-fill" style="width:0%"></i></div>
@@ -124,7 +124,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>④ 学校规则（SchoolRule）</h2>
+        <h2>学校规则（SchoolRule）</h2>
         <button class="btn ghost small" id="btn-load-rule">刷新</button>
       </div>
       <div class="card-body"><div class="kv" id="rule-info">尚未加载</div></div>
@@ -139,15 +139,13 @@
         <span class="hint" id="map-hint">高德路网 · GCJ-02</span>
       </div>
       <div class="map-bar flow-bar" id="flow-bar">
-        <button class="btn small primary" id="btn-prepare"
-                title="拉取电子围栏 / 学校规则 / 打卡点，并自动把地图移到电子围栏处">① 拉取配置</button>
         <button class="btn small" id="btn-pick-start"
-                title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">② 选择起始点</button>
+                title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">① 选择起始点</button>
         <button class="btn small primary" id="btn-walk-real"
-                title="在地图上画出打卡路径，然后升跑并开始记录轨迹（实时写入本地库）">③ 开始跑步</button>
+                title="在地图上画出打卡路径，然后升跑并开始记录轨迹（实时写入本地库）">② 开始跑步</button>
         <button class="btn small" id="btn-flow-end" disabled
-                title="停止记录，并把本次轨迹上传结算">④ 结束跑步</button>
-        <span class="hint" id="flow-info">第 ① 步：先在左栏登录</span>
+                title="停止记录，并把本次轨迹上传结算">③ 结束跑步</button>
+        <span class="hint" id="flow-info">登录后自动拉取围栏与学校规则</span>
       </div>
       <div class="card-body map-body">
         <div id="map"></div>

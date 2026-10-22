@@ -96,6 +96,7 @@ const S = {
   runsHasNext: false,
   pickedRecord: null,    // 用户点选/自动选中的服务端记录（非空时左卡不被“最近一次”覆盖）
   serverPoints: null,     // 最近一条服务端记录的打卡点数（targetPoints）
+  autoPreparing: false,   // 登录后自动拉取配置是否进行中（决定状态行文案与防重入）
 };
 const $ = (id) => document.getElementById(id);
 
@@ -253,7 +254,7 @@ function renderStatus(st) {
     S.currentRun = st.last.run_code;
     renderRunInfo(st.last);
   }
-  // ★ 每次状态回来后重画叠加层：电子围栏是「拉取配置」的产品结果，
+  // ★ 每次状态回来后重画叠加层：电子围栏是登录后自动拉取配置的产物，
   //   不在这里重画的话，围栏要等到下一次别的 drawMap 触发（规划/摇杆/详情）才出现，
   //   镜头也就不会在拿到围栏的当下就飞过去。
   //   重绘本身有围栏指纹 + 用户手动的双重护栏，不会每秒抢镜头。
@@ -270,7 +271,6 @@ function renderProgress(p) {
     + (p.running ? '（运行中）' : '');
   const busy = !!p.running;
   $('btn-run').disabled = busy;
-  $('btn-prepare').disabled = busy;
   $('btn-resume').disabled = busy;
   syncFlowInfo();          // 主流程状态行也跟着走（上传结算期间显示“进行中 xx%”）
 }
@@ -873,7 +873,7 @@ function startPointText() {
 function syncStartUi() {
   const b = $('btn-pick-start');
   if (b) {
-    b.textContent = S.pickStart ? '点地图…（取消）' : '② 选择起始点';
+    b.textContent = S.pickStart ? '点地图…（取消）' : '① 选择起始点';
     b.classList.toggle('primary', S.pickStart);
   }
   const cb = $('btn-clear-start');
@@ -924,7 +924,7 @@ async function clearStartPoint() {
   toast('已回到围栏中心起点', 'ok');
 }
 
-// ── 主流程状态行：① 拉取配置 → ② 选择起始点 → ③ 开始跑步 → ④ 结束跑步 ──
+// ── 主流程状态行：① 选择起始点 → ② 开始跑步 → ③ 结束跑步（配置由登录后自动拉取）──
 // 只讲“下一步做什么”，免得每加一个按钮就得让人自己找路。
 function flowInfoText() {
   const st = S.status || {};
@@ -932,9 +932,11 @@ function flowInfoText() {
   let base;
   if (pg.running) base = `进行中：${pg.message || '处理中'}（${Math.round(Number(pg.percent || 0))}%）`;
   else if (S.walk && S.walk.running) base = `${S.walk.mode === 'real' ? '跑步中' : '干跑中'}｜${startPointText()}`;
-  else if (!st.logged_in) base = '第 ① 步：先在左栏登录';
-  else if (!((st.fences || []).length)) base = '第 ① 步：点「拉取配置」，把电子围栏拉下来并自动定位到围栏';
-  else base = `已就绪｜${startPointText()}｜点「③ 开始跑步」`;
+  else if (!st.logged_in) base = '请先在左栏登录（登录后会自动拉取围栏与学校规则）';
+  else if (!((st.fences || []).length)) base = S.autoPreparing
+    ? '正在自动拉取围栏与学校规则…'
+    : '配置未就绪（自动拉取失败时，点「学校规则」卡右上角的刷新重试）';
+  else base = `已就绪｜${startPointText()}｜点「② 开始跑步」`;
   // 动作回执（规划结果、跑步实时数据）永远拼在后面：「起点 / 下一步该点哪个」不能被它顶掉
   return S.walkMsg ? `${base}｜${S.walkMsg}` : base;
 }
@@ -1089,13 +1091,21 @@ async function walkSave() {
   if (r && r.code === 0) refreshRuns();
 }
 
-// ③ 开始跑步：先把打卡路径画到地图上，再升跑并开始记录（轨迹实时入库）
+// ② 开始跑步：先把打卡路径画到地图上，再升跑并开始记录（轨迹实时入库）
 async function startRun() {
   S.pickedRecord = null;      // 开跑后左卡回到实时数据
   const st = S.status || {};
-  if (!st.logged_in) { toast('请先在左栏 ① 登录', 'err'); return; }
-  if (!((st.fences || []).length)) { toast('请先点「① 拉取配置」，把电子围栏拉下来', 'err'); return; }
-  if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「④ 结束跑步」', 'err'); return; }
+  if (!st.logged_in) { toast('请先在左栏登录', 'err'); return; }
+  if (!((st.fences || []).length)) {
+    // 登录后已自动拉取；还没好就再试一次（比如刚登录、网络慢）
+    toast('正在拉取围栏与规则…');
+    await autoPrepare('开跑前');
+    if (!(((S.status || {}).fences || []).length)) {
+      toast('配置未就绪，请检查网络后重试', 'err');
+      return;
+    }
+  }
+  if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「③ 结束跑步」', 'err'); return; }
   await saveParams(true);
   // 先清掉图上画过的旧路线，让这次开跑按服务端下发的真实打卡点重算路线
   S.previewPoints = [];
@@ -1104,7 +1114,7 @@ async function startRun() {
   reportGeometry('run');                       // 开跑后把布局几何上报一次（写进事件流）
 }
 
-// ④ 结束跑步：停止记录 → 上传轨迹 → 结算（上传走后台线程，进度看状态行）
+// ③ 结束跑步：停止记录 → 上传轨迹 → 结算（上传走后台线程，进度看状态行）
 async function walkEnd() {
   if (!(S.walk && S.walk.running)) { toast('现在没有在跑', 'err'); return; }
   const b = $('btn-flow-end');
@@ -1242,6 +1252,29 @@ async function ensureMode(want) {
   return true;
 }
 
+// 登录（或启动时已登录）后自动拉取围栏与学校规则：替代原来的「① 拉取配置」按钮
+async function autoPrepare(reason = '') {
+  if (S.autoPreparing) return false;
+  if (!(S.status && S.status.logged_in)) return false;
+  S.autoPreparing = true;
+  syncFlowInfo();
+  try {
+    const r = await Bridge.call('prepare');
+    if (r && r.code === 0) {
+      toast('已自动拉取围栏与学校规则' + (reason ? `（${reason}）` : ''), 'ok');
+      return true;
+    }
+    toast('自动拉取配置失败：' + ((r && r.message) || '未知错误'), 'err');
+    return false;
+  } catch (e) {
+    toast('自动拉取配置失败：' + ((e && e.message) || e), 'err');
+    return false;
+  } finally {
+    S.autoPreparing = false;
+    try { await refreshStatus(); } catch (_) { /* 状态刷新失败不阻塞 */ }
+    syncFlowInfo();
+  }
+}
 async function init() {
   await Bridge.waitReady();
   if (!(window.pywebview && window.pywebview.api) && !location.protocol.startsWith('http')) {
@@ -1286,8 +1319,13 @@ $('btn-login').addEventListener('click', async () => {
   }
   try {
     const res = await Bridge.call('login', phone, password, $('in-captcha').checked);
-    if (res && res.code === 0) toast('登录成功', 'ok');
-    else toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
+    if (res && res.code === 0) {
+      toast('登录成功', 'ok');
+      await refreshStatus();
+      await autoPrepare('登录后');     // 原来要手动点「① 拉取配置」，现在登录后自动拉
+    } else {
+      toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
+    }
   } finally { busy(b, false); refreshStatus(); }
 });
   $('btn-logout').addEventListener('click', async () => {
@@ -1306,7 +1344,8 @@ $('btn-login').addEventListener('click', async () => {
     const r = await Bridge.call('switch_account', uid);
     if (r && r.code === 0) {
       toast('已切换账号：' + ((r.data && r.data.userName) || '该账号'), 'ok');
-      refreshStatus();
+      await refreshStatus();
+      await autoPrepare('切换账号后');
     } else toast('切换失败：' + ((r && r.message) || '未知错误'), 'err');
   });
   $('btn-account-del').addEventListener('click', async () => {
@@ -1318,14 +1357,6 @@ $('btn-login').addEventListener('click', async () => {
   });
 
   // 跑步
-  $('btn-prepare').addEventListener('click', async () => {
-    const b = $('btn-prepare'); busy(b, true);
-    try {
-      await saveParams(true);
-      const r = await Bridge.call('prepare');
-      toast(r.code === 0 ? '配置已拉取' : ('失败：' + r.message), r.code === 0 ? 'ok' : 'err');
-    } finally { busy(b, false); refreshStatus(); }
-  });
   $('btn-run').addEventListener('click', async () => {
     await saveParams(true);
     const r = await Bridge.call('run_auto', Number($('in-distance').value),
@@ -1371,8 +1402,8 @@ $('btn-login').addEventListener('click', async () => {
   $('btn-pick').addEventListener('click', togglePick);
   $('btn-clear-wp').addEventListener('click', clearWaypoints);
   $('btn-walk-dry').addEventListener('click', () => walkStart('dry'));
-  $('btn-walk-real').addEventListener('click', startRun);   // ③ 开始跑步（先画路径再开跑）
-  $('btn-flow-end').addEventListener('click', walkEnd);      // ④ 结束跑步（停止 + 上传结算）
+  $('btn-walk-real').addEventListener('click', startRun);   // ② 开始跑步（先画路径再开跑）
+  $('btn-flow-end').addEventListener('click', walkEnd);      // ③ 结束跑步（停止 + 上传结算）
   $('btn-walk-stop').addEventListener('click', walkStop);
   $('btn-walk-pause').addEventListener('click', walkPause);
   $('btn-walk-up').addEventListener('click', walkUpload);
@@ -1385,7 +1416,7 @@ $('btn-login').addEventListener('click', async () => {
     if (w && w.running) {
       S.walk = w; S.walkSince = Number(w.points || 0);
       $('btn-walk-stop').disabled = false;
-      syncFlowInfo();                    // 接管后「④ 结束跑步」也得可用
+      syncFlowInfo();                    // 接管后「③ 结束跑步」也得可用
       $('map').closest('.map-card').classList.add('walking');
       startWalkTimer();
       toast('检测到正在进行的实走，已重新接管', 'ok');
@@ -1423,6 +1454,10 @@ $('btn-login').addEventListener('click', async () => {
     await refreshRuns();
   } catch (e) {
     toast('初始化失败：' + ((e && e.message) || e), 'err');
+  }
+  // 重启程序时已登录（会话恢复）但还没拉过配置：启动时自动拉一次
+  if (S.status && S.status.logged_in && !((S.status.fences || []).length)) {
+    autoPrepare('启动时');
   }
   setInterval(poll, 700);
   reportGeometry('load');                        // 首屏自检：摇杆簇有没有被裁，直接写进事件流
