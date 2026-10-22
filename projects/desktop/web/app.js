@@ -150,19 +150,11 @@ function esc(s) {
 
 function renderStatus(st) {
   S.status = st;
-  const mode = st.mode === 'mock' ? '本地 Mock（离线调试）' : '真实服务端';
-  $('pill-mode').textContent = `模式：${mode}`;
-  $('pill-mode').className = 'pill ' + (st.mode === 'mock' ? 'on' : 'warn');
   const modeSel = $('in-login-mode');
   // 永远跟后端对齐：下拉框的值只有 renderStatus 说了算，
   // 不然 HTML 里的初值（real）会被当成用户选择，一点登录就把 Mock 会话切成真实模式。
   if (modeSel && modeSel.value !== st.mode) modeSel.value = st.mode || 'real';
   syncLoginHint(st.mode);
-  $('pill-login').textContent = st.logged_in ? '已登录' : '未登录';
-  $('pill-login').className = 'pill ' + (st.logged_in ? 'on' : '');
-  $('pill-device').textContent = '设备：' + String(st.device_id || '--').slice(0, 12);
-  $('pill-version').textContent = 'v' + (st.version || '--');
-
   // 用户信息
   const u = st.user || {};
   $('user-info').innerHTML = st.logged_in ? kv({
@@ -597,16 +589,11 @@ function setTiles(m) {
   if (!m) return;
   if (MAP.tile) { m.removeLayer(MAP.tile); MAP.tile = null; }
   const conf = TILES[S.tiles];
-  const hint = document.getElementById('map-hint');
-  if (!conf) {
-    if (hint) hint.textContent = '无底图 · 仅矢量叠加';
-    return;                    // “无底图”：只留矢量叠加
-  }
+  if (!conf) return;           // “无底图”：只留矢量叠加
   MAP.tileError = false;
   MAP.tile = L.tileLayer(conf.url, {
     subdomains: conf.subdomains, maxZoom: conf.maxZoom, attribution: conf.attribution,
   }).addTo(m);
-  if (hint) hint.textContent = conf.label + ' · GCJ-02';
 }
 
 // 重画叠加层；forceFit=true 或内容变化时才移动镜头（否则会抢用户的拖动）
@@ -1009,8 +996,7 @@ function flowInfoText() {
 }
 
 function syncFlowInfo() {
-  const info = $('flow-info');
-  if (info) info.textContent = flowInfoText();
+  // 主流程提示条已按参考图移除；这里只同步「结束」按钮的可用状态
   const end = $('btn-flow-end');
   if (end) end.disabled = !(S.walk && S.walk.running);
 }
@@ -1480,9 +1466,10 @@ $('btn-login').addEventListener('click', async () => {
     try {
       if (!S.status || !S.status.logged_in) toast('建议先登录：规划本身不需要网络，但需要已经拉过的围栏与打卡点', 'err');
       await planPaths();
+      showView('home');
     } finally { busy(b, false); }
   });
-  $('btn-pick').addEventListener('click', togglePick);
+  $('btn-pick').addEventListener('click', () => { showView('home'); togglePick(); });
   $('btn-clear-wp').addEventListener('click', clearWaypoints);
   $('btn-walk-dry').addEventListener('click', () => walkStart('dry'));
   $('btn-walk-real').addEventListener('click', startRun);   // ② 开始跑步（先画路径再开跑）
@@ -1508,11 +1495,11 @@ $('btn-login').addEventListener('click', async () => {
 
   // 地图 / 日志
   $('in-show-state').addEventListener('change', (e) => { S.showState = e.target.checked; drawMap(); });
-  $('btn-fit').addEventListener('click', () => { S.fit = true; drawMap(true); });
+  $('btn-fit').addEventListener('click', () => { showView('home'); S.fit = true; drawMap(true); });
   // 跑步起点：点“设置起点”后在图上点一下，或点“清除起点”回到围栏中心
   $('btn-pick-start').addEventListener('click', openPickView);
   $('btn-pick-confirm').addEventListener('click', closePickView);
-  $('btn-clear-start').addEventListener('click', clearStartPoint);
+  $('btn-clear-start').addEventListener('click', async () => { await clearStartPoint(); showView('home'); });
   // 摇杆与「自动跑」：常驻右下角，默认手动
   $('btn-auto-run').addEventListener('click', toggleAutoRun);
   syncAutoUi();

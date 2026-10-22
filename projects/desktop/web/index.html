@@ -8,23 +8,6 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="logo">⚡</span>
-    <div>
-      <div class="title">闪动校园 · 阳光跑工作台</div>
-      <div class="subtitle">协议复原版 · 登录 → 阳光跑 → 数据记录 → 数据上传</div>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <span class="pill" id="pill-mode" title="运行模式">模式：--</span>
-    <span class="pill" id="pill-login" title="登录状态">未登录</span>
-    <span class="pill mono" id="pill-device" title="deviceId">设备：--</span>
-    <span class="pill mono" id="pill-version">v--</span>
-    <button class="btn ghost small" id="btn-data-dir">数据目录</button>
-  </div>
-</header>
-
 <main id="views">
   <!-- ═══════════ 登录页 ═══════════ -->
   <section class="view" id="view-login">
@@ -32,14 +15,8 @@
       <div class="login-brand">
         <div class="logo-badge">⚡</div>
         <div class="login-brand-name">闪动校园</div>
-        <div class="login-brand-sub">阳光跑 · 桌面工作台</div>
       </div>
       <div class="login-card">
-        <select id="in-login-mode" class="login-mode" title="登录方式">
-          <option value="real">真实服务端</option>
-          <option value="mock">本地 Mock</option>
-        </select>
-
         <div class="login-form" id="login-form-new">
           <label class="field">
             <span>手机号</span>
@@ -66,8 +43,6 @@
           </div>
           <button class="login-link login-remove" id="btn-account-del" hidden>移除该账号</button>
         </div>
-
-        <div class="login-hint" id="login-hint">真实服务端</div>
       </div>
     </div>
   </section>
@@ -77,68 +52,16 @@
     <div class="run-layout">
       <div class="map-card">
         <div class="map-slot" id="slot-home"><div id="map"></div></div>
-        <span class="map-hint" id="map-hint">高德路网 · GCJ-02</span>
-        <div class="flow-bar" id="flow-bar">
-          <button class="btn ghost small" id="btn-pick-start"
-                  title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">① 选择起始点</button>
-          <span class="hint" id="flow-info">登录后自动拉取围栏与学校规则</span>
-        </div>
-        <details class="adv" id="adv-tools">
-          <summary>高级 / 调试</summary>
-          <div class="adv-body">
-            <div class="adv-row">
-              <button class="btn small" id="btn-walk-dry" title="只推位置与数据，不升跑、不落库、不上传，纯调路径">干跑调试</button>
-              <button class="btn small" id="btn-walk-stop" disabled>停止</button>
-              <button class="btn small" id="btn-walk-pause" disabled title="暂停时计时与计步都停，结算上报 pauseCount/pauseTimes">暂停</button>
-              <button class="btn small" id="btn-walk-up" title="停止后按与一键跑完全相同的链路上传并结算">上传结算</button>
-              <button class="btn ghost small" id="btn-walk-save" title="把本次路径存成本地草稿，不升跑不上传">存草稿</button>
-            </div>
-            <div class="adv-row">
-              <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
-              <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
-              <button class="btn ghost small" id="btn-clear-wp">清路点</button>
-              <button class="btn ghost small" id="btn-clear-start" disabled title="取消自定义起点，回到围栏中心">清除起点</button>
-              <button class="btn ghost small" id="btn-fit">适应</button>
-            </div>
-            <div class="adv-row">
-              <button class="btn small" id="btn-run" title="不用在地图上走，直接按仿真参数跑完一整场并上传">一键跑完整链路</button>
-              <button class="btn small" id="btn-resume">断点续传</button>
-              <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
-                <option value="amap">高德路网</option>
-                <option value="amap-sat">高德卫星</option>
-                <option value="osm">OpenStreetMap</option>
-                <option value="none">无底图</option>
-              </select>
-              <label class="check small"><input type="checkbox" id="in-show-state" checked>
-                <span>按上传状态着色</span></label>
-            </div>
-          </div>
-        </details>
-        <div class="map-legend">
-          <span><i class="sw route"></i>规划路线</span>
-          <span><i class="sw wpt"></i>路点</span>
-          <span><i class="sw fence"></i>围栏</span>
-          <span><i class="sw start"></i>起点</span>
-          <span><i class="sw cp"></i>打卡点</span>
-          <span><i class="sw init"></i>待上传</span>
-          <span><i class="sw fail"></i>失败</span>
-          <span><i class="sw succ"></i>已上传</span>
-        </div>
       </div>
-
       <aside class="side-panel">
-        <div class="side-brand">
-          <div class="logo-badge">⚡</div>
-          <div class="side-brand-name">闪动校园</div>
-        </div>
+        <div class="side-brand"><div class="logo-badge">⚡</div></div>
         <label class="target-pill">
           <span>目标距离</span>
           <select id="in-distance" title="目标距离：按学校规则的单次距离区间，从高到低每 1 km 一个选项"></select>
         </label>
         <div class="side-actions">
-          <button class="btn-start" id="btn-walk-real"
-                  title="在地图上画出打卡路径，然后升跑并开始记录轨迹">开始</button>
-          <button class="btn-more" id="btn-more" title="服务器记录 / 学校规则 / 跑步参数 / 事件流">更多</button>
+          <button class="btn-start" id="btn-walk-real" title="在地图上画出打卡路径，然后升跑并开始记录轨迹">开始</button>
+          <button class="btn-more" id="btn-more" title="参数 / 规则 / 记录 / 事件流">更多</button>
         </div>
         <div class="progress">
           <div class="progress-bar"><i id="progress-fill" style="width:0%"></i></div>
@@ -169,15 +92,12 @@
           <div class="live-line"><span>配速</span><b id="live-pace">--</b></div>
         </div>
         <div class="run-ctl" id="run-ctl">
-          <button class="btn ghost small" id="btn-auto-run"
-                  title="默认手动：用摇杆控制方向。点这里切到自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
           <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键（自动跑时推杆即接管）">
             <div class="joy-ring"></div>
             <div class="joy-knob" id="joy-knob"></div>
           </div>
         </div>
-        <button class="btn-end" id="btn-flow-end" disabled
-                title="停止记录，并把本次轨迹上传结算">结束</button>
+        <button class="btn-end" id="btn-flow-end" disabled title="停止记录，并把本次轨迹上传结算">结束</button>
       </aside>
     </div>
   </section>
@@ -192,6 +112,13 @@
       <div class="card">
         <div class="card-head"><h2>跑步参数</h2></div>
         <div class="card-body">
+          <label class="field">
+            <span>运行模式</span>
+            <select id="in-login-mode">
+              <option value="real">真实服务端</option>
+              <option value="mock">本地 Mock</option>
+            </select>
+          </label>
           <label class="field">
             <span>围栏</span>
             <select id="in-fence"><option value="0">默认（第 1 个）</option></select>
@@ -238,7 +165,10 @@
         <div class="card-head"><h2>账号</h2></div>
         <div class="card-body">
           <div class="kv" id="user-info"></div>
-          <div class="row"><button class="btn ghost small" id="btn-logout">退出登录</button></div>
+          <div class="row">
+            <button class="btn ghost small" id="btn-data-dir">数据目录</button>
+            <button class="btn ghost small" id="btn-logout">退出登录</button>
+          </div>
         </div>
       </div>
 
@@ -248,6 +178,51 @@
           <span class="hint" id="run-code-label">--</span>
         </div>
         <div class="card-body"><div class="kv" id="run-info">尚未开始</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>地图与起点</h2></div>
+        <div class="card-body">
+          <div class="row">
+            <button class="btn small" id="btn-pick-start">选择起始点</button>
+            <button class="btn ghost small" id="btn-clear-start" disabled title="取消自定义起点，回到围栏中心">清除起点</button>
+            <button class="btn ghost small" id="btn-fit">适应</button>
+          </div>
+          <div class="row">
+            <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
+              <option value="amap">高德路网</option>
+              <option value="amap-sat">高德卫星</option>
+              <option value="osm">OpenStreetMap</option>
+              <option value="none">无底图</option>
+            </select>
+            <label class="check small"><input type="checkbox" id="in-show-state" checked>
+              <span>按上传状态着色</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>高级 / 调试</h2></div>
+        <div class="card-body">
+          <div class="row">
+            <button class="btn small" id="btn-walk-dry" title="只推位置与数据，不升跑、不落库、不上传，纯调路径">干跑调试</button>
+            <button class="btn small" id="btn-walk-stop" disabled>停止</button>
+            <button class="btn small" id="btn-walk-pause" disabled title="暂停时计时与计步都停，结算上报 pauseCount/pauseTimes">暂停</button>
+            <button class="btn small" id="btn-walk-up" title="停止后按与一键跑完全相同的链路上传并结算">上传结算</button>
+            <button class="btn ghost small" id="btn-walk-save" title="把本次路径存成本地草稿，不升跑不上传">存草稿</button>
+          </div>
+          <div class="row">
+            <button class="btn small" id="btn-plan" title="按打卡点最近邻连成一条闭环，只画出来不跑">只规划路径</button>
+            <button class="btn small" id="btn-pick" title="在地图上依次点击，画出一条自定义路线">点选路点</button>
+            <button class="btn ghost small" id="btn-clear-wp">清路点</button>
+          </div>
+          <div class="row">
+            <button class="btn small" id="btn-run" title="不用在地图上走，直接按仿真参数跑完一整场并上传">一键跑完整链路</button>
+            <button class="btn small" id="btn-resume">断点续传</button>
+            <button class="btn ghost small" id="btn-auto-run"
+                    title="手动（摇杆）/ 自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
+          </div>
+        </div>
       </div>
 
       <div class="card records-card">
