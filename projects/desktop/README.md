@@ -162,7 +162,13 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 反编译 `com/huachenjie/**/*Api.java` 的结果：**上传/结算四个接口是 JSON，而登录/围栏/规则/榜单是表单（`@FormUrlEncoded`）**。实测 JSON 文体也能被接受，所以本项目统一用 JSON；需要时可在 `constants.EP` 的 `Endpoint` 上加 `content_type` 单独覆盖。
 ### 界面速览
 
-界面严格按参考图分页面，页面内不额外添加浮层或状态条：
+界面严格按参考图分页面，页面内不额外添加浮层或状态条。前端是 **React 18 + Ant Design 4** 单页应用：
+源码在 `web/src/`，用 esbuild 打包成 `web/app.bundle.js`（已提交，运行时不需 node）；改完前端重新构建：
+
+```bash
+cd web && npm install && npm run build   # 或直接 ./node_modules/.bin/esbuild src/main.jsx --bundle --minify --format=iife --loader:.js=jsx --outfile=app.bundle.js
+```
+
 
 | 页面 | 内容 |
 |---|---|
@@ -180,7 +186,7 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 - 目标距离是下拉：按学校规则的单次距离区间、从高到低每 1 km 一项（真实规则 2000–3000 → `3 km` / `2 km`）。
 - 打卡点数量优先取最近一次记录的 `targetPoints`，其次本次开跑下发，最后回退围栏的 `requiredPointCounts`。
-- 地图在首页 / 选点页 / 跑步页之间**复用同一个 Leaflet 实例**：切页时把 `#map` 挂到当前页的槽位并 `invalidateSize()`。
+- 地图由 `MapCanvas` 组件在每个页面挂载 Leaflet 实例，切页时重建并按围栏 / 起点 `fitBounds`；瓦片源与叠加层（围栏 / 打卡点 / 起点 / 路线 / 轨迹）随状态重绘。
 - 旧的截图在 `docs/desktop/screenshots/`（三栏布局时期），仅作历史参考。
 
 ## 四、数据与配置

@@ -26,3 +26,4 @@ reference/
 dist/
 build/
 packaging/version_info.txt
+web/node_modules/

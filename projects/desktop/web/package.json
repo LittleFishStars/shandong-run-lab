@@ -1,0 +1,17 @@
+{
+  "name": "shandong-school-cracked-web",
+  "private": true,
+  "version": "1.2.0",
+  "scripts": {
+    "build": "esbuild src/main.jsx --bundle --minify --format=iife --target=es2018 --loader:.js=jsx --outfile=app.bundle.js"
+  },
+  "dependencies": {
+    "antd": "4.24.16",
+    "dayjs": "^1.11.13",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
