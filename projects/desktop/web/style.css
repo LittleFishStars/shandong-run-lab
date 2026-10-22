@@ -95,7 +95,7 @@ button { font-family: inherit; }
 }
 .btn-more {
   width: 56px; height: 56px !important; padding: 0 !important; font-size: 13px;
-  align-self: center; margin: 0;
+  align-self: flex-end; margin-right: 8px; margin-top: -24px;
 }
 
 .progress { margin-top: 4px; }
