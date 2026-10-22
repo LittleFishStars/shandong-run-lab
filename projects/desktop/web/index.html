@@ -153,7 +153,7 @@
     </div>
   </section>
 
-  <!-- ═══════════ 中栏：地图与实时状态 ═══════════ -->
+  <!-- ═══════════ 中栏：地图与事件流 ═══════════ -->
   <section class="col col-mid">
     <div class="card map-card">
       <div class="card-head">
@@ -232,18 +232,7 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-head">
-        <h2>本次跑步</h2>
-        <span class="hint" id="run-code-label">--</span>
-      </div>
-      <div class="card-body"><div class="kv" id="run-info">尚未开始</div></div>
-    </div>
-  </section>
-
-  <!-- ═══════════ 右栏：事件流与记录 ═══════════ -->
-  <section class="col col-right">
-    <div class="card grow">
+    <div class="card log-card">
       <div class="card-head">
         <h2>事件流</h2>
         <div class="head-tools">
@@ -253,6 +242,17 @@
         </div>
       </div>
       <div class="card-body log-body"><div class="log" id="log"></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 右栏：本次跑步与记录 ═══════════ -->
+  <section class="col col-right">
+    <div class="card">
+      <div class="card-head">
+        <h2>本次跑步</h2>
+        <span class="hint" id="run-code-label">--</span>
+      </div>
+      <div class="card-body"><div class="kv" id="run-info">尚未开始</div></div>
     </div>
 
     <div class="card grow">

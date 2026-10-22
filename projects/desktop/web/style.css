@@ -70,9 +70,9 @@ html, body {
 }
 .col { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: auto; }
 /* 中栏：地图卡片钉在页面上半部分（网格行高决定，不再被内容拉伸或居中），
-   下半部分给“本次跑步”。overflow:hidden 避免整列滚动把地图推出视野。
+   下半部分给“事件流”。overflow:hidden 避免整列滚动把地图推出视野。
    地图卡有硬性最小高度（见 .col-mid .map-card，窗口矮时按视口降档），
-   保证右下角摇杆簇 + 主流程提示行永远装得下；空间不够时由“本次跑步”卡让位
+   保证右下角摇杆簇 + 主流程提示行永远装得下；空间不够时由“事件流”卡让位
    （可压到 0 并内部滚动），而不是把地图区挤扁——地图区被挤扁后
    .map-body{overflow:hidden} 会把整簇摇杆裁掉（2026-10-18 实测）。 */
 .col-mid {
@@ -92,6 +92,10 @@ html, body {
 /* 卡片允许窄于内容（内容自己省略 / 滚动），与上面的列宽一起保证卡片右边缘
    就是中栏的右边缘，右下角的摇杆簇才落在可见区内。 */
 .col-mid > .card { min-width: 0; }
+/* 中栏第二行是事件流：行高由上面的网格分配，卡片必须能压到 0（内部滚动），
+   不能沿用 .card.grow 的 min-height:180，否则矮窗口会把中栏撑出可视区。 */
+.col-mid > .card.log-card { min-height: 0; }
+.col-mid > .card.log-card > .card-body { flex: 1 1 auto; min-height: 0; }
 /* 摇杆簇挂在卡片上（不在 .map-body 里）：地图区 overflow:hidden，窗口一矮就会把它裁掉；
    卡片自己不裁剪，所以哪怕地图区被压到 0，摇杆也不会消失。 */
 .map-card { position: relative; }
@@ -355,8 +359,11 @@ select.mini {
 .log .lv-warn .m { color: var(--warn); }
 
 /* ── 记录列表 ── */
-.list-body { display: flex; flex-direction: column; gap: 10px; padding: 10px !important; }
-.runs { display: flex; flex-direction: column; gap: 6px; max-height: 42%; overflow: auto; }
+.list-body { display: flex; flex-direction: column; gap: 10px; padding: 10px !important; min-height: 0; }
+/* 记录列表：以前写死 42% 高，卡片被拉高时列表不跟着长（详情独大、列表过早滚动）。
+   改成占满卡里详情之外的剩余高度，记录多时在列表内滚动；详情按内容占位、
+   最多 32%，让列表滚动区占卡片约三分之二。 */
+.runs { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow: auto; }
 .run-item {
   padding: 8px 10px; border-radius: 8px; cursor: pointer;
   background: var(--card-2); border: 1px solid var(--line);
@@ -374,7 +381,7 @@ select.mini {
 .badge.err { color: var(--err); border-color: #6b2c2c; }
 .badge.warn { color: var(--warn); border-color: #6b552c; }
 
-.detail { font-size: 12px; color: var(--text-dim); overflow: auto; flex: 1; min-height: 0; }
+.detail { font-size: 12px; color: var(--text-dim); overflow: auto; flex: 0 1 auto; max-height: 32%; min-height: 0; }
 .detail h3 { margin: 8px 0 6px; font-size: 12.5px; color: var(--text); }
 .detail table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 .detail th, .detail td { padding: 3px 6px; text-align: left; border-bottom: 1px solid #ffffff0d; }
