@@ -210,12 +210,17 @@ function renderStatus(st) {
     const rc = st.run_cfg || {}, sc = st.sim_cfg || {}, wc = st.walk_cfg || {};
     if (rc.target_distance_m) $('in-distance').value = rc.target_distance_m;
     if (rc.stride_m) $('in-stride').value = rc.stride_m;
-    if (sc.min_cadence) $('in-cad-lo').value = sc.min_cadence;
-    if (sc.max_cadence) $('in-cad-hi').value = sc.max_cadence;
-    $('in-realtime').checked = !!sc.realtime;
-    if (sc.speed) $('in-speed').value = sc.speed;
-    // 摇杆速度（m/s）：从 walk 段回填，否则界面上的值只是默认值、与后端不一致
-    if (wc.speed_mps && $('in-walk-speed')) $('in-walk-speed').value = wc.speed_mps;
+    // 步频：后端存的是 min/max，界面用“平均 ± 波动”两个输入
+    if (sc.min_cadence || sc.max_cadence) {
+      const lo = Number(sc.min_cadence || sc.max_cadence) || 172;
+      const hi = Number(sc.max_cadence || sc.min_cadence) || 182;
+      $('in-cad-avg').value = Math.round((lo + hi) / 2);
+      $('in-cad-var').value = Math.max(0, Math.round((hi - lo) / 2));
+    }
+    // 摇杆速度（m/s）→ 配速文本回填，否则界面上的值只是默认值、与后端不一致
+    if (wc.speed_mps && $('in-walk-pace')) {
+      $('in-walk-pace').value = fmtPaceInput(1000 / Number(wc.speed_mps));
+    }
     // 到达目标自动结算（后端 walk.auto_settle，默认开）
     if ($('in-auto-settle')) $('in-auto-settle').checked = (wc.auto_settle !== false);
     S.paramsLoaded = true;
@@ -261,6 +266,29 @@ function fmtPace(secPerKm) {
   if (!v) return '--';
   const s = Math.round(v);
   return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"/公里`;
+}
+
+// 配速输入框 ↔ 数值：接受 6'40" / 6:40 / 纯秒数（秒/公里）
+function parsePace(text) {
+  const s = String(text == null ? '' : text).trim();
+  if (!s) return 0;
+  const m = s.match(/^(\d+)\s*[':：]\s*(\d+(?:\.\d+)?)/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+// 数值 → 输入框文本（6'40"）
+function fmtPaceInput(secPerKm) {
+  const s = Math.round(Number(secPerKm) || 0);
+  if (!s) return '';
+  return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`;
+}
+
+// 配速 → 摇杆速度（m/s）：夹在 0.5~6 m/s（对应 2'47"~33'20" 的配速）
+function paceToSpeed(secPerKm) {
+  if (!(secPerKm > 0)) return 0;
+  return Math.min(6, Math.max(0.5, 1000 / secPerKm));
 }
 
 function renderRunInfo(last) {
@@ -956,7 +984,8 @@ async function walkStart(mode) {
     const auto = !!S.autoRun;   // 「自动跑」按钮说了算：默认手动，靠摇杆控制方向
     // 第 4 个参数是摇杆速度（m/s），第 7 个是时间倍速——实走固定 1 倍速，
     // 传统上误把「仿真倍速」当摇杆速度传进去，会让实跑飙到 20 m/s
-    const mps = Number($('in-walk-speed') && $('in-walk-speed').value) || 0;
+    const paceSec = parsePace($('in-walk-pace') && $('in-walk-pace').value);
+    const mps = paceSec > 0 ? paceToSpeed(paceSec) : 0;
     const r = await Bridge.call('walk_start', mode, target, Number($('in-fence').value),
       mps, auto, true, 1);
     if (!r || r.code !== 0) { toast('启动失败：' + ((r && r.message) || '?'), 'err'); return; }
@@ -1346,23 +1375,29 @@ $('btn-login').addEventListener('click', async () => {
 }
 
 async function saveParams(silent) {
+  // 界面用“平均步频 ± 波动”两个输入，后端存的仍是 min/max 步频区间
+  const avgCad = Number($('in-cad-avg').value) || 177;
+  const cadVar = Math.abs(Number($('in-cad-var').value) || 0);
+  // 界面用配速（分'秒"/公里），后端 walk 存的是 m/s
+  const paceSec = parsePace($('in-walk-pace').value);
+  const speed = paceSec > 0 ? paceToSpeed(paceSec) : 0;
   const patch = {
     run: {
       target_distance_m: Number($('in-distance').value),
       stride_m: Number($('in-stride').value),
     },
     sim: {
-      min_cadence: Number($('in-cad-lo').value),
-      max_cadence: Number($('in-cad-hi').value),
-      realtime: $('in-realtime').checked,          // 实时推进仿真（调试时看轨迹一笔笔画）
-      speed: Number($('in-speed').value) || 8,
+      min_cadence: Math.max(60, Math.round(avgCad - cadVar)),
+      max_cadence: Math.round(avgCad + cadVar),
+      // 实时仿真开关已从界面移除：固定瞬间算完（不按真实时间推进）
+      realtime: false,
     },
     walk: {
-      // 摇杆推满时的速度（m/s）；实走倍速固定 1，不在这里暴露
-      speed_mps: Number($('in-walk-speed') && $('in-walk-speed').value) || 2.5,
+      speed_mps: speed || 2.5,
       auto_settle: $('in-auto-settle') ? $('in-auto-settle').checked : true,
     },
-    mock_fail_rate: Number($('in-failrate').value),
+    // 服务端注入失败率从界面移除（固定 0：不在正常链路里造随机失败）
+    mock_fail_rate: 0,
   };
   await Bridge.call('patch_config', JSON.stringify(patch));
   if (!silent) refreshStatus();

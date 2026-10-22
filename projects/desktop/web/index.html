@@ -88,13 +88,13 @@
           </label>
         </div>
         <div class="row2">
-          <label class="field">
-            <span>步频下限（步/分）</span>
-            <input id="in-cad-lo" type="number" value="172" step="1">
+          <label class="field" title="平均步频：每分钟步数；后端按“平均 ± 波动”生成每段步频">
+            <span>平均步频（步/分）</span>
+            <input id="in-cad-avg" type="number" value="177" min="120" max="240" step="1">
           </label>
-          <label class="field">
-            <span>步频上限（步/分）</span>
-            <input id="in-cad-hi" type="number" value="182" step="1">
+          <label class="field" title="波动：每段步频在平均值上下随机浮动 ±N 步/分">
+            <span>波动（± 步/分）</span>
+            <input id="in-cad-var" type="number" value="5" min="0" max="30" step="1">
           </label>
         </div>
         <div class="row2">
@@ -102,36 +102,14 @@
             <span>步幅（米）</span>
             <input id="in-stride" type="number" value="0.85" step="0.01">
           </label>
-          <label class="field">
-            <span>服务端注入失败率</span>
-            <input id="in-failrate" type="number" value="0" min="0" max="1" step="0.05"
-                   title="Mock 服务端随机失败，用来验证断点续传">
-          </label>
-        </div>
-        <div class="row2">
-          <label class="field" title="摇杆推到底时的速度（1 m/s = 3.6 km/h；正常慢跑 2.2~2.8）">
-            <span>摇杆速度（m/s）</span>
-            <input id="in-walk-speed" type="number" value="2.5" min="0.5" max="6" step="0.1">
-          </label>
-          <label class="field" title="实走只支持真实时间（1 倍速）：摇杆实走本来就是看手感的，不是跑完就走">
-            <span>实走倍速</span>
-            <input id="in-walk-rate" type="number" value="1" min="1" max="1" step="0" readonly
-                   title="固定 1 倍速：实走按真实时间推进">
+          <label class="field" title="摇杆推满时的配速，格式 6'40&quot; 或 6:40（也可直接填秒/公里）">
+            <span>配速（分'秒&quot;/公里）</span>
+            <input id="in-walk-pace" type="text" value="6'40&quot;" placeholder="6'40&quot;" autocomplete="off">
           </label>
         </div>
         <div class="row2">
           <label class="check" title="到达目标里程自动结束后，直接补传轨迹并提交结算（不开则只停不结）">
             <input id="in-auto-settle" type="checkbox" checked> 到达目标自动结算
-          </label>
-        </div>
-        <div class="row2">
-          <label class="check" title="打开后按真实时间推进数据写入，能看到轨迹一笔笔画出来">
-            <input id="in-realtime" type="checkbox"> 实时仿真（便于观察）
-          </label>
-          <label class="field">
-            <span>仿真倍速</span>
-            <input id="in-speed" type="number" value="8" min="0.5" step="1"
-                   title="8 = 8 倍速（耗时约为真实跑步的 1/8）">
           </label>
         </div>
         <div class="row">
