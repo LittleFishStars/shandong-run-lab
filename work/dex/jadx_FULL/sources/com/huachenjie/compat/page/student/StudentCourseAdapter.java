@@ -1,0 +1,32 @@
+package com.huachenjie.compat.page.student;
+
+import com.chad.library.adapter.base.BaseQuickAdapter;
+import com.chad.library.adapter.base.module.LoadMoreModule;
+import com.chad.library.adapter.base.viewholder.BaseDataBindingHolder;
+import com.huachenjie.compat.R;
+import com.huachenjie.compat.bean.CourseInfo;
+import com.huachenjie.compat.databinding.ItemStudentCourseBinding;
+import kotlin.Metadata;
+import kotlin.jvm.internal.Intrinsics;
+import org.jetbrains.annotations.NotNull;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_07_1493cls.dex */
+@Metadata(d1 = {"\u0000$\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0002\n\u0002\b\u0003\u0018\u00002\u0014\u0012\u0004\u0012\u00020\u0002\u0012\n\u0012\b\u0012\u0004\u0012\u00020\u00040\u00030\u00012\u00020\u0005B\u0005¢\u0006\u0002\u0010\u0006J\u001e\u0010\u0007\u001a\u00020\b2\f\u0010\t\u001a\b\u0012\u0004\u0012\u00020\u00040\u00032\u0006\u0010\n\u001a\u00020\u0002H\u0014¨\u0006\u000b"}, d2 = {"Lcom/huachenjie/compat/page/student/StudentCourseAdapter;", "Lcom/chad/library/adapter/base/BaseQuickAdapter;", "Lcom/huachenjie/compat/bean/CourseInfo;", "Lcom/chad/library/adapter/base/viewholder/BaseDataBindingHolder;", "Lcom/huachenjie/compat/databinding/ItemStudentCourseBinding;", "Lcom/chad/library/adapter/base/module/LoadMoreModule;", "()V", "convert", "", "holder", "item", "compat_release"}, k = 1, mv = {1, 8, 0}, xi = 48)
+public final class StudentCourseAdapter extends BaseQuickAdapter<CourseInfo, BaseDataBindingHolder<ItemStudentCourseBinding>> implements LoadMoreModule {
+    public StudentCourseAdapter() {
+        super(R.layout.item_student_course, null, 2, null);
+    }
+
+    @Override // com.chad.library.adapter.base.BaseQuickAdapter
+    public void convert(@NotNull BaseDataBindingHolder<ItemStudentCourseBinding> holder, @NotNull CourseInfo item) {
+        Intrinsics.checkNotNullParameter(holder, "holder");
+        Intrinsics.checkNotNullParameter(item, "item");
+        int absoluteAdapterPosition = holder.getAbsoluteAdapterPosition();
+        ItemStudentCourseBinding itemStudentCourseBinding = (ItemStudentCourseBinding) holder.getDataBinding();
+        if (itemStudentCourseBinding != null) {
+            itemStudentCourseBinding.f9212a.setVisibility(absoluteAdapterPosition == 0 ? 0 : 8);
+            itemStudentCourseBinding.k(item);
+            itemStudentCourseBinding.executePendingBindings();
+        }
+    }
+}

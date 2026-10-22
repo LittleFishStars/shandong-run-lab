@@ -1,0 +1,17 @@
+[*] spawned pid=28370
+[*] script loaded
+[js] 模块 libnesec.so base=0x7cb4aa2000 size=1167360 path=/data/app/com.huachenjie.shandong_school-UrtL93uXLvaSlGd1EN1HzQ==/lib/arm64/libnesec.so
+[js] ELF 头: 7f b2 b3 0f 00 00 00 00 00 00 00 00 00 00 00 00
+[dump] dump_nesec_full_0x0.bin 131072 B
+[dump] dump_nesec_full_0x20000.bin 131072 B
+[dump] dump_nesec_full_0x40000.bin 131072 B
+[dump] dump_nesec_full_0x60000.bin 131072 B
+[dump] dump_nesec_full_0x80000.bin 131072 B
+[dump] dump_nesec_full_0xa0000.bin 131072 B
+[dump] dump_nesec_full_0xc0000.bin 131072 B
+[dump] dump_nesec_full_0xe0000.bin 131072 B
+[dump] dump_nesec_full_0x100000.bin 118784 B
+[js] 不可读页 4 个: 0x102000,0x103000,0x104000,0x105000
+[js] dump 完成，共 1167360 字节
+[!] 进程已退出
+[*] 等待结束

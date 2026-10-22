@@ -1,0 +1,12 @@
+package com.kc.dw.core.adinner.recycler;
+
+import android.view.View;
+import com.kc.dw.core.ad.recycler.RecylcerAdInteractionListener;
+import com.qihoo.SdkProtected.OSETSDK.Keep;
+import java.util.List;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_09_10084cls.dex */
+@Keep
+public interface a extends RecylcerAdInteractionListener {
+    List<View> a();
+}

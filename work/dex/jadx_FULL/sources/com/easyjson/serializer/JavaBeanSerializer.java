@@ -1,0 +1,4745 @@
+package com.easyjson.serializer;
+
+import com.easyjson.JSONException;
+import com.easyjson.annotation.JSONType;
+import com.easyjson.util.FieldInfo;
+import com.easyjson.util.TypeUtils;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_08_10593cls.dex */
+public class JavaBeanSerializer implements ObjectSerializer {
+    protected int features;
+    private final FieldSerializer[] getters;
+    private final FieldSerializer[] sortedGetters;
+    protected String typeName;
+    private static final char[] true_chars = {'t', 'r', 'u', 'e'};
+    private static final char[] false_chars = {'f', 'a', 'l', 's', 'e'};
+
+    public JavaBeanSerializer(Class<?> cls) {
+        this(cls, cls.getModifiers(), null, false, true, true, true);
+    }
+
+    public JavaBeanSerializer(Class<?> cls, int i, Map<String, String> map, boolean z, boolean z2, boolean z3, boolean z4) {
+        this.features = 0;
+        JSONType jSONType = z2 ? (JSONType) cls.getAnnotation(JSONType.class) : null;
+        if (jSONType != null) {
+            this.features = SerializerFeature.of(jSONType.serialzeFeatures());
+            String strTypeName = jSONType.typeName();
+            this.typeName = strTypeName;
+            if (strTypeName.length() == 0) {
+                this.typeName = null;
+            }
+        }
+        List<FieldInfo> listComputeGetters = TypeUtils.computeGetters(cls, i, z, jSONType, map, false, z3, z4);
+        ArrayList arrayList = new ArrayList();
+        Iterator<FieldInfo> it = listComputeGetters.iterator();
+        while (it.hasNext()) {
+            arrayList.add(new FieldSerializer(it.next()));
+        }
+        FieldSerializer[] fieldSerializerArr = (FieldSerializer[]) arrayList.toArray(new FieldSerializer[arrayList.size()]);
+        this.getters = fieldSerializerArr;
+        String[] strArrOrders = jSONType != null ? jSONType.orders() : null;
+        if (strArrOrders != null && strArrOrders.length != 0) {
+            List<FieldInfo> listComputeGetters2 = TypeUtils.computeGetters(cls, i, z, jSONType, map, true, z3, z4);
+            ArrayList arrayList2 = new ArrayList();
+            Iterator<FieldInfo> it2 = listComputeGetters2.iterator();
+            while (it2.hasNext()) {
+                arrayList2.add(new FieldSerializer(it2.next()));
+            }
+            this.sortedGetters = (FieldSerializer[]) arrayList2.toArray(new FieldSerializer[arrayList2.size()]);
+            return;
+        }
+        FieldSerializer[] fieldSerializerArr2 = new FieldSerializer[fieldSerializerArr.length];
+        System.arraycopy(fieldSerializerArr, 0, fieldSerializerArr2, 0, fieldSerializerArr.length);
+        Arrays.sort(fieldSerializerArr2);
+        if (Arrays.equals(fieldSerializerArr2, fieldSerializerArr)) {
+            this.sortedGetters = fieldSerializerArr;
+        } else {
+            this.sortedGetters = fieldSerializerArr2;
+        }
+    }
+
+    public JavaBeanSerializer(Class<?> cls, String... strArr) {
+        this(cls, cls.getModifiers(), map(strArr), false, true, true, true);
+    }
+
+    private static Map<String, String> map(String... strArr) {
+        HashMap map = new HashMap();
+        for (String str : strArr) {
+            map.put(str, str);
+        }
+        return map;
+    }
+
+    public Map<String, Object> getFieldValuesMap(Object obj) {
+        LinkedHashMap linkedHashMap = new LinkedHashMap(this.sortedGetters.length);
+        for (FieldSerializer fieldSerializer : this.sortedGetters) {
+            linkedHashMap.put(fieldSerializer.fieldInfo.name, fieldSerializer.getPropertyValue(obj));
+        }
+        return linkedHashMap;
+    }
+
+    /* JADX WARN: Code duplicated, block: B:135:0x01e8 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:136:0x01ea A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:138:0x01f0 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:140:0x01f7 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:142:0x01fb A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:143:0x0200 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:145:0x0204 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:147:0x020e  */
+    /* JADX WARN: Code duplicated, block: B:152:0x021c A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:155:0x0230 A[LOOP:3: B:150:0x0216->B:155:0x0230, LOOP_END] */
+    /* JADX WARN: Code duplicated, block: B:157:0x0238  */
+    /* JADX WARN: Code duplicated, block: B:160:0x023f  */
+    /* JADX WARN: Code duplicated, block: B:161:0x0245 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:162:0x0247  */
+    /* JADX WARN: Code duplicated, block: B:163:0x0249 A[ADDED_TO_REGION] */
+    /* JADX WARN: Code duplicated, block: B:174:0x0268  */
+    /* JADX WARN: Code duplicated, block: B:178:0x0277 A[Catch: all -> 0x050e, Exception -> 0x0512, LOOP:4: B:176:0x0271->B:178:0x0277, LOOP_END, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:180:0x028b  */
+    /* JADX WARN: Code duplicated, block: B:182:0x0290  */
+    /* JADX WARN: Code duplicated, block: B:183:0x0292 A[ADDED_TO_REGION] */
+    /* JADX WARN: Code duplicated, block: B:186:0x0298 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:188:0x029f A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:190:0x02a3 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:191:0x02a8 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:193:0x02ac A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:198:0x02bf A[Catch: all -> 0x050e, Exception -> 0x0512, LOOP:5: B:196:0x02b9->B:198:0x02bf, LOOP_END, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:200:0x02d3  */
+    /* JADX WARN: Code duplicated, block: B:202:0x02d8 A[ADDED_TO_REGION] */
+    /* JADX WARN: Code duplicated, block: B:209:0x02ec  */
+    /* JADX WARN: Code duplicated, block: B:211:0x02f0 A[ADDED_TO_REGION] */
+    /* JADX WARN: Code duplicated, block: B:238:0x0332 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:240:0x033b A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:242:0x033f A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:243:0x0343 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:246:0x035a A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:247:0x035e  */
+    /* JADX WARN: Code duplicated, block: B:249:0x0362 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:250:0x0364 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:251:0x0369 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:252:0x036b A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:253:0x036d A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:256:0x0376  */
+    /* JADX WARN: Code duplicated, block: B:257:0x0378 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:258:0x037a A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:260:0x0385 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:262:0x0389 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:263:0x038d  */
+    /* JADX WARN: Code duplicated, block: B:267:0x03a9  */
+    /* JADX WARN: Code duplicated, block: B:269:0x03b4 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:271:0x03b9 A[ADDED_TO_REGION] */
+    /* JADX WARN: Code duplicated, block: B:302:0x042d  */
+    /* JADX WARN: Code duplicated, block: B:303:0x042f  */
+    /* JADX WARN: Code duplicated, block: B:305:0x0433 A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:306:0x0435 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:308:0x043e A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:311:0x044a A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:313:0x044e  */
+    /* JADX WARN: Code duplicated, block: B:314:0x044f A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:315:0x0456 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:317:0x045a A[DONT_INVERT] */
+    /* JADX WARN: Code duplicated, block: B:318:0x045c A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:320:0x0465 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:322:0x0474  */
+    /* JADX WARN: Code duplicated, block: B:323:0x0476  */
+    /* JADX WARN: Code duplicated, block: B:325:0x0479 A[Catch: all -> 0x050e, Exception -> 0x0512, PHI: r13
+      0x0479: PHI (r13v14 java.lang.String) = (r13v13 java.lang.String), (r13v15 java.lang.String) binds: [B:324:0x0477, B:313:0x044e] A[DONT_GENERATE, DONT_INLINE], TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:326:0x047e A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:327:0x0483 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:328:0x048e A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:329:0x0493 A[Catch: all -> 0x050e, Exception -> 0x0512, TryCatch #4 {Exception -> 0x0512, all -> 0x050e, blocks: (B:99:0x0148, B:101:0x014b, B:103:0x0166, B:105:0x016a, B:331:0x0498, B:109:0x0171, B:110:0x0175, B:112:0x017b, B:118:0x0196, B:120:0x019c, B:122:0x01a0, B:136:0x01ea, B:138:0x01f0, B:149:0x0212, B:150:0x0216, B:152:0x021c, B:164:0x024b, B:166:0x024f, B:175:0x026a, B:176:0x0271, B:178:0x0277, B:184:0x0294, B:186:0x0298, B:188:0x029f, B:190:0x02a3, B:191:0x02a8, B:193:0x02ac, B:195:0x02b3, B:196:0x02b9, B:198:0x02bf, B:204:0x02dc, B:206:0x02e2, B:213:0x02f4, B:215:0x02f8, B:217:0x02fc, B:219:0x0300, B:221:0x0304, B:223:0x0308, B:230:0x031a, B:232:0x031e, B:234:0x0322, B:225:0x030c, B:227:0x0310, B:238:0x0332, B:240:0x033b, B:242:0x033f, B:243:0x0343, B:244:0x0347, B:246:0x035a, B:250:0x0364, B:254:0x0370, B:253:0x036d, B:258:0x037a, B:260:0x0385, B:262:0x0389, B:264:0x038e, B:268:0x03aa, B:269:0x03b4, B:272:0x03bb, B:276:0x03c3, B:281:0x03cf, B:284:0x03d9, B:285:0x03db, B:287:0x03e3, B:289:0x03e7, B:290:0x03eb, B:293:0x03fa, B:294:0x0404, B:296:0x0408, B:297:0x0411, B:300:0x0417, B:301:0x0422, B:306:0x0435, B:308:0x043e, B:328:0x048e, B:310:0x0443, B:311:0x044a, B:325:0x0479, B:314:0x044f, B:315:0x0456, B:318:0x045c, B:320:0x0465, B:326:0x047e, B:327:0x0483, B:329:0x0493, B:167:0x0254, B:169:0x0258, B:170:0x025d, B:172:0x0261, B:140:0x01f7, B:142:0x01fb, B:143:0x0200, B:145:0x0204, B:124:0x01a8, B:126:0x01ac, B:127:0x01b6, B:129:0x01ba, B:131:0x01cf, B:132:0x01d6, B:332:0x04ae, B:337:0x04bf, B:338:0x04c3, B:340:0x04c9, B:341:0x04d6, B:343:0x04db, B:345:0x04e4, B:346:0x04ea, B:348:0x04f3, B:350:0x04f7, B:351:0x04fb, B:353:0x0501), top: B:376:0x0148 }] */
+    /* JADX WARN: Code duplicated, block: B:385:0x0233 A[SYNTHETIC] */
+    /* JADX WARN: Code duplicated, block: B:386:0x022c A[SYNTHETIC] */
+    /* JADX WARN: Code duplicated, block: B:61:0x00cf  */
+    @Override // com.easyjson.serializer.ObjectSerializer
+    public void write(JSONSerializer jSONSerializer, Object obj, Object obj2, Type type) throws Throwable {
+        IdentityHashMap<Object, SerialContext> identityHashMap;
+        SerialContext serialContext;
+        boolean z;
+        boolean z2;
+        int i;
+        boolean z3;
+        Object propertyValue;
+        Object obj3;
+        boolean z4;
+        int i2;
+        long j;
+        boolean z5;
+        boolean z6;
+        List<PropertyPreFilter> list;
+        List<PropertyFilter> list2;
+        boolean z7;
+        String strProcess;
+        Object obj4;
+        Object objProcess;
+        List<ValueFilter> list3;
+        String string;
+        boolean z8;
+        int i3;
+        int i4;
+        int i5;
+        boolean z9;
+        char[] cArr;
+        int length;
+        int i6;
+        int i7;
+        int i8;
+        int i9;
+        Iterator<ValueFilter> it;
+        Object objValueOf;
+        Object objValueOf2;
+        Iterator<NameFilter> it2;
+        Object obj5;
+        Iterator<PropertyFilter> it3;
+        Object objValueOf3;
+        boolean z10;
+        int i10;
+        Object obj6 = obj;
+        SerializeWriter serializeWriter = jSONSerializer.out;
+        if (obj6 == null) {
+            serializeWriter.writeNull();
+            return;
+        }
+        SerialContext serialContext2 = jSONSerializer.context;
+        if ((serialContext2 == null || (serialContext2.features & SerializerFeature.DisableCircularReferenceDetect.mask) == 0) && (identityHashMap = jSONSerializer.references) != null && identityHashMap.containsKey(obj6)) {
+            jSONSerializer.writeReference(obj);
+            return;
+        }
+        int i11 = serializeWriter.features;
+        FieldSerializer[] fieldSerializerArr = (SerializerFeature.SortField.mask & i11) != 0 ? this.sortedGetters : this.getters;
+        SerialContext serialContext3 = jSONSerializer.context;
+        if ((i11 & SerializerFeature.DisableCircularReferenceDetect.mask) == 0) {
+            jSONSerializer.context = new SerialContext(serialContext3, obj6, obj2, this.features);
+            if (jSONSerializer.references == null) {
+                jSONSerializer.references = new IdentityHashMap<>();
+            }
+            jSONSerializer.references.put(obj6, jSONSerializer.context);
+        }
+        int i12 = this.features;
+        int i13 = SerializerFeature.BeanToArray.mask;
+        boolean z11 = ((i12 & i13) == 0 && (serializeWriter.features & i13) == 0) ? false : true;
+        char c = z11 ? '[' : '{';
+        char c2 = z11 ? ']' : '}';
+        try {
+            int i14 = serializeWriter.count + 1;
+            if (i14 > serializeWriter.buf.length) {
+                if (serializeWriter.writer == null) {
+                    serializeWriter.expandCapacity(i14);
+                } else {
+                    serializeWriter.flush();
+                    i14 = 1;
+                }
+            }
+            serializeWriter.buf[serializeWriter.count] = c;
+            serializeWriter.count = i14;
+            if (fieldSerializerArr.length > 0 && (serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                jSONSerializer.incrementIndent();
+                jSONSerializer.println();
+            }
+            int i15 = this.features;
+            int i16 = SerializerFeature.WriteClassName.mask;
+            if ((i15 & i16) == 0) {
+                int i17 = serializeWriter.features;
+                if ((i16 & i17) == 0 || (type == null && (i17 & SerializerFeature.NotWriteRootClassName.mask) != 0 && jSONSerializer.context.parent == null)) {
+                    z = false;
+                } else {
+                    z = true;
+                }
+            } else {
+                z = true;
+            }
+            if (!z || obj.getClass() == type) {
+                z2 = false;
+            } else {
+                serializeWriter.writeFieldName(jSONSerializer.config.typeKey, false);
+                String name = this.typeName;
+                if (name == null) {
+                    name = obj.getClass().getName();
+                }
+                jSONSerializer.write(name);
+                z2 = true;
+            }
+            char cWriteBefore = z2 ? ',' : (char) 0;
+            List<BeforeFilter> list4 = jSONSerializer.beforeFilters;
+            if (list4 != null) {
+                Iterator<BeforeFilter> it4 = list4.iterator();
+                while (it4.hasNext()) {
+                    cWriteBefore = it4.next().writeBefore(jSONSerializer, obj6, cWriteBefore);
+                }
+            }
+            boolean z12 = cWriteBefore == ',';
+            int i18 = serializeWriter.features;
+            boolean z13 = (SerializerFeature.QuoteFieldNames.mask & i18) != 0 && (SerializerFeature.UseSingleQuotes.mask & i18) == 0;
+            boolean z14 = (SerializerFeature.UseSingleQuotes.mask & i18) != 0;
+            boolean z15 = (SerializerFeature.NotWriteDefaultValue.mask & i18) != 0;
+            List<PropertyFilter> list5 = jSONSerializer.propertyFilters;
+            List<NameFilter> list6 = jSONSerializer.nameFilters;
+            List<ValueFilter> list7 = jSONSerializer.valueFilters;
+            List<PropertyPreFilter> list8 = jSONSerializer.propertyPreFilters;
+            int i19 = 0;
+            while (i19 < fieldSerializerArr.length) {
+                try {
+                    FieldSerializer fieldSerializer = fieldSerializerArr[i19];
+                    char c3 = c2;
+                    FieldInfo fieldInfo = fieldSerializer.fieldInfo;
+                    FieldSerializer[] fieldSerializerArr2 = fieldSerializerArr;
+                    Class<?> cls = fieldInfo.fieldClass;
+                    int i20 = i19;
+                    String str = fieldInfo.name;
+                    boolean z16 = z14;
+                    boolean z17 = z13;
+                    if ((SerializerFeature.SkipTransientField.mask & serializeWriter.features) == 0 || fieldInfo.field == null || !fieldInfo.fieldTransient) {
+                        if (list8 == null) {
+                            z3 = true;
+                            break;
+                        }
+                        Iterator<PropertyPreFilter> it5 = list8.iterator();
+                        while (true) {
+                            if (it5.hasNext()) {
+                                if (!it5.next().apply(jSONSerializer, obj6, str)) {
+                                    z3 = false;
+                                    break;
+                                }
+                            } else {
+                                z3 = true;
+                                break;
+                            }
+                        }
+                        if (z3) {
+                            long j2 = 0;
+                            if (fieldInfo.fieldAccess) {
+                                if (cls == Integer.TYPE) {
+                                    i10 = fieldInfo.field.getInt(obj6);
+                                } else {
+                                    if (cls == Long.TYPE) {
+                                        j2 = fieldInfo.field.getLong(obj6);
+                                        i10 = 0;
+                                    } else if (cls == Boolean.TYPE) {
+                                        z10 = fieldInfo.field.getBoolean(obj6);
+                                        i10 = 0;
+                                    } else {
+                                        propertyValue = fieldInfo.field.get(obj6);
+                                    }
+                                    obj3 = null;
+                                    j = j2;
+                                    z6 = false;
+                                    z5 = z10;
+                                    i2 = i10;
+                                    z4 = true;
+                                    if (list5 != null) {
+                                        if (z4) {
+                                            list = list8;
+                                            if (cls == Integer.TYPE) {
+                                                objValueOf3 = Integer.valueOf(i2);
+                                            } else if (cls == Long.TYPE) {
+                                                objValueOf3 = Long.valueOf(j);
+                                            } else {
+                                                if (cls == Boolean.TYPE) {
+                                                    objValueOf3 = Boolean.valueOf(z5);
+                                                }
+                                                it3 = list5.iterator();
+                                                while (true) {
+                                                    if (it3.hasNext()) {
+                                                        list2 = list5;
+                                                        if (!it3.next().apply(obj6, str, obj5)) {
+                                                            obj3 = obj5;
+                                                            z7 = false;
+                                                            break;
+                                                        }
+                                                        list5 = list2;
+                                                    } else {
+                                                        list2 = list5;
+                                                        obj3 = obj5;
+                                                    }
+                                                }
+                                                if (z7) {
+                                                    if (list6 != null) {
+                                                        if (z4 || z6) {
+                                                            objValueOf2 = obj3;
+                                                        } else {
+                                                            if (cls == Integer.TYPE) {
+                                                                objValueOf2 = Integer.valueOf(i2);
+                                                            } else if (cls == Long.TYPE) {
+                                                                objValueOf2 = Long.valueOf(j);
+                                                            } else if (cls == Boolean.TYPE) {
+                                                                objValueOf2 = Boolean.valueOf(z5);
+                                                            } else {
+                                                                objValueOf2 = obj3;
+                                                            }
+                                                            z6 = true;
+                                                        }
+                                                        strProcess = str;
+                                                        for (it2 = list6.iterator(); it2.hasNext(); it2 = it2) {
+                                                            strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                        }
+                                                        obj3 = objValueOf2;
+                                                    } else {
+                                                        strProcess = str;
+                                                    }
+                                                    if (list7 != null) {
+                                                        if (z4 && !z6) {
+                                                            if (cls == Integer.TYPE) {
+                                                                objValueOf = Integer.valueOf(i2);
+                                                            } else if (cls == Long.TYPE) {
+                                                                objValueOf = Long.valueOf(j);
+                                                            } else if (cls == Boolean.TYPE) {
+                                                                objValueOf = Boolean.valueOf(z5);
+                                                            }
+                                                            obj3 = objValueOf;
+                                                            z6 = true;
+                                                        }
+                                                        objProcess = obj3;
+                                                        for (it = list7.iterator(); it.hasNext(); it = it) {
+                                                            objProcess = it.next().process(obj6, str, objProcess);
+                                                        }
+                                                        obj4 = obj3;
+                                                    } else {
+                                                        obj4 = obj3;
+                                                        objProcess = obj4;
+                                                    }
+                                                    if (z6 || objProcess != null || z11) {
+                                                        list3 = list7;
+                                                    } else {
+                                                        list3 = list7;
+                                                        if (!fieldSerializer.writeNull) {
+                                                            if ((SerializerFeature.WriteMapNullValue.mask & serializeWriter.features) == 0) {
+                                                            }
+                                                        }
+                                                        i19 = i20 + 1;
+                                                        obj6 = obj;
+                                                        c2 = c3;
+                                                        fieldSerializerArr = fieldSerializerArr2;
+                                                        z14 = z16;
+                                                        z13 = z17;
+                                                        list7 = list3;
+                                                        list8 = list;
+                                                        list6 = list6;
+                                                        list5 = list2;
+                                                    }
+                                                    if (z6 || objProcess == null || !z15 || (((cls != Byte.TYPE && cls != Short.TYPE && cls != Integer.TYPE && cls != Long.TYPE && cls != Float.TYPE && cls != Double.TYPE) || !(objProcess instanceof Number) || ((Number) objProcess).byteValue() != 0) && (cls != Boolean.TYPE || !(objProcess instanceof Boolean) || ((Boolean) objProcess).booleanValue()))) {
+                                                        if (z12) {
+                                                            i9 = serializeWriter.count + 1;
+                                                            if (i9 > serializeWriter.buf.length) {
+                                                                if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i9);
+                                                                } else {
+                                                                    serializeWriter.flush();
+                                                                    i9 = 1;
+                                                                }
+                                                            }
+                                                            serializeWriter.buf[serializeWriter.count] = ',';
+                                                            serializeWriter.count = i9;
+                                                            if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                                jSONSerializer.println();
+                                                            }
+                                                        }
+                                                        if (strProcess == str) {
+                                                            if (obj4 == objProcess) {
+                                                                if (!z11) {
+                                                                    if (z17) {
+                                                                        cArr = fieldInfo.name_chars;
+                                                                        length = cArr.length;
+                                                                        i6 = serializeWriter.count + length;
+                                                                        if (i6 <= serializeWriter.buf.length) {
+                                                                            i7 = 0;
+                                                                        } else if (serializeWriter.writer == null) {
+                                                                            serializeWriter.expandCapacity(i6);
+                                                                            i7 = 0;
+                                                                        } else {
+                                                                            i8 = 0;
+                                                                            do {
+                                                                                char[] cArr2 = serializeWriter.buf;
+                                                                                int length2 = cArr2.length;
+                                                                                int i21 = serializeWriter.count;
+                                                                                int i22 = length2 - i21;
+                                                                                System.arraycopy(cArr, i8, cArr2, i21, i22);
+                                                                                serializeWriter.count = serializeWriter.buf.length;
+                                                                                serializeWriter.flush();
+                                                                                length -= i22;
+                                                                                i8 += i22;
+                                                                            } while (length > serializeWriter.buf.length);
+                                                                            i7 = i8;
+                                                                            i6 = length;
+                                                                        }
+                                                                        System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                        serializeWriter.count = i6;
+                                                                    } else {
+                                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                                    }
+                                                                }
+                                                                if (z4 || z6) {
+                                                                    if (z11) {
+                                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                    } else if (cls == String.class) {
+                                                                        if (objProcess == null) {
+                                                                            i3 = serializeWriter.features;
+                                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                            if ((i3 & i4) == 0 || (fieldSerializer.features & i4) != 0) {
+                                                                                serializeWriter.writeString("");
+                                                                            } else {
+                                                                                serializeWriter.writeNull();
+                                                                            }
+                                                                        } else {
+                                                                            string = (String) objProcess;
+                                                                            if (z16) {
+                                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                                            } else {
+                                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                            }
+                                                                        }
+                                                                    } else if (!fieldInfo.isEnum) {
+                                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                    } else if (objProcess == null) {
+                                                                        serializeWriter.writeNull();
+                                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                        string = ((Enum) objProcess).toString();
+                                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                            z8 = true;
+                                                                        } else {
+                                                                            z8 = false;
+                                                                        }
+                                                                        if (z8) {
+                                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                                        } else {
+                                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                        }
+                                                                    } else {
+                                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                                    }
+                                                                } else if (cls == Integer.TYPE) {
+                                                                    if (i2 == Integer.MIN_VALUE) {
+                                                                        serializeWriter.write("-2147483648");
+                                                                    } else {
+                                                                        int i23 = i2 < 0 ? -i2 : i2;
+                                                                        int i24 = 0;
+                                                                        do {
+                                                                            i5 = SerializeWriter.sizeTable[i24];
+                                                                            i24++;
+                                                                        } while (i23 > i5);
+                                                                        if (i2 < 0) {
+                                                                            i24++;
+                                                                        }
+                                                                        int i25 = serializeWriter.count + i24;
+                                                                        if (i25 <= serializeWriter.buf.length) {
+                                                                            z9 = false;
+                                                                        } else if (serializeWriter.writer == null) {
+                                                                            serializeWriter.expandCapacity(i25);
+                                                                            z9 = false;
+                                                                        } else {
+                                                                            char[] cArr3 = new char[i24];
+                                                                            SerializeWriter.getChars(i2, i24, cArr3);
+                                                                            serializeWriter.write(cArr3, 0, i24);
+                                                                            z9 = true;
+                                                                        }
+                                                                        if (!z9) {
+                                                                            SerializeWriter.getChars(i2, i25, serializeWriter.buf);
+                                                                            serializeWriter.count = i25;
+                                                                        }
+                                                                    }
+                                                                } else if (cls == Long.TYPE) {
+                                                                    jSONSerializer.out.writeLong(j);
+                                                                } else if (cls == Boolean.TYPE) {
+                                                                    if (z5) {
+                                                                        SerializeWriter serializeWriter2 = jSONSerializer.out;
+                                                                        char[] cArr4 = true_chars;
+                                                                        serializeWriter2.write(cArr4, 0, cArr4.length);
+                                                                    } else {
+                                                                        SerializeWriter serializeWriter3 = jSONSerializer.out;
+                                                                        char[] cArr5 = false_chars;
+                                                                        serializeWriter3.write(cArr5, 0, cArr5.length);
+                                                                    }
+                                                                }
+                                                            } else if (!z11) {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                            z12 = true;
+                                                        } else if (!z11) {
+                                                            serializeWriter.writeFieldName(strProcess, true);
+                                                        }
+                                                        jSONSerializer.write(objProcess);
+                                                        z12 = true;
+                                                    }
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else {
+                                                    list6 = list6;
+                                                    list3 = list7;
+                                                }
+                                            }
+                                            obj5 = objValueOf3;
+                                            z6 = true;
+                                            it3 = list5.iterator();
+                                            while (true) {
+                                                if (it3.hasNext()) {
+                                                    list2 = list5;
+                                                    if (!it3.next().apply(obj6, str, obj5)) {
+                                                        obj3 = obj5;
+                                                        z7 = false;
+                                                        break;
+                                                    }
+                                                    list5 = list2;
+                                                } else {
+                                                    list2 = list5;
+                                                    obj3 = obj5;
+                                                }
+                                            }
+                                            if (z7) {
+                                                list6 = list6;
+                                                list3 = list7;
+                                            } else {
+                                                if (list6 != null) {
+                                                    if (z4) {
+                                                        objValueOf2 = obj3;
+                                                    } else {
+                                                        objValueOf2 = obj3;
+                                                    }
+                                                    strProcess = str;
+                                                    while (it2.hasNext()) {
+                                                        strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                    }
+                                                    obj3 = objValueOf2;
+                                                } else {
+                                                    strProcess = str;
+                                                }
+                                                if (list7 != null) {
+                                                    if (z4) {
+                                                        if (cls == Integer.TYPE) {
+                                                            objValueOf = Integer.valueOf(i2);
+                                                        } else if (cls == Long.TYPE) {
+                                                            objValueOf = Long.valueOf(j);
+                                                        } else if (cls == Boolean.TYPE) {
+                                                            objValueOf = Boolean.valueOf(z5);
+                                                        }
+                                                        obj3 = objValueOf;
+                                                        z6 = true;
+                                                    }
+                                                    objProcess = obj3;
+                                                    while (it.hasNext()) {
+                                                        objProcess = it.next().process(obj6, str, objProcess);
+                                                    }
+                                                    obj4 = obj3;
+                                                } else {
+                                                    obj4 = obj3;
+                                                    objProcess = obj4;
+                                                }
+                                                if (z6) {
+                                                    list3 = list7;
+                                                    if (z6) {
+                                                    }
+                                                    if (z12) {
+                                                        i9 = serializeWriter.count + 1;
+                                                        if (i9 > serializeWriter.buf.length) {
+                                                            if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i9);
+                                                            } else {
+                                                                serializeWriter.flush();
+                                                                i9 = 1;
+                                                            }
+                                                        }
+                                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                                        serializeWriter.count = i9;
+                                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                            jSONSerializer.println();
+                                                        }
+                                                    }
+                                                    if (strProcess == str) {
+                                                        if (obj4 == objProcess) {
+                                                            if (!z11) {
+                                                                if (z17) {
+                                                                    cArr = fieldInfo.name_chars;
+                                                                    length = cArr.length;
+                                                                    i6 = serializeWriter.count + length;
+                                                                    if (i6 <= serializeWriter.buf.length) {
+                                                                        i7 = 0;
+                                                                    } else if (serializeWriter.writer == null) {
+                                                                        serializeWriter.expandCapacity(i6);
+                                                                        i7 = 0;
+                                                                    } else {
+                                                                        i8 = 0;
+                                                                        do {
+                                                                            char[] cArr6 = serializeWriter.buf;
+                                                                            int length3 = cArr6.length;
+                                                                            int i26 = serializeWriter.count;
+                                                                            int i27 = length3 - i26;
+                                                                            System.arraycopy(cArr, i8, cArr6, i26, i27);
+                                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                                            serializeWriter.flush();
+                                                                            length -= i27;
+                                                                            i8 += i27;
+                                                                        } while (length > serializeWriter.buf.length);
+                                                                        i7 = i8;
+                                                                        i6 = length;
+                                                                    }
+                                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                    serializeWriter.count = i6;
+                                                                } else {
+                                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                                }
+                                                            }
+                                                            if (z4) {
+                                                                if (z11) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (cls == String.class) {
+                                                                    if (objProcess == null) {
+                                                                        i3 = serializeWriter.features;
+                                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                        if ((i3 & i4) == 0) {
+                                                                        }
+                                                                        serializeWriter.writeString("");
+                                                                    } else {
+                                                                        string = (String) objProcess;
+                                                                        if (z16) {
+                                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                                        } else {
+                                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                        }
+                                                                    }
+                                                                } else if (!fieldInfo.isEnum) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (objProcess == null) {
+                                                                    serializeWriter.writeNull();
+                                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                    string = ((Enum) objProcess).toString();
+                                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                        z8 = true;
+                                                                    } else {
+                                                                        z8 = false;
+                                                                    }
+                                                                    if (z8) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                    }
+                                                                } else {
+                                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                                }
+                                                            } else if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (!z11) {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                        z12 = true;
+                                                        i19 = i20 + 1;
+                                                        obj6 = obj;
+                                                        c2 = c3;
+                                                        fieldSerializerArr = fieldSerializerArr2;
+                                                        z14 = z16;
+                                                        z13 = z17;
+                                                        list7 = list3;
+                                                        list8 = list;
+                                                        list6 = list6;
+                                                        list5 = list2;
+                                                    } else if (!z11) {
+                                                        serializeWriter.writeFieldName(strProcess, true);
+                                                    }
+                                                    jSONSerializer.write(objProcess);
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else {
+                                                    list3 = list7;
+                                                    if (z6) {
+                                                    }
+                                                    if (z12) {
+                                                        i9 = serializeWriter.count + 1;
+                                                        if (i9 > serializeWriter.buf.length) {
+                                                            if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i9);
+                                                            } else {
+                                                                serializeWriter.flush();
+                                                                i9 = 1;
+                                                            }
+                                                        }
+                                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                                        serializeWriter.count = i9;
+                                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                            jSONSerializer.println();
+                                                        }
+                                                    }
+                                                    if (strProcess == str) {
+                                                        if (obj4 == objProcess) {
+                                                            if (!z11) {
+                                                                if (z17) {
+                                                                    cArr = fieldInfo.name_chars;
+                                                                    length = cArr.length;
+                                                                    i6 = serializeWriter.count + length;
+                                                                    if (i6 <= serializeWriter.buf.length) {
+                                                                        i7 = 0;
+                                                                    } else if (serializeWriter.writer == null) {
+                                                                        serializeWriter.expandCapacity(i6);
+                                                                        i7 = 0;
+                                                                    } else {
+                                                                        i8 = 0;
+                                                                        do {
+                                                                            char[] cArr7 = serializeWriter.buf;
+                                                                            int length4 = cArr7.length;
+                                                                            int i28 = serializeWriter.count;
+                                                                            int i29 = length4 - i28;
+                                                                            System.arraycopy(cArr, i8, cArr7, i28, i29);
+                                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                                            serializeWriter.flush();
+                                                                            length -= i29;
+                                                                            i8 += i29;
+                                                                        } while (length > serializeWriter.buf.length);
+                                                                        i7 = i8;
+                                                                        i6 = length;
+                                                                    }
+                                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                    serializeWriter.count = i6;
+                                                                } else {
+                                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                                }
+                                                            }
+                                                            if (z4) {
+                                                                if (z11) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (cls == String.class) {
+                                                                    if (objProcess == null) {
+                                                                        i3 = serializeWriter.features;
+                                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                        if ((i3 & i4) == 0) {
+                                                                        }
+                                                                        serializeWriter.writeString("");
+                                                                    } else {
+                                                                        string = (String) objProcess;
+                                                                        if (z16) {
+                                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                                        } else {
+                                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                        }
+                                                                    }
+                                                                } else if (!fieldInfo.isEnum) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (objProcess == null) {
+                                                                    serializeWriter.writeNull();
+                                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                    string = ((Enum) objProcess).toString();
+                                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                        z8 = true;
+                                                                    } else {
+                                                                        z8 = false;
+                                                                    }
+                                                                    if (z8) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                    }
+                                                                } else {
+                                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                                }
+                                                            } else if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (!z11) {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                        z12 = true;
+                                                        i19 = i20 + 1;
+                                                        obj6 = obj;
+                                                        c2 = c3;
+                                                        fieldSerializerArr = fieldSerializerArr2;
+                                                        z14 = z16;
+                                                        z13 = z17;
+                                                        list7 = list3;
+                                                        list8 = list;
+                                                        list6 = list6;
+                                                        list5 = list2;
+                                                    } else if (!z11) {
+                                                        serializeWriter.writeFieldName(strProcess, true);
+                                                    }
+                                                    jSONSerializer.write(objProcess);
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                }
+                                            }
+                                        } else {
+                                            list = list8;
+                                        }
+                                        obj5 = obj3;
+                                        it3 = list5.iterator();
+                                        while (true) {
+                                            if (it3.hasNext()) {
+                                                list2 = list5;
+                                                if (!it3.next().apply(obj6, str, obj5)) {
+                                                    obj3 = obj5;
+                                                    z7 = false;
+                                                    break;
+                                                }
+                                                list5 = list2;
+                                            } else {
+                                                list2 = list5;
+                                                obj3 = obj5;
+                                            }
+                                        }
+                                        if (z7) {
+                                            list6 = list6;
+                                            list3 = list7;
+                                        } else {
+                                            if (list6 != null) {
+                                                if (z4) {
+                                                    objValueOf2 = obj3;
+                                                } else {
+                                                    objValueOf2 = obj3;
+                                                }
+                                                strProcess = str;
+                                                while (it2.hasNext()) {
+                                                    strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                }
+                                                obj3 = objValueOf2;
+                                            } else {
+                                                strProcess = str;
+                                            }
+                                            if (list7 != null) {
+                                                if (z4) {
+                                                    if (cls == Integer.TYPE) {
+                                                        objValueOf = Integer.valueOf(i2);
+                                                    } else if (cls == Long.TYPE) {
+                                                        objValueOf = Long.valueOf(j);
+                                                    } else if (cls == Boolean.TYPE) {
+                                                        objValueOf = Boolean.valueOf(z5);
+                                                    }
+                                                    obj3 = objValueOf;
+                                                    z6 = true;
+                                                }
+                                                objProcess = obj3;
+                                                while (it.hasNext()) {
+                                                    objProcess = it.next().process(obj6, str, objProcess);
+                                                }
+                                                obj4 = obj3;
+                                            } else {
+                                                obj4 = obj3;
+                                                objProcess = obj4;
+                                            }
+                                            if (z6) {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr8 = serializeWriter.buf;
+                                                                        int length5 = cArr8.length;
+                                                                        int i210 = serializeWriter.count;
+                                                                        int i211 = length5 - i210;
+                                                                        System.arraycopy(cArr, i8, cArr8, i210, i211);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i211;
+                                                                        i8 += i211;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr9 = serializeWriter.buf;
+                                                                        int length6 = cArr9.length;
+                                                                        int i212 = serializeWriter.count;
+                                                                        int i213 = length6 - i212;
+                                                                        System.arraycopy(cArr, i8, cArr9, i212, i213);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i213;
+                                                                        i8 += i213;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            }
+                                        }
+                                    } else {
+                                        list = list8;
+                                        list2 = list5;
+                                    }
+                                    z7 = true;
+                                    if (z7) {
+                                        list6 = list6;
+                                        list3 = list7;
+                                    } else {
+                                        if (list6 != null) {
+                                            if (z4) {
+                                                objValueOf2 = obj3;
+                                            } else {
+                                                objValueOf2 = obj3;
+                                            }
+                                            strProcess = str;
+                                            while (it2.hasNext()) {
+                                                strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                            }
+                                            obj3 = objValueOf2;
+                                        } else {
+                                            strProcess = str;
+                                        }
+                                        if (list7 != null) {
+                                            if (z4) {
+                                                if (cls == Integer.TYPE) {
+                                                    objValueOf = Integer.valueOf(i2);
+                                                } else if (cls == Long.TYPE) {
+                                                    objValueOf = Long.valueOf(j);
+                                                } else if (cls == Boolean.TYPE) {
+                                                    objValueOf = Boolean.valueOf(z5);
+                                                }
+                                                obj3 = objValueOf;
+                                                z6 = true;
+                                            }
+                                            objProcess = obj3;
+                                            while (it.hasNext()) {
+                                                objProcess = it.next().process(obj6, str, objProcess);
+                                            }
+                                            obj4 = obj3;
+                                        } else {
+                                            obj4 = obj3;
+                                            objProcess = obj4;
+                                        }
+                                        if (z6) {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr10 = serializeWriter.buf;
+                                                                    int length7 = cArr10.length;
+                                                                    int i214 = serializeWriter.count;
+                                                                    int i215 = length7 - i214;
+                                                                    System.arraycopy(cArr, i8, cArr10, i214, i215);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i215;
+                                                                    i8 += i215;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr11 = serializeWriter.buf;
+                                                                    int length8 = cArr11.length;
+                                                                    int i216 = serializeWriter.count;
+                                                                    int i217 = length8 - i216;
+                                                                    System.arraycopy(cArr, i8, cArr11, i216, i217);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i217;
+                                                                    i8 += i217;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        }
+                                    }
+                                }
+                                z10 = false;
+                                obj3 = null;
+                                j = j2;
+                                z6 = false;
+                                z5 = z10;
+                                i2 = i10;
+                                z4 = true;
+                                if (list5 != null) {
+                                    if (z4) {
+                                        list = list8;
+                                        if (cls == Integer.TYPE) {
+                                            objValueOf3 = Integer.valueOf(i2);
+                                        } else if (cls == Long.TYPE) {
+                                            objValueOf3 = Long.valueOf(j);
+                                        } else {
+                                            if (cls == Boolean.TYPE) {
+                                                objValueOf3 = Boolean.valueOf(z5);
+                                            }
+                                            it3 = list5.iterator();
+                                            while (true) {
+                                                if (it3.hasNext()) {
+                                                    list2 = list5;
+                                                    if (!it3.next().apply(obj6, str, obj5)) {
+                                                        obj3 = obj5;
+                                                        z7 = false;
+                                                        break;
+                                                    }
+                                                    list5 = list2;
+                                                } else {
+                                                    list2 = list5;
+                                                    obj3 = obj5;
+                                                }
+                                            }
+                                            if (z7) {
+                                                list6 = list6;
+                                                list3 = list7;
+                                            } else {
+                                                if (list6 != null) {
+                                                    if (z4) {
+                                                        objValueOf2 = obj3;
+                                                    } else {
+                                                        objValueOf2 = obj3;
+                                                    }
+                                                    strProcess = str;
+                                                    while (it2.hasNext()) {
+                                                        strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                    }
+                                                    obj3 = objValueOf2;
+                                                } else {
+                                                    strProcess = str;
+                                                }
+                                                if (list7 != null) {
+                                                    if (z4) {
+                                                        if (cls == Integer.TYPE) {
+                                                            objValueOf = Integer.valueOf(i2);
+                                                        } else if (cls == Long.TYPE) {
+                                                            objValueOf = Long.valueOf(j);
+                                                        } else if (cls == Boolean.TYPE) {
+                                                            objValueOf = Boolean.valueOf(z5);
+                                                        }
+                                                        obj3 = objValueOf;
+                                                        z6 = true;
+                                                    }
+                                                    objProcess = obj3;
+                                                    while (it.hasNext()) {
+                                                        objProcess = it.next().process(obj6, str, objProcess);
+                                                    }
+                                                    obj4 = obj3;
+                                                } else {
+                                                    obj4 = obj3;
+                                                    objProcess = obj4;
+                                                }
+                                                if (z6) {
+                                                    list3 = list7;
+                                                    if (z6) {
+                                                    }
+                                                    if (z12) {
+                                                        i9 = serializeWriter.count + 1;
+                                                        if (i9 > serializeWriter.buf.length) {
+                                                            if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i9);
+                                                            } else {
+                                                                serializeWriter.flush();
+                                                                i9 = 1;
+                                                            }
+                                                        }
+                                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                                        serializeWriter.count = i9;
+                                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                            jSONSerializer.println();
+                                                        }
+                                                    }
+                                                    if (strProcess == str) {
+                                                        if (obj4 == objProcess) {
+                                                            if (!z11) {
+                                                                if (z17) {
+                                                                    cArr = fieldInfo.name_chars;
+                                                                    length = cArr.length;
+                                                                    i6 = serializeWriter.count + length;
+                                                                    if (i6 <= serializeWriter.buf.length) {
+                                                                        i7 = 0;
+                                                                    } else if (serializeWriter.writer == null) {
+                                                                        serializeWriter.expandCapacity(i6);
+                                                                        i7 = 0;
+                                                                    } else {
+                                                                        i8 = 0;
+                                                                        do {
+                                                                            char[] cArr12 = serializeWriter.buf;
+                                                                            int length9 = cArr12.length;
+                                                                            int i218 = serializeWriter.count;
+                                                                            int i219 = length9 - i218;
+                                                                            System.arraycopy(cArr, i8, cArr12, i218, i219);
+                                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                                            serializeWriter.flush();
+                                                                            length -= i219;
+                                                                            i8 += i219;
+                                                                        } while (length > serializeWriter.buf.length);
+                                                                        i7 = i8;
+                                                                        i6 = length;
+                                                                    }
+                                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                    serializeWriter.count = i6;
+                                                                } else {
+                                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                                }
+                                                            }
+                                                            if (z4) {
+                                                                if (z11) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (cls == String.class) {
+                                                                    if (objProcess == null) {
+                                                                        i3 = serializeWriter.features;
+                                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                        if ((i3 & i4) == 0) {
+                                                                        }
+                                                                        serializeWriter.writeString("");
+                                                                    } else {
+                                                                        string = (String) objProcess;
+                                                                        if (z16) {
+                                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                                        } else {
+                                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                        }
+                                                                    }
+                                                                } else if (!fieldInfo.isEnum) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (objProcess == null) {
+                                                                    serializeWriter.writeNull();
+                                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                    string = ((Enum) objProcess).toString();
+                                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                        z8 = true;
+                                                                    } else {
+                                                                        z8 = false;
+                                                                    }
+                                                                    if (z8) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                    }
+                                                                } else {
+                                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                                }
+                                                            } else if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (!z11) {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                        z12 = true;
+                                                        i19 = i20 + 1;
+                                                        obj6 = obj;
+                                                        c2 = c3;
+                                                        fieldSerializerArr = fieldSerializerArr2;
+                                                        z14 = z16;
+                                                        z13 = z17;
+                                                        list7 = list3;
+                                                        list8 = list;
+                                                        list6 = list6;
+                                                        list5 = list2;
+                                                    } else if (!z11) {
+                                                        serializeWriter.writeFieldName(strProcess, true);
+                                                    }
+                                                    jSONSerializer.write(objProcess);
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else {
+                                                    list3 = list7;
+                                                    if (z6) {
+                                                    }
+                                                    if (z12) {
+                                                        i9 = serializeWriter.count + 1;
+                                                        if (i9 > serializeWriter.buf.length) {
+                                                            if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i9);
+                                                            } else {
+                                                                serializeWriter.flush();
+                                                                i9 = 1;
+                                                            }
+                                                        }
+                                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                                        serializeWriter.count = i9;
+                                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                            jSONSerializer.println();
+                                                        }
+                                                    }
+                                                    if (strProcess == str) {
+                                                        if (obj4 == objProcess) {
+                                                            if (!z11) {
+                                                                if (z17) {
+                                                                    cArr = fieldInfo.name_chars;
+                                                                    length = cArr.length;
+                                                                    i6 = serializeWriter.count + length;
+                                                                    if (i6 <= serializeWriter.buf.length) {
+                                                                        i7 = 0;
+                                                                    } else if (serializeWriter.writer == null) {
+                                                                        serializeWriter.expandCapacity(i6);
+                                                                        i7 = 0;
+                                                                    } else {
+                                                                        i8 = 0;
+                                                                        do {
+                                                                            char[] cArr13 = serializeWriter.buf;
+                                                                            int length10 = cArr13.length;
+                                                                            int i2110 = serializeWriter.count;
+                                                                            int i2111 = length10 - i2110;
+                                                                            System.arraycopy(cArr, i8, cArr13, i2110, i2111);
+                                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                                            serializeWriter.flush();
+                                                                            length -= i2111;
+                                                                            i8 += i2111;
+                                                                        } while (length > serializeWriter.buf.length);
+                                                                        i7 = i8;
+                                                                        i6 = length;
+                                                                    }
+                                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                    serializeWriter.count = i6;
+                                                                } else {
+                                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                                }
+                                                            }
+                                                            if (z4) {
+                                                                if (z11) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (cls == String.class) {
+                                                                    if (objProcess == null) {
+                                                                        i3 = serializeWriter.features;
+                                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                        if ((i3 & i4) == 0) {
+                                                                        }
+                                                                        serializeWriter.writeString("");
+                                                                    } else {
+                                                                        string = (String) objProcess;
+                                                                        if (z16) {
+                                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                                        } else {
+                                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                        }
+                                                                    }
+                                                                } else if (!fieldInfo.isEnum) {
+                                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                                } else if (objProcess == null) {
+                                                                    serializeWriter.writeNull();
+                                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                    string = ((Enum) objProcess).toString();
+                                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                        z8 = true;
+                                                                    } else {
+                                                                        z8 = false;
+                                                                    }
+                                                                    if (z8) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                    }
+                                                                } else {
+                                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                                }
+                                                            } else if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (!z11) {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                        z12 = true;
+                                                        i19 = i20 + 1;
+                                                        obj6 = obj;
+                                                        c2 = c3;
+                                                        fieldSerializerArr = fieldSerializerArr2;
+                                                        z14 = z16;
+                                                        z13 = z17;
+                                                        list7 = list3;
+                                                        list8 = list;
+                                                        list6 = list6;
+                                                        list5 = list2;
+                                                    } else if (!z11) {
+                                                        serializeWriter.writeFieldName(strProcess, true);
+                                                    }
+                                                    jSONSerializer.write(objProcess);
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                }
+                                            }
+                                        }
+                                        obj5 = objValueOf3;
+                                        z6 = true;
+                                        it3 = list5.iterator();
+                                        while (true) {
+                                            if (it3.hasNext()) {
+                                                list2 = list5;
+                                                if (!it3.next().apply(obj6, str, obj5)) {
+                                                    obj3 = obj5;
+                                                    z7 = false;
+                                                    break;
+                                                }
+                                                list5 = list2;
+                                            } else {
+                                                list2 = list5;
+                                                obj3 = obj5;
+                                            }
+                                        }
+                                        if (z7) {
+                                            list6 = list6;
+                                            list3 = list7;
+                                        } else {
+                                            if (list6 != null) {
+                                                if (z4) {
+                                                    objValueOf2 = obj3;
+                                                } else {
+                                                    objValueOf2 = obj3;
+                                                }
+                                                strProcess = str;
+                                                while (it2.hasNext()) {
+                                                    strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                }
+                                                obj3 = objValueOf2;
+                                            } else {
+                                                strProcess = str;
+                                            }
+                                            if (list7 != null) {
+                                                if (z4) {
+                                                    if (cls == Integer.TYPE) {
+                                                        objValueOf = Integer.valueOf(i2);
+                                                    } else if (cls == Long.TYPE) {
+                                                        objValueOf = Long.valueOf(j);
+                                                    } else if (cls == Boolean.TYPE) {
+                                                        objValueOf = Boolean.valueOf(z5);
+                                                    }
+                                                    obj3 = objValueOf;
+                                                    z6 = true;
+                                                }
+                                                objProcess = obj3;
+                                                while (it.hasNext()) {
+                                                    objProcess = it.next().process(obj6, str, objProcess);
+                                                }
+                                                obj4 = obj3;
+                                            } else {
+                                                obj4 = obj3;
+                                                objProcess = obj4;
+                                            }
+                                            if (z6) {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr14 = serializeWriter.buf;
+                                                                        int length11 = cArr14.length;
+                                                                        int i2112 = serializeWriter.count;
+                                                                        int i2113 = length11 - i2112;
+                                                                        System.arraycopy(cArr, i8, cArr14, i2112, i2113);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i2113;
+                                                                        i8 += i2113;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr15 = serializeWriter.buf;
+                                                                        int length12 = cArr15.length;
+                                                                        int i2114 = serializeWriter.count;
+                                                                        int i2115 = length12 - i2114;
+                                                                        System.arraycopy(cArr, i8, cArr15, i2114, i2115);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i2115;
+                                                                        i8 += i2115;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            }
+                                        }
+                                    } else {
+                                        list = list8;
+                                    }
+                                    obj5 = obj3;
+                                    it3 = list5.iterator();
+                                    while (true) {
+                                        if (it3.hasNext()) {
+                                            list2 = list5;
+                                            if (!it3.next().apply(obj6, str, obj5)) {
+                                                obj3 = obj5;
+                                                z7 = false;
+                                                break;
+                                            }
+                                            list5 = list2;
+                                        } else {
+                                            list2 = list5;
+                                            obj3 = obj5;
+                                        }
+                                    }
+                                    if (z7) {
+                                        list6 = list6;
+                                        list3 = list7;
+                                    } else {
+                                        if (list6 != null) {
+                                            if (z4) {
+                                                objValueOf2 = obj3;
+                                            } else {
+                                                objValueOf2 = obj3;
+                                            }
+                                            strProcess = str;
+                                            while (it2.hasNext()) {
+                                                strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                            }
+                                            obj3 = objValueOf2;
+                                        } else {
+                                            strProcess = str;
+                                        }
+                                        if (list7 != null) {
+                                            if (z4) {
+                                                if (cls == Integer.TYPE) {
+                                                    objValueOf = Integer.valueOf(i2);
+                                                } else if (cls == Long.TYPE) {
+                                                    objValueOf = Long.valueOf(j);
+                                                } else if (cls == Boolean.TYPE) {
+                                                    objValueOf = Boolean.valueOf(z5);
+                                                }
+                                                obj3 = objValueOf;
+                                                z6 = true;
+                                            }
+                                            objProcess = obj3;
+                                            while (it.hasNext()) {
+                                                objProcess = it.next().process(obj6, str, objProcess);
+                                            }
+                                            obj4 = obj3;
+                                        } else {
+                                            obj4 = obj3;
+                                            objProcess = obj4;
+                                        }
+                                        if (z6) {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr16 = serializeWriter.buf;
+                                                                    int length13 = cArr16.length;
+                                                                    int i2116 = serializeWriter.count;
+                                                                    int i2117 = length13 - i2116;
+                                                                    System.arraycopy(cArr, i8, cArr16, i2116, i2117);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i2117;
+                                                                    i8 += i2117;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr17 = serializeWriter.buf;
+                                                                    int length14 = cArr17.length;
+                                                                    int i2118 = serializeWriter.count;
+                                                                    int i2119 = length14 - i2118;
+                                                                    System.arraycopy(cArr, i8, cArr17, i2118, i2119);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i2119;
+                                                                    i8 += i2119;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        }
+                                    }
+                                } else {
+                                    list = list8;
+                                    list2 = list5;
+                                }
+                                z7 = true;
+                                if (z7) {
+                                    list6 = list6;
+                                    list3 = list7;
+                                } else {
+                                    if (list6 != null) {
+                                        if (z4) {
+                                            objValueOf2 = obj3;
+                                        } else {
+                                            objValueOf2 = obj3;
+                                        }
+                                        strProcess = str;
+                                        while (it2.hasNext()) {
+                                            strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                        }
+                                        obj3 = objValueOf2;
+                                    } else {
+                                        strProcess = str;
+                                    }
+                                    if (list7 != null) {
+                                        if (z4) {
+                                            if (cls == Integer.TYPE) {
+                                                objValueOf = Integer.valueOf(i2);
+                                            } else if (cls == Long.TYPE) {
+                                                objValueOf = Long.valueOf(j);
+                                            } else if (cls == Boolean.TYPE) {
+                                                objValueOf = Boolean.valueOf(z5);
+                                            }
+                                            obj3 = objValueOf;
+                                            z6 = true;
+                                        }
+                                        objProcess = obj3;
+                                        while (it.hasNext()) {
+                                            objProcess = it.next().process(obj6, str, objProcess);
+                                        }
+                                        obj4 = obj3;
+                                    } else {
+                                        obj4 = obj3;
+                                        objProcess = obj4;
+                                    }
+                                    if (z6) {
+                                        list3 = list7;
+                                        if (z6) {
+                                        }
+                                        if (z12) {
+                                            i9 = serializeWriter.count + 1;
+                                            if (i9 > serializeWriter.buf.length) {
+                                                if (serializeWriter.writer == null) {
+                                                    serializeWriter.expandCapacity(i9);
+                                                } else {
+                                                    serializeWriter.flush();
+                                                    i9 = 1;
+                                                }
+                                            }
+                                            serializeWriter.buf[serializeWriter.count] = ',';
+                                            serializeWriter.count = i9;
+                                            if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                jSONSerializer.println();
+                                            }
+                                        }
+                                        if (strProcess == str) {
+                                            if (obj4 == objProcess) {
+                                                if (!z11) {
+                                                    if (z17) {
+                                                        cArr = fieldInfo.name_chars;
+                                                        length = cArr.length;
+                                                        i6 = serializeWriter.count + length;
+                                                        if (i6 <= serializeWriter.buf.length) {
+                                                            i7 = 0;
+                                                        } else if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i6);
+                                                            i7 = 0;
+                                                        } else {
+                                                            i8 = 0;
+                                                            do {
+                                                                char[] cArr18 = serializeWriter.buf;
+                                                                int length15 = cArr18.length;
+                                                                int i21110 = serializeWriter.count;
+                                                                int i21111 = length15 - i21110;
+                                                                System.arraycopy(cArr, i8, cArr18, i21110, i21111);
+                                                                serializeWriter.count = serializeWriter.buf.length;
+                                                                serializeWriter.flush();
+                                                                length -= i21111;
+                                                                i8 += i21111;
+                                                            } while (length > serializeWriter.buf.length);
+                                                            i7 = i8;
+                                                            i6 = length;
+                                                        }
+                                                        System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                        serializeWriter.count = i6;
+                                                    } else {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                }
+                                                if (z4) {
+                                                    if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (!z11) {
+                                                fieldSerializer.writePrefix(jSONSerializer);
+                                            }
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else if (!z11) {
+                                            serializeWriter.writeFieldName(strProcess, true);
+                                        }
+                                        jSONSerializer.write(objProcess);
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    } else {
+                                        list3 = list7;
+                                        if (z6) {
+                                        }
+                                        if (z12) {
+                                            i9 = serializeWriter.count + 1;
+                                            if (i9 > serializeWriter.buf.length) {
+                                                if (serializeWriter.writer == null) {
+                                                    serializeWriter.expandCapacity(i9);
+                                                } else {
+                                                    serializeWriter.flush();
+                                                    i9 = 1;
+                                                }
+                                            }
+                                            serializeWriter.buf[serializeWriter.count] = ',';
+                                            serializeWriter.count = i9;
+                                            if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                jSONSerializer.println();
+                                            }
+                                        }
+                                        if (strProcess == str) {
+                                            if (obj4 == objProcess) {
+                                                if (!z11) {
+                                                    if (z17) {
+                                                        cArr = fieldInfo.name_chars;
+                                                        length = cArr.length;
+                                                        i6 = serializeWriter.count + length;
+                                                        if (i6 <= serializeWriter.buf.length) {
+                                                            i7 = 0;
+                                                        } else if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i6);
+                                                            i7 = 0;
+                                                        } else {
+                                                            i8 = 0;
+                                                            do {
+                                                                char[] cArr19 = serializeWriter.buf;
+                                                                int length16 = cArr19.length;
+                                                                int i21112 = serializeWriter.count;
+                                                                int i21113 = length16 - i21112;
+                                                                System.arraycopy(cArr, i8, cArr19, i21112, i21113);
+                                                                serializeWriter.count = serializeWriter.buf.length;
+                                                                serializeWriter.flush();
+                                                                length -= i21113;
+                                                                i8 += i21113;
+                                                            } while (length > serializeWriter.buf.length);
+                                                            i7 = i8;
+                                                            i6 = length;
+                                                        }
+                                                        System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                        serializeWriter.count = i6;
+                                                    } else {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                }
+                                                if (z4) {
+                                                    if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (!z11) {
+                                                fieldSerializer.writePrefix(jSONSerializer);
+                                            }
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else if (!z11) {
+                                            serializeWriter.writeFieldName(strProcess, true);
+                                        }
+                                        jSONSerializer.write(objProcess);
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    }
+                                }
+                            } else {
+                                propertyValue = fieldSerializer.getPropertyValue(obj6);
+                            }
+                            obj3 = propertyValue;
+                            z4 = false;
+                            i2 = 0;
+                            j = 0;
+                            z5 = false;
+                            z6 = true;
+                            if (list5 != null) {
+                                if (z4) {
+                                    list = list8;
+                                    if (cls == Integer.TYPE) {
+                                        objValueOf3 = Integer.valueOf(i2);
+                                    } else if (cls == Long.TYPE) {
+                                        objValueOf3 = Long.valueOf(j);
+                                    } else {
+                                        if (cls == Boolean.TYPE) {
+                                            objValueOf3 = Boolean.valueOf(z5);
+                                        }
+                                        it3 = list5.iterator();
+                                        while (true) {
+                                            if (it3.hasNext()) {
+                                                list2 = list5;
+                                                if (!it3.next().apply(obj6, str, obj5)) {
+                                                    obj3 = obj5;
+                                                    z7 = false;
+                                                    break;
+                                                }
+                                                list5 = list2;
+                                            } else {
+                                                list2 = list5;
+                                                obj3 = obj5;
+                                            }
+                                        }
+                                        if (z7) {
+                                            list6 = list6;
+                                            list3 = list7;
+                                        } else {
+                                            if (list6 != null) {
+                                                if (z4) {
+                                                    objValueOf2 = obj3;
+                                                } else {
+                                                    objValueOf2 = obj3;
+                                                }
+                                                strProcess = str;
+                                                while (it2.hasNext()) {
+                                                    strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                                }
+                                                obj3 = objValueOf2;
+                                            } else {
+                                                strProcess = str;
+                                            }
+                                            if (list7 != null) {
+                                                if (z4) {
+                                                    if (cls == Integer.TYPE) {
+                                                        objValueOf = Integer.valueOf(i2);
+                                                    } else if (cls == Long.TYPE) {
+                                                        objValueOf = Long.valueOf(j);
+                                                    } else if (cls == Boolean.TYPE) {
+                                                        objValueOf = Boolean.valueOf(z5);
+                                                    }
+                                                    obj3 = objValueOf;
+                                                    z6 = true;
+                                                }
+                                                objProcess = obj3;
+                                                while (it.hasNext()) {
+                                                    objProcess = it.next().process(obj6, str, objProcess);
+                                                }
+                                                obj4 = obj3;
+                                            } else {
+                                                obj4 = obj3;
+                                                objProcess = obj4;
+                                            }
+                                            if (z6) {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr110 = serializeWriter.buf;
+                                                                        int length17 = cArr110.length;
+                                                                        int i21114 = serializeWriter.count;
+                                                                        int i21115 = length17 - i21114;
+                                                                        System.arraycopy(cArr, i8, cArr110, i21114, i21115);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i21115;
+                                                                        i8 += i21115;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else {
+                                                list3 = list7;
+                                                if (z6) {
+                                                }
+                                                if (z12) {
+                                                    i9 = serializeWriter.count + 1;
+                                                    if (i9 > serializeWriter.buf.length) {
+                                                        if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i9);
+                                                        } else {
+                                                            serializeWriter.flush();
+                                                            i9 = 1;
+                                                        }
+                                                    }
+                                                    serializeWriter.buf[serializeWriter.count] = ',';
+                                                    serializeWriter.count = i9;
+                                                    if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                        jSONSerializer.println();
+                                                    }
+                                                }
+                                                if (strProcess == str) {
+                                                    if (obj4 == objProcess) {
+                                                        if (!z11) {
+                                                            if (z17) {
+                                                                cArr = fieldInfo.name_chars;
+                                                                length = cArr.length;
+                                                                i6 = serializeWriter.count + length;
+                                                                if (i6 <= serializeWriter.buf.length) {
+                                                                    i7 = 0;
+                                                                } else if (serializeWriter.writer == null) {
+                                                                    serializeWriter.expandCapacity(i6);
+                                                                    i7 = 0;
+                                                                } else {
+                                                                    i8 = 0;
+                                                                    do {
+                                                                        char[] cArr111 = serializeWriter.buf;
+                                                                        int length18 = cArr111.length;
+                                                                        int i21116 = serializeWriter.count;
+                                                                        int i21117 = length18 - i21116;
+                                                                        System.arraycopy(cArr, i8, cArr111, i21116, i21117);
+                                                                        serializeWriter.count = serializeWriter.buf.length;
+                                                                        serializeWriter.flush();
+                                                                        length -= i21117;
+                                                                        i8 += i21117;
+                                                                    } while (length > serializeWriter.buf.length);
+                                                                    i7 = i8;
+                                                                    i6 = length;
+                                                                }
+                                                                System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                                serializeWriter.count = i6;
+                                                            } else {
+                                                                fieldSerializer.writePrefix(jSONSerializer);
+                                                            }
+                                                        }
+                                                        if (z4) {
+                                                            if (z11) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (cls == String.class) {
+                                                                if (objProcess == null) {
+                                                                    i3 = serializeWriter.features;
+                                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                    if ((i3 & i4) == 0) {
+                                                                    }
+                                                                    serializeWriter.writeString("");
+                                                                } else {
+                                                                    string = (String) objProcess;
+                                                                    if (z16) {
+                                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                                    } else {
+                                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                    }
+                                                                }
+                                                            } else if (!fieldInfo.isEnum) {
+                                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                            } else if (objProcess == null) {
+                                                                serializeWriter.writeNull();
+                                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                                string = ((Enum) objProcess).toString();
+                                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                    z8 = true;
+                                                                } else {
+                                                                    z8 = false;
+                                                                }
+                                                                if (z8) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                                }
+                                                            } else {
+                                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                            }
+                                                        } else if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (!z11) {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                    z12 = true;
+                                                    i19 = i20 + 1;
+                                                    obj6 = obj;
+                                                    c2 = c3;
+                                                    fieldSerializerArr = fieldSerializerArr2;
+                                                    z14 = z16;
+                                                    z13 = z17;
+                                                    list7 = list3;
+                                                    list8 = list;
+                                                    list6 = list6;
+                                                    list5 = list2;
+                                                } else if (!z11) {
+                                                    serializeWriter.writeFieldName(strProcess, true);
+                                                }
+                                                jSONSerializer.write(objProcess);
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            }
+                                        }
+                                    }
+                                    obj5 = objValueOf3;
+                                    z6 = true;
+                                    it3 = list5.iterator();
+                                    while (true) {
+                                        if (it3.hasNext()) {
+                                            list2 = list5;
+                                            if (!it3.next().apply(obj6, str, obj5)) {
+                                                obj3 = obj5;
+                                                z7 = false;
+                                                break;
+                                            }
+                                            list5 = list2;
+                                        } else {
+                                            list2 = list5;
+                                            obj3 = obj5;
+                                        }
+                                    }
+                                    if (z7) {
+                                        list6 = list6;
+                                        list3 = list7;
+                                    } else {
+                                        if (list6 != null) {
+                                            if (z4) {
+                                                objValueOf2 = obj3;
+                                            } else {
+                                                objValueOf2 = obj3;
+                                            }
+                                            strProcess = str;
+                                            while (it2.hasNext()) {
+                                                strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                            }
+                                            obj3 = objValueOf2;
+                                        } else {
+                                            strProcess = str;
+                                        }
+                                        if (list7 != null) {
+                                            if (z4) {
+                                                if (cls == Integer.TYPE) {
+                                                    objValueOf = Integer.valueOf(i2);
+                                                } else if (cls == Long.TYPE) {
+                                                    objValueOf = Long.valueOf(j);
+                                                } else if (cls == Boolean.TYPE) {
+                                                    objValueOf = Boolean.valueOf(z5);
+                                                }
+                                                obj3 = objValueOf;
+                                                z6 = true;
+                                            }
+                                            objProcess = obj3;
+                                            while (it.hasNext()) {
+                                                objProcess = it.next().process(obj6, str, objProcess);
+                                            }
+                                            obj4 = obj3;
+                                        } else {
+                                            obj4 = obj3;
+                                            objProcess = obj4;
+                                        }
+                                        if (z6) {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr112 = serializeWriter.buf;
+                                                                    int length19 = cArr112.length;
+                                                                    int i21118 = serializeWriter.count;
+                                                                    int i21119 = length19 - i21118;
+                                                                    System.arraycopy(cArr, i8, cArr112, i21118, i21119);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i21119;
+                                                                    i8 += i21119;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else {
+                                            list3 = list7;
+                                            if (z6) {
+                                            }
+                                            if (z12) {
+                                                i9 = serializeWriter.count + 1;
+                                                if (i9 > serializeWriter.buf.length) {
+                                                    if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i9);
+                                                    } else {
+                                                        serializeWriter.flush();
+                                                        i9 = 1;
+                                                    }
+                                                }
+                                                serializeWriter.buf[serializeWriter.count] = ',';
+                                                serializeWriter.count = i9;
+                                                if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                    jSONSerializer.println();
+                                                }
+                                            }
+                                            if (strProcess == str) {
+                                                if (obj4 == objProcess) {
+                                                    if (!z11) {
+                                                        if (z17) {
+                                                            cArr = fieldInfo.name_chars;
+                                                            length = cArr.length;
+                                                            i6 = serializeWriter.count + length;
+                                                            if (i6 <= serializeWriter.buf.length) {
+                                                                i7 = 0;
+                                                            } else if (serializeWriter.writer == null) {
+                                                                serializeWriter.expandCapacity(i6);
+                                                                i7 = 0;
+                                                            } else {
+                                                                i8 = 0;
+                                                                do {
+                                                                    char[] cArr113 = serializeWriter.buf;
+                                                                    int length110 = cArr113.length;
+                                                                    int i211110 = serializeWriter.count;
+                                                                    int i211111 = length110 - i211110;
+                                                                    System.arraycopy(cArr, i8, cArr113, i211110, i211111);
+                                                                    serializeWriter.count = serializeWriter.buf.length;
+                                                                    serializeWriter.flush();
+                                                                    length -= i211111;
+                                                                    i8 += i211111;
+                                                                } while (length > serializeWriter.buf.length);
+                                                                i7 = i8;
+                                                                i6 = length;
+                                                            }
+                                                            System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                            serializeWriter.count = i6;
+                                                        } else {
+                                                            fieldSerializer.writePrefix(jSONSerializer);
+                                                        }
+                                                    }
+                                                    if (z4) {
+                                                        if (z11) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (cls == String.class) {
+                                                            if (objProcess == null) {
+                                                                i3 = serializeWriter.features;
+                                                                i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                                if ((i3 & i4) == 0) {
+                                                                }
+                                                                serializeWriter.writeString("");
+                                                            } else {
+                                                                string = (String) objProcess;
+                                                                if (z16) {
+                                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                                } else {
+                                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                                }
+                                                            }
+                                                        } else if (!fieldInfo.isEnum) {
+                                                            fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                        } else if (objProcess == null) {
+                                                            serializeWriter.writeNull();
+                                                        } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                            string = ((Enum) objProcess).toString();
+                                                            if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                                z8 = true;
+                                                            } else {
+                                                                z8 = false;
+                                                            }
+                                                            if (z8) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                            }
+                                                        } else {
+                                                            serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                        }
+                                                    } else if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (!z11) {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                                z12 = true;
+                                                i19 = i20 + 1;
+                                                obj6 = obj;
+                                                c2 = c3;
+                                                fieldSerializerArr = fieldSerializerArr2;
+                                                z14 = z16;
+                                                z13 = z17;
+                                                list7 = list3;
+                                                list8 = list;
+                                                list6 = list6;
+                                                list5 = list2;
+                                            } else if (!z11) {
+                                                serializeWriter.writeFieldName(strProcess, true);
+                                            }
+                                            jSONSerializer.write(objProcess);
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        }
+                                    }
+                                } else {
+                                    list = list8;
+                                }
+                                obj5 = obj3;
+                                it3 = list5.iterator();
+                                while (true) {
+                                    if (it3.hasNext()) {
+                                        list2 = list5;
+                                        if (!it3.next().apply(obj6, str, obj5)) {
+                                            obj3 = obj5;
+                                            z7 = false;
+                                            break;
+                                        }
+                                        list5 = list2;
+                                    } else {
+                                        list2 = list5;
+                                        obj3 = obj5;
+                                    }
+                                }
+                                if (z7) {
+                                    list6 = list6;
+                                    list3 = list7;
+                                } else {
+                                    if (list6 != null) {
+                                        if (z4) {
+                                            objValueOf2 = obj3;
+                                        } else {
+                                            objValueOf2 = obj3;
+                                        }
+                                        strProcess = str;
+                                        while (it2.hasNext()) {
+                                            strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                        }
+                                        obj3 = objValueOf2;
+                                    } else {
+                                        strProcess = str;
+                                    }
+                                    if (list7 != null) {
+                                        if (z4) {
+                                            if (cls == Integer.TYPE) {
+                                                objValueOf = Integer.valueOf(i2);
+                                            } else if (cls == Long.TYPE) {
+                                                objValueOf = Long.valueOf(j);
+                                            } else if (cls == Boolean.TYPE) {
+                                                objValueOf = Boolean.valueOf(z5);
+                                            }
+                                            obj3 = objValueOf;
+                                            z6 = true;
+                                        }
+                                        objProcess = obj3;
+                                        while (it.hasNext()) {
+                                            objProcess = it.next().process(obj6, str, objProcess);
+                                        }
+                                        obj4 = obj3;
+                                    } else {
+                                        obj4 = obj3;
+                                        objProcess = obj4;
+                                    }
+                                    if (z6) {
+                                        list3 = list7;
+                                        if (z6) {
+                                        }
+                                        if (z12) {
+                                            i9 = serializeWriter.count + 1;
+                                            if (i9 > serializeWriter.buf.length) {
+                                                if (serializeWriter.writer == null) {
+                                                    serializeWriter.expandCapacity(i9);
+                                                } else {
+                                                    serializeWriter.flush();
+                                                    i9 = 1;
+                                                }
+                                            }
+                                            serializeWriter.buf[serializeWriter.count] = ',';
+                                            serializeWriter.count = i9;
+                                            if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                jSONSerializer.println();
+                                            }
+                                        }
+                                        if (strProcess == str) {
+                                            if (obj4 == objProcess) {
+                                                if (!z11) {
+                                                    if (z17) {
+                                                        cArr = fieldInfo.name_chars;
+                                                        length = cArr.length;
+                                                        i6 = serializeWriter.count + length;
+                                                        if (i6 <= serializeWriter.buf.length) {
+                                                            i7 = 0;
+                                                        } else if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i6);
+                                                            i7 = 0;
+                                                        } else {
+                                                            i8 = 0;
+                                                            do {
+                                                                char[] cArr114 = serializeWriter.buf;
+                                                                int length111 = cArr114.length;
+                                                                int i211112 = serializeWriter.count;
+                                                                int i211113 = length111 - i211112;
+                                                                System.arraycopy(cArr, i8, cArr114, i211112, i211113);
+                                                                serializeWriter.count = serializeWriter.buf.length;
+                                                                serializeWriter.flush();
+                                                                length -= i211113;
+                                                                i8 += i211113;
+                                                            } while (length > serializeWriter.buf.length);
+                                                            i7 = i8;
+                                                            i6 = length;
+                                                        }
+                                                        System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                        serializeWriter.count = i6;
+                                                    } else {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                }
+                                                if (z4) {
+                                                    if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (!z11) {
+                                                fieldSerializer.writePrefix(jSONSerializer);
+                                            }
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else if (!z11) {
+                                            serializeWriter.writeFieldName(strProcess, true);
+                                        }
+                                        jSONSerializer.write(objProcess);
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    } else {
+                                        list3 = list7;
+                                        if (z6) {
+                                        }
+                                        if (z12) {
+                                            i9 = serializeWriter.count + 1;
+                                            if (i9 > serializeWriter.buf.length) {
+                                                if (serializeWriter.writer == null) {
+                                                    serializeWriter.expandCapacity(i9);
+                                                } else {
+                                                    serializeWriter.flush();
+                                                    i9 = 1;
+                                                }
+                                            }
+                                            serializeWriter.buf[serializeWriter.count] = ',';
+                                            serializeWriter.count = i9;
+                                            if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                                jSONSerializer.println();
+                                            }
+                                        }
+                                        if (strProcess == str) {
+                                            if (obj4 == objProcess) {
+                                                if (!z11) {
+                                                    if (z17) {
+                                                        cArr = fieldInfo.name_chars;
+                                                        length = cArr.length;
+                                                        i6 = serializeWriter.count + length;
+                                                        if (i6 <= serializeWriter.buf.length) {
+                                                            i7 = 0;
+                                                        } else if (serializeWriter.writer == null) {
+                                                            serializeWriter.expandCapacity(i6);
+                                                            i7 = 0;
+                                                        } else {
+                                                            i8 = 0;
+                                                            do {
+                                                                char[] cArr115 = serializeWriter.buf;
+                                                                int length112 = cArr115.length;
+                                                                int i211114 = serializeWriter.count;
+                                                                int i211115 = length112 - i211114;
+                                                                System.arraycopy(cArr, i8, cArr115, i211114, i211115);
+                                                                serializeWriter.count = serializeWriter.buf.length;
+                                                                serializeWriter.flush();
+                                                                length -= i211115;
+                                                                i8 += i211115;
+                                                            } while (length > serializeWriter.buf.length);
+                                                            i7 = i8;
+                                                            i6 = length;
+                                                        }
+                                                        System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                        serializeWriter.count = i6;
+                                                    } else {
+                                                        fieldSerializer.writePrefix(jSONSerializer);
+                                                    }
+                                                }
+                                                if (z4) {
+                                                    if (z11) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (cls == String.class) {
+                                                        if (objProcess == null) {
+                                                            i3 = serializeWriter.features;
+                                                            i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                            if ((i3 & i4) == 0) {
+                                                            }
+                                                            serializeWriter.writeString("");
+                                                        } else {
+                                                            string = (String) objProcess;
+                                                            if (z16) {
+                                                                serializeWriter.writeStringWithSingleQuote(string);
+                                                            } else {
+                                                                serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                            }
+                                                        }
+                                                    } else if (!fieldInfo.isEnum) {
+                                                        fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                    } else if (objProcess == null) {
+                                                        serializeWriter.writeNull();
+                                                    } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                        string = ((Enum) objProcess).toString();
+                                                        if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                            z8 = true;
+                                                        } else {
+                                                            z8 = false;
+                                                        }
+                                                        if (z8) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                        }
+                                                    } else {
+                                                        serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                    }
+                                                } else if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (!z11) {
+                                                fieldSerializer.writePrefix(jSONSerializer);
+                                            }
+                                            z12 = true;
+                                            i19 = i20 + 1;
+                                            obj6 = obj;
+                                            c2 = c3;
+                                            fieldSerializerArr = fieldSerializerArr2;
+                                            z14 = z16;
+                                            z13 = z17;
+                                            list7 = list3;
+                                            list8 = list;
+                                            list6 = list6;
+                                            list5 = list2;
+                                        } else if (!z11) {
+                                            serializeWriter.writeFieldName(strProcess, true);
+                                        }
+                                        jSONSerializer.write(objProcess);
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    }
+                                }
+                            } else {
+                                list = list8;
+                                list2 = list5;
+                            }
+                            z7 = true;
+                            if (z7) {
+                                list6 = list6;
+                                list3 = list7;
+                            } else {
+                                if (list6 != null) {
+                                    if (z4) {
+                                        objValueOf2 = obj3;
+                                    } else {
+                                        objValueOf2 = obj3;
+                                    }
+                                    strProcess = str;
+                                    while (it2.hasNext()) {
+                                        strProcess = it2.next().process(obj6, strProcess, objValueOf2);
+                                    }
+                                    obj3 = objValueOf2;
+                                } else {
+                                    strProcess = str;
+                                }
+                                if (list7 != null) {
+                                    if (z4) {
+                                        if (cls == Integer.TYPE) {
+                                            objValueOf = Integer.valueOf(i2);
+                                        } else if (cls == Long.TYPE) {
+                                            objValueOf = Long.valueOf(j);
+                                        } else if (cls == Boolean.TYPE) {
+                                            objValueOf = Boolean.valueOf(z5);
+                                        }
+                                        obj3 = objValueOf;
+                                        z6 = true;
+                                    }
+                                    objProcess = obj3;
+                                    while (it.hasNext()) {
+                                        objProcess = it.next().process(obj6, str, objProcess);
+                                    }
+                                    obj4 = obj3;
+                                } else {
+                                    obj4 = obj3;
+                                    objProcess = obj4;
+                                }
+                                if (z6) {
+                                    list3 = list7;
+                                    if (z6) {
+                                    }
+                                    if (z12) {
+                                        i9 = serializeWriter.count + 1;
+                                        if (i9 > serializeWriter.buf.length) {
+                                            if (serializeWriter.writer == null) {
+                                                serializeWriter.expandCapacity(i9);
+                                            } else {
+                                                serializeWriter.flush();
+                                                i9 = 1;
+                                            }
+                                        }
+                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                        serializeWriter.count = i9;
+                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                            jSONSerializer.println();
+                                        }
+                                    }
+                                    if (strProcess == str) {
+                                        if (obj4 == objProcess) {
+                                            if (!z11) {
+                                                if (z17) {
+                                                    cArr = fieldInfo.name_chars;
+                                                    length = cArr.length;
+                                                    i6 = serializeWriter.count + length;
+                                                    if (i6 <= serializeWriter.buf.length) {
+                                                        i7 = 0;
+                                                    } else if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i6);
+                                                        i7 = 0;
+                                                    } else {
+                                                        i8 = 0;
+                                                        do {
+                                                            char[] cArr116 = serializeWriter.buf;
+                                                            int length113 = cArr116.length;
+                                                            int i211116 = serializeWriter.count;
+                                                            int i211117 = length113 - i211116;
+                                                            System.arraycopy(cArr, i8, cArr116, i211116, i211117);
+                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                            serializeWriter.flush();
+                                                            length -= i211117;
+                                                            i8 += i211117;
+                                                        } while (length > serializeWriter.buf.length);
+                                                        i7 = i8;
+                                                        i6 = length;
+                                                    }
+                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                    serializeWriter.count = i6;
+                                                } else {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                            }
+                                            if (z4) {
+                                                if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (z11) {
+                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                            } else if (cls == String.class) {
+                                                if (objProcess == null) {
+                                                    i3 = serializeWriter.features;
+                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                    if ((i3 & i4) == 0) {
+                                                    }
+                                                    serializeWriter.writeString("");
+                                                } else {
+                                                    string = (String) objProcess;
+                                                    if (z16) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                    }
+                                                }
+                                            } else if (!fieldInfo.isEnum) {
+                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                            } else if (objProcess == null) {
+                                                serializeWriter.writeNull();
+                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                string = ((Enum) objProcess).toString();
+                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                    z8 = true;
+                                                } else {
+                                                    z8 = false;
+                                                }
+                                                if (z8) {
+                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                } else {
+                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                }
+                                            } else {
+                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                            }
+                                        } else if (!z11) {
+                                            fieldSerializer.writePrefix(jSONSerializer);
+                                        }
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    } else if (!z11) {
+                                        serializeWriter.writeFieldName(strProcess, true);
+                                    }
+                                    jSONSerializer.write(objProcess);
+                                    z12 = true;
+                                    i19 = i20 + 1;
+                                    obj6 = obj;
+                                    c2 = c3;
+                                    fieldSerializerArr = fieldSerializerArr2;
+                                    z14 = z16;
+                                    z13 = z17;
+                                    list7 = list3;
+                                    list8 = list;
+                                    list6 = list6;
+                                    list5 = list2;
+                                } else {
+                                    list3 = list7;
+                                    if (z6) {
+                                    }
+                                    if (z12) {
+                                        i9 = serializeWriter.count + 1;
+                                        if (i9 > serializeWriter.buf.length) {
+                                            if (serializeWriter.writer == null) {
+                                                serializeWriter.expandCapacity(i9);
+                                            } else {
+                                                serializeWriter.flush();
+                                                i9 = 1;
+                                            }
+                                        }
+                                        serializeWriter.buf[serializeWriter.count] = ',';
+                                        serializeWriter.count = i9;
+                                        if ((serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                                            jSONSerializer.println();
+                                        }
+                                    }
+                                    if (strProcess == str) {
+                                        if (obj4 == objProcess) {
+                                            if (!z11) {
+                                                if (z17) {
+                                                    cArr = fieldInfo.name_chars;
+                                                    length = cArr.length;
+                                                    i6 = serializeWriter.count + length;
+                                                    if (i6 <= serializeWriter.buf.length) {
+                                                        i7 = 0;
+                                                    } else if (serializeWriter.writer == null) {
+                                                        serializeWriter.expandCapacity(i6);
+                                                        i7 = 0;
+                                                    } else {
+                                                        i8 = 0;
+                                                        do {
+                                                            char[] cArr117 = serializeWriter.buf;
+                                                            int length114 = cArr117.length;
+                                                            int i211118 = serializeWriter.count;
+                                                            int i211119 = length114 - i211118;
+                                                            System.arraycopy(cArr, i8, cArr117, i211118, i211119);
+                                                            serializeWriter.count = serializeWriter.buf.length;
+                                                            serializeWriter.flush();
+                                                            length -= i211119;
+                                                            i8 += i211119;
+                                                        } while (length > serializeWriter.buf.length);
+                                                        i7 = i8;
+                                                        i6 = length;
+                                                    }
+                                                    System.arraycopy(cArr, i7, serializeWriter.buf, serializeWriter.count, length);
+                                                    serializeWriter.count = i6;
+                                                } else {
+                                                    fieldSerializer.writePrefix(jSONSerializer);
+                                                }
+                                            }
+                                            if (z4) {
+                                                if (z11) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (cls == String.class) {
+                                                    if (objProcess == null) {
+                                                        i3 = serializeWriter.features;
+                                                        i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                        if ((i3 & i4) == 0) {
+                                                        }
+                                                        serializeWriter.writeString("");
+                                                    } else {
+                                                        string = (String) objProcess;
+                                                        if (z16) {
+                                                            serializeWriter.writeStringWithSingleQuote(string);
+                                                        } else {
+                                                            serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                        }
+                                                    }
+                                                } else if (!fieldInfo.isEnum) {
+                                                    fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                                } else if (objProcess == null) {
+                                                    serializeWriter.writeNull();
+                                                } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                    string = ((Enum) objProcess).toString();
+                                                    if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                        z8 = true;
+                                                    } else {
+                                                        z8 = false;
+                                                    }
+                                                    if (z8) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                    }
+                                                } else {
+                                                    serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                                }
+                                            } else if (z11) {
+                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                            } else if (cls == String.class) {
+                                                if (objProcess == null) {
+                                                    i3 = serializeWriter.features;
+                                                    i4 = SerializerFeature.WriteNullStringAsEmpty.mask;
+                                                    if ((i3 & i4) == 0) {
+                                                    }
+                                                    serializeWriter.writeString("");
+                                                } else {
+                                                    string = (String) objProcess;
+                                                    if (z16) {
+                                                        serializeWriter.writeStringWithSingleQuote(string);
+                                                    } else {
+                                                        serializeWriter.writeStringWithDoubleQuote(string, (char) 0, true);
+                                                    }
+                                                }
+                                            } else if (!fieldInfo.isEnum) {
+                                                fieldSerializer.writeValue(jSONSerializer, objProcess);
+                                            } else if (objProcess == null) {
+                                                serializeWriter.writeNull();
+                                            } else if ((serializeWriter.features & SerializerFeature.WriteEnumUsingToString.mask) != 0) {
+                                                string = ((Enum) objProcess).toString();
+                                                if ((serializeWriter.features & SerializerFeature.UseSingleQuotes.mask) != 0) {
+                                                    z8 = true;
+                                                } else {
+                                                    z8 = false;
+                                                }
+                                                if (z8) {
+                                                    serializeWriter.writeStringWithSingleQuote(string);
+                                                } else {
+                                                    serializeWriter.writeStringWithDoubleQuote(string, (char) 0, false);
+                                                }
+                                            } else {
+                                                serializeWriter.writeInt(((Enum) objProcess).ordinal());
+                                            }
+                                        } else if (!z11) {
+                                            fieldSerializer.writePrefix(jSONSerializer);
+                                        }
+                                        z12 = true;
+                                        i19 = i20 + 1;
+                                        obj6 = obj;
+                                        c2 = c3;
+                                        fieldSerializerArr = fieldSerializerArr2;
+                                        z14 = z16;
+                                        z13 = z17;
+                                        list7 = list3;
+                                        list8 = list;
+                                        list6 = list6;
+                                        list5 = list2;
+                                    } else if (!z11) {
+                                        serializeWriter.writeFieldName(strProcess, true);
+                                    }
+                                    jSONSerializer.write(objProcess);
+                                    z12 = true;
+                                    i19 = i20 + 1;
+                                    obj6 = obj;
+                                    c2 = c3;
+                                    fieldSerializerArr = fieldSerializerArr2;
+                                    z14 = z16;
+                                    z13 = z17;
+                                    list7 = list3;
+                                    list8 = list;
+                                    list6 = list6;
+                                    list5 = list2;
+                                }
+                            }
+                        }
+                        i19 = i20 + 1;
+                        obj6 = obj;
+                        c2 = c3;
+                        fieldSerializerArr = fieldSerializerArr2;
+                        z14 = z16;
+                        z13 = z17;
+                        list7 = list3;
+                        list8 = list;
+                        list6 = list6;
+                        list5 = list2;
+                    }
+                    list = list8;
+                    list6 = list6;
+                    list3 = list7;
+                    list2 = list5;
+                    i19 = i20 + 1;
+                    obj6 = obj;
+                    c2 = c3;
+                    fieldSerializerArr = fieldSerializerArr2;
+                    z14 = z16;
+                    z13 = z17;
+                    list7 = list3;
+                    list8 = list;
+                    list6 = list6;
+                    list5 = list2;
+                } catch (Exception e) {
+                    e = e;
+                    serialContext = serialContext3;
+                    String str2 = "write javaBean error";
+                    if (obj2 != null) {
+                        try {
+                            str2 = "write javaBean error, fieldName : " + obj2;
+                        } catch (Throwable th) {
+                            th = th;
+                            jSONSerializer.context = serialContext;
+                            throw th;
+                        }
+                    }
+                    throw new JSONException(str2, e);
+                } catch (Throwable th2) {
+                    th = th2;
+                    serialContext = serialContext3;
+                    jSONSerializer.context = serialContext;
+                    throw th;
+                }
+            }
+            FieldSerializer[] fieldSerializerArr3 = fieldSerializerArr;
+            char c4 = c2;
+            List<AfterFilter> list9 = jSONSerializer.afterFilters;
+            if (list9 != null) {
+                char cWriteAfter = z12 ? ',' : (char) 0;
+                Iterator<AfterFilter> it6 = list9.iterator();
+                while (it6.hasNext()) {
+                    cWriteAfter = it6.next().writeAfter(jSONSerializer, obj, cWriteAfter);
+                }
+            }
+            if (fieldSerializerArr3.length > 0 && (serializeWriter.features & SerializerFeature.PrettyFormat.mask) != 0) {
+                jSONSerializer.decrementIdent();
+                jSONSerializer.println();
+            }
+            int i30 = serializeWriter.count + 1;
+            if (i30 <= serializeWriter.buf.length) {
+                i = i30;
+            } else if (serializeWriter.writer == null) {
+                serializeWriter.expandCapacity(i30);
+                i = i30;
+            } else {
+                serializeWriter.flush();
+                i = 1;
+            }
+            serializeWriter.buf[serializeWriter.count] = c4;
+            serializeWriter.count = i;
+            jSONSerializer.context = serialContext3;
+        } catch (Exception e2) {
+            e = e2;
+            serialContext = serialContext3;
+        } catch (Throwable th3) {
+            th = th3;
+            serialContext = serialContext3;
+        }
+    }
+}

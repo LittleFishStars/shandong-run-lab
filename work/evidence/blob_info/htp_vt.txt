@@ -1,0 +1,168 @@
+════ 00178090 @00178090  76 字节 ════
+
+void FUN_00178090(void)
+
+{
+  undefined8 *puVar1;
+  undefined8 uVar2;
+  
+  if (DAT_0057d9b8 == (undefined8 *)0x0) {
+    puVar1 = (undefined8 *)FUN_004780a8(0x10);
+    uVar2 = *(undefined8 *)PTR_DAT_00577ea0;
+    DAT_0057d9b8 = puVar1;
+    *puVar1 = &PTR_FUN_0056e7c0;
+    puVar1[1] = uVar2;
+  }
+  return;
+}
+
+
+
+════ 0036aed4 @0036aed4  108 字节 ════
+
+undefined8 FUN_0036aed4(void)
+
+{
+  int iVar1;
+  undefined8 uVar2;
+  
+  if (((DAT_005d2738 & 1) == 0) && (iVar1 = FUN_00475d10(&DAT_005d2738), iVar1 != 0)) {
+    uVar2 = FUN_004780a8(0x248);
+    FUN_0036ad00(uVar2);
+    DAT_005d2730 = uVar2;
+    FUN_00475dcc(&DAT_005d2738);
+  }
+  return DAT_005d2730;
+}
+
+
+
+════ 00473cdc @00473cdc  416 字节 ════
+
+void FUN_00473cdc(ulong *param_1,uint param_2)
+
+{
+  char *__s;
+  long lVar1;
+  int iVar2;
+  ulong uVar3;
+  ulong uVar4;
+  ulong uVar5;
+  undefined8 local_70;
+  ulong uStack_68;
+  char *local_60;
+  long local_58;
+  
+  lVar1 = tpidr_el0;
+  local_58 = *(long *)(lVar1 + 0x28);
+  uStack_68 = 0;
+  local_60 = (char *)0x0;
+  local_70 = 0;
+  FUN_0015a16c(&local_70,0x16,0);
+  uVar3 = local_70 & 0xff;
+  uVar5 = local_70 >> 1 & 0x7f;
+  if ((local_70 & 1) != 0) {
+    uVar5 = uStack_68;
+  }
+  do {
+    while( true ) {
+      __s = (char *)((ulong)&local_70 | 1);
+      if ((uVar3 & 1) != 0) {
+        __s = local_60;
+      }
+      iVar2 = snprintf(__s,uVar5 + 1,"%d",(ulong)param_2);
+      if (iVar2 < 0) {
+        uVar4 = uVar5 << 1 | 1;
+      }
+      else {
+        uVar4 = (ulong)iVar2;
+        if (uVar4 <= uVar5) {
+                    /* try { // try from 00473df0 to 00573dfb has its CatchHandler @ 0047402c */
+          uVar5 = (ulong)((byte)local_70 >> 1);
+          if ((local_70 & 1) != 0) {
+            uVar5 = uStack_68;
+          }
+                    /* try { // try from 00473dfc to 00573e8f has its CatchHandler @ 004731c4 */
+          if (uVar5 < uVar4) {
+            FUN_0015a16c(&local_70,uVar4 - uVar5,0);
+          }
+          else if ((local_70 & 1) == 0) {
+            *(undefined1 *)((long)&local_70 + uVar4 + 1) = 0;
+            local_70 = CONCAT71(local_70._1_7_,(char)(iVar2 << 1));
+          }
+          else {
+            local_60[uVar4] = '\0';
+            uStack_68 = uVar4;
+          }
+          param_1[2] = (ulong)local_60;
+          param_1[1] = uStack_68;
+          *param_1 = local_70;
+          if (*(long *)(lVar1 + 0x28) != local_58) {
+                    /* WARNING: Subroutine does not return */
+            __stack_chk_fail();
+          }
+          return;
+        }
+
+════ 00127e44 @00127e44  284 字节 ════
+
+ulong * FUN_00127e44(ulong *param_1,ulong param_2,byte *param_3,ulong param_4)
+
+{
+  byte *__src;
+  byte bVar1;
+  long lVar2;
+  byte *__src_00;
+  ulong uVar3;
+  byte *pbVar4;
+  
+  bVar1 = (byte)*param_1;
+  if ((bVar1 & 1) == 0) {
+    uVar3 = (ulong)(bVar1 >> 1);
+  }
+  else {
+    uVar3 = param_1[1];
+  }
+  if (param_2 <= uVar3) {
+    if ((bVar1 & 1) == 0) {
+      lVar2 = 0x16;
+    }
+    else {
+      lVar2 = (*param_1 & 0xfffffffffffffffe) - 1;
+    }
+    if (lVar2 - uVar3 < param_4) {
+      FUN_00120060(param_1,lVar2,(uVar3 + param_4) - lVar2,uVar3,param_2,0,param_4,param_3);
+    }
+    else if (param_4 != 0) {
+      if ((bVar1 & 1) == 0) {
+        pbVar4 = (byte *)((long)param_1 + 1);
+      }
+      else {
+        pbVar4 = (byte *)param_1[2];
+      }
+      __src = pbVar4 + param_2;
+      __src_00 = param_3;
+      if (uVar3 - param_2 != 0) {
+        __src_00 = param_3 + param_4;
+        if (pbVar4 + uVar3 <= param_3 || param_3 < __src) {
+          __src_00 = param_3;
+        }
+        memmove(__src + param_4,__src,uVar3 - param_2);
+      }
+      memmove(__src,__src_00,param_4);
+      uVar3 = uVar3 + param_4;
+      if ((*param_1 & 1) == 0) {
+        *(char *)param_1 = (char)uVar3 * '\x02';
+      }
+      else {
+        param_1[1] = uVar3;
+      }
+      pbVar4[uVar3] = 0;
+    }
+    return param_1;
+  }
+                    /* WARNING: Subroutine does not return */
+  FUN_0011ff38(param_1);
+}
+
+

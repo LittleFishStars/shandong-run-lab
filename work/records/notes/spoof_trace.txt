@@ -1,0 +1,18 @@
+[*] spawned pid=22366
+[js] [*] spoof_sig.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] 原版证书 779 字节，sha256=3571253832dc0f23a48718eafae173ee9d0f04e1d3a06d343e3787a6c41830ad
+[js] [+] 已挂 getPackageInfo（签名替换）
+[js] [-] ShandongApplication: Error: java.lang.ClassNotFoundException: Didn't find class "com.huachenjie.shandong_school.ShandongApplication" on path: DexPathList[[zip file "/system/framework/org.apache.http.legacy.boot.jar", zip file "/data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/base.apk"],nativeLibraryDirectories=[/data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/lib/arm64, /data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+[js] [-] SplashActivity: Error: java.lang.ClassNotFoundException: Didn't find class "com.huachenjie.shandong_school.splash.SplashActivity" on path: DexPathList[[zip file "/system/framework/org.apache.http.legacy.boot.jar", zip file "/data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/base.apk"],nativeLibraryDirectories=[/data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/lib/arm64, /data/app/com.huachenjie.shandong_school-gtiA59jx8UTQonXwgil-TA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+[js] [SIG] 真实签名 len=761 sha256=1417a9cfe8fc662aef6179ac56350201fd4490e3c7e53b4a8a166168e86cfcae
+[js] [SIG] ★ 已替换为原版证书 → 外壳将看到 len=779
+[js] [!!] 仍在调 java.lang.System.exit —— 替换未生效 (第 1 次)
+[js] [LIFE] MyApplication.onCreate 进入
+[js] [LIFE] MyApplication.onCreate 返回 —— 外壳通过！
+[js] [!!] 仍在调 java.lang.System.exit —— 替换未生效 (第 2 次)
+[js] [SIG] 真实签名 len=761 sha256=1417a9cfe8fc662aef6179ac56350201fd4490e3c7e53b4a8a166168e86cfcae
+[js] [SIG] ★ 已替换为原版证书 → 外壳将看到 len=779
+[*] 等待结束
+[*] 已 kill pid=22366

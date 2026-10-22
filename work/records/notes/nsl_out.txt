@@ -1,0 +1,5 @@
+[*] spawned pid=23720
+[*] script loaded
+[js] [✓] 已装钩子
+[!] 进程已退出
+[*] 等待结束

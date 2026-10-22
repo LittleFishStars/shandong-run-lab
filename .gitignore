@@ -1,28 +1,24 @@
-# Python
-__pycache__/
+# ─────────────────────────────────────────────────────────────
+# 单仓：应用在 projects/desktop/，其余是逆向工作区
+# 大二进制走 Git LFS（见 .gitattributes）；这里排除的是「不可移植/可重建」的东西
+# ─────────────────────────────────────────────────────────────
+
+# 虚拟环境（不可移植）
+**/.venv/
+work/toolchain/.venv-frida/
+**/node_modules/
+
+# 缓存与临时产物
+**/__pycache__/
 *.py[cod]
-*.egg-info/
-.venv/
-
-# 运行期产物
-.run/
-*.db
-*.db-wal
-*.db-shm
 *.log
-exports/
-shots/
-
-# 参考仓（第三方 clone，不入库）
-.ref/
-reference/
-
-# 编辑器
-.idea/
-.vscode/
-*.swp
-
-# 打包产物（dist/ 与 build/ 都是 scripts/build_bin.py 生成的）
+tmp/
+.run/
+.ssh-empty/
 dist/
 build/
-packaging/version_info.txt
+
+# 签名私钥不入库
+work/noshell.keystore
+*.keystore
+*.idsig

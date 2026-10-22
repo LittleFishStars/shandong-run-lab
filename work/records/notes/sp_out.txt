@@ -1,0 +1,33 @@
+[*] spawned pid=31892
+[js] [*] shell_probe.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [*] JNIEnv* = 0x7cd88df7e0  表 = 0x7cd87d7390
+[js] [+] RegisterNatives 已挂 @ 0x7cd8522860
+[js] [+] NewStringUTF 已挂
+[js] ════ RegisterNatives #1  com.netease.nis.wrapper.MyJni  n=11  调用者=★libnesec.so+0xa69bc
+[js]    load  (Landroid/app/Application;Ljava/lang/String;)Z  → 0x7cb2fc6adc  (★libnesec.so+0xa5adc)
+[js]    run  (Landroid/content/Context;Landroid/app/Application;)Z  → 0x7cb2fc71ac  (★libnesec.so+0xa61ac)
+[js]    d  (Ljava/lang/String;)V  → 0x7cb2fc7a7c  (★libnesec.so+0xa6a7c)
+[js]    e  (Ljava/lang/String;)V  → 0x7cb2fc7b10  (★libnesec.so+0xa6b10)
+[js]    cp  ()V  → 0x7cb2fc7b4c  (★libnesec.so+0xa6b4c)
+[js]    ip  (Landroid/app/Application;)V  → 0x7cb2fc7b90  (★libnesec.so+0xa6b90)
+[js]    ra  (Landroid/content/Context;Landroid/app/Application;)Z  → 0x7cb2fc7e94  (★libnesec.so+0xa6e94)
+[js]    getEnvInfo  ()Ljava/lang/String;  → 0x7cb2fc02bc  (★libnesec.so+0x9f2bc)
+[js]    cl  (Ljava/lang/ClassLoader;Landroid/content/pm/ApplicationInfo;  → 0x7cb2fc8184  (★libnesec.so+0xa7184)
+[js]    rp  (Landroid/content/Context;Landroid/app/Application;)Z  → 0x7cb2fc821c  (★libnesec.so+0xa721c)
+[js]    ed  (Ljava/lang/String;)V  → 0x7cb2fc8870  (★libnesec.so+0xa7870)
+[js] [*] libnesec.so base=0x7cb2f21000 size=1167360
+[js] [*] path=/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/lib/arm64/libnesec.so
+[js]     [+] +0x0  892928 B r-x
+[js]     [+] +0xda000  8192 B r-x
+[js]     [+] +0xdc000  4096 B r-x
+[js]     [+] +0xdd000  24576 B rw-
+[js]     [+] +0xe3000  12288 B r-x
+[js]     [+] +0xe6000  16384 B rw-
+[js]     [+] +0xea000  24576 B r-x
+[js]     [+] +0xf0000  61440 B r-x
+[js]     [+] +0xff000  12288 B r-x
+[js]     [+] +0x106000  94208 B rw-
+[!] 进程已退出
+[*] 等待结束

@@ -1,0 +1,107 @@
+总函数数: 876
+字符串数: 1417
+
+════ 关键字符串定位 ════
+  [JNI_OnLoad] 1 处
+     00004cad  JNI_OnLoad
+  [interpreter_wrap] 6 处
+     00004cee  interpreter_wrap_int64_t
+     000050a2  interpreter_wrap_double
+     000050ba  interpreter_wrap_double_ptr
+     000050d6  interpreter_wrap_float
+     000050ed  interpreter_wrap_float_ptr
+  [makekey] 1 处
+     00004e50  makekey
+  [getSoName] 2 处
+     00004d73  getSoName
+     00004d7d  getSoName2
+  [ptrace] 1 处
+     00005164  ptrace
+  [mprotect] 1 处
+     00004d95  mprotect
+  [dlopen] 1 处
+     00004e09  dlopen
+  [oat] 6 处
+     000050d6  interpreter_wrap_float
+     000050ed  interpreter_wrap_float_ptr
+     000fffee  _ZN3art9OatHeader11kOatVersionE
+     001052e1  java/lang/Float
+     0010536b  float
+  [dex] 8 处
+     000ff4f6  ()Lcom/android/dex/Dex;
+     000ff68c  dalvik/system/BaseDexClassLoader
+     000ff6b6  Ldalvik/system/DexPathList;
+     000ff842  dalvik/system/DexPathList
+     000fffad  libdexfile.so
+  [ClassLoader] 8 处
+     000ff68c  dalvik/system/BaseDexClassLoader
+     000ff6d2  com/tianyu/util/QHClassLoader
+     000ff6f0  (Ljava/lang/String;Ljava/lang/ClassLoader;)V
+     00106d6e  java/lang/ClassLoader
+     00106d84  getClassLoader
+  [DexFile] 1 处
+     000fffad  libdexfile.so
+  [su] 16 处
+     00005206  _Unwind_Resume
+     00007401  isupper
+     000074f1  _ZTVNSt3__117__assoc_sub_stateE
+     00007545  _ZTINSt3__117__assoc_sub_stateE
+     00007565  _ZTSNSt3__117__assoc_sub_stateE
+  [/proc/] 8 处
+     000fe673  /proc/self/maps
+     000fffbb  /proc/%d/maps
+     001037a0  /proc/meminfo
+     001041b8  /proc/version
+     00105030  /proc/self/cmdline
+  [dalvik] 4 处
+     000ff68c  dalvik/system/BaseDexClassLoader
+     000ff6b6  Ldalvik/system/DexPathList;
+     000ff842  dalvik/system/DexPathList
+     000fffc9  /dev/ashmem/dalvik-classes.dex
+  [OatHeader] 1 处
+     000fffee  _ZN3art9OatHeader11kOatVersionE
+  [hash] 2 处
+     00105747  JIAGU_HASH_FILE_NAME
+     00107bd8  java/util/concurrent/ConcurrentHashMap
+  [sha] 11 处
+     00007585  _ZTINSt3__114__shared_countE
+     00007721  _ZTVNSt3__114__shared_countE
+     0000773e  _ZTSNSt3__114__shared_countE
+     0000775b  _ZTVNSt3__119__shared_weak_countE
+     0000777d  _ZTINSt3__119__shared_weak_countE
+  [key] 9 处
+     00004e50  makekey
+     00005e83  pthread_key_create
+     00007390  pthread_key_delete
+     000ffef1  appkey
+     000ffef8  APPKEY
+  [sign] 16 处
+     000ffb33  GET_SIGNATURES
+     00104728  GET_SIGNATURES
+     00104738  signatures
+     00104748  [Landroid/content/pm/Signature;
+     001055b9  Signature check.
+
+════ 引用关键字符串的函数 ════
+
+════ 最大函数 TOP 20 ════
+  000bd73c   31872 字节
+  0009e4bc   30940 字节
+  000b1da8   21244 字节
+  000a6430   20080 字节
+  000c7460   11604 字节
+  000d9640   11416 字节
+  000dc8c8   10888 字节
+  000adfa4    8448 字节
+  00038674    7968 字节
+  000f2554    7052 字节
+  0002df2c    6728 字节
+  000b7b14    6540 字节
+  000b0240    6248 字节
+  000f5580    5608 字节
+  000bc27c    5196 字节
+  0007abf0    4756 字节
+  00063b60    4428 字节
+  0009d4d4    3812 字节
+  0007ea60    3796 字节
+  000ab60c    3796 字节

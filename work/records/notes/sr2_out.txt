@@ -1,0 +1,23 @@
+[*] spawned pid=30333
+[js] [*] sig_route2.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [*] JNIEnv* = 0x7cd88df7e0
+[js] [*] 函数表 = 0x7cd87d7390
+[js]   [tbl 4] → 0x7cd84caed8 (libart.so+0x308ed8)
+[js]   [tbl 6] → 0x7cd84caf98 (libart.so+0x308f98)
+[js]   [tbl 113] → 0x7cd84f7040 (libart.so+0x335040)
+[js]   [tbl 147] → 0x7cd8506800 (libart.so+0x344800)
+[js]   [tbl 148] → 0x7cd8506d98 (libart.so+0x344d98)
+[js]   [tbl 149] → 0x7cd8507330 (libart.so+0x345330)
+[js]   [tbl 167] → 0x7cd850d748 (libart.so+0x34b748)
+[js]   [tbl 215] → 0x7cd8522860 (libart.so+0x360860)
+[js]   [tbl 228] → 0x7cd8527ae0 (libart.so+0x365ae0)
+[js] [+] 已挂 JNI 表项 147 @ 0x7cd8506800
+[js] [+] 已挂 JNI 表项 148 @ 0x7cd8506d98
+[js] [+] 已挂 JNI 表项 149 @ 0x7cd8507330
+[js] [+] System.exit 已挂
+[js] [EXIT] System.exit(0)
+[js] [ALT] java.lang.Runtime.exit
+[!] 进程已退出
+[*] 等待结束

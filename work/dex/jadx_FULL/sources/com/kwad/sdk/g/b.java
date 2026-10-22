@@ -1,0 +1,6 @@
+package com.kwad.sdk.g;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_09_10084cls.dex */
+public abstract class b<T, R> {
+    public abstract R apply(T t);
+}

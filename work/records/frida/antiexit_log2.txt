@@ -1,0 +1,2 @@
+[send] {'type': 'log', 'message': 'anti-exit 脚本已加载'}
+[send] {'type': 'log', 'message': 'native hook 异常: TypeError: not a function'}

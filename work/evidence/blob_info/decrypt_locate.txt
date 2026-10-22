@@ -1,0 +1,115 @@
+════ 引用加密串的函数 ════
+  0x0001a021 ← FUN_000971f0 @000971f0 (2712 字节)  来自 00097a98
+  0x0001a003 ← FUN_000971f0 @000971f0 (2712 字节)  来自 00097b88
+  0x0001cda2 ← FUN_000971f0 @000971f0 (2712 字节)  来自 00097bf4
+  0x00013a90 ← FUN_000a3460 @000a3460 (8736 字节)  来自 000a3980
+  0x00013a8e ← FUN_000a3460 @000a3460 (8736 字节)  来自 000a3a0c
+
+════ 000971f0 (2712 字节) ════
+   109: *(undefined8 *)((long)puVar12 + 0x2c) = uVar10;
+   153: uVar23 = (**(code **)(*plVar11 + 0x28))(plVar11,local_290);
+   169: pbVar1 = (byte *)(puVar12 + 0xb);
+   189: piVar20 = (int *)(lVar18 + (ulong)*(uint *)(lVar18 + 0x3c) + 0x40);
+   193: piVar20 = (int *)(puVar12[2] + (ulong)*(uint *)(puVar12[2] + 0x3c) + 0x40);
+   199: iVar2 = *(int *)(lVar18 + (ulong)*(uint *)(lVar18 + 100) + (long)iVar6 * 0x20 + 0x18);
+   202: lVar26 = (long)*(int *)((long)piVar20 + (long)iVar6 * 4 + (long)iVar9 + 0xc);
+   208: while ((uVar5 = (uVar21 & 0xffffffff) <= uVar23, (bool)uVar5 &&
+   218: if (((uVar7 >> 8 & 1) != 0) && (lVar18 = FUN_000d7930(), lVar18 != 0)) {
+   232: if (((uVar8 >> 8 & 1) != 0) && (lVar13 = FUN_000d7930(), lVar13 != 0)) {
+   245: *(undefined4 *)(puVar12 + 6) = *(undefined4 *)(puVar12[2] + 0xc);
+   246: uVar21 = (ulong)*(uint *)(lVar13 + 0x60);
+   247: iVar9 = *(int *)(puVar12[2] + 0x3c) + *(uint *)(lVar13 + 0x60) * 4 + *(int *)(lVar13 + 0x20) +
+   254: uVar21 = (ulong)*(uint *)(lVar13 + 0x60);
+   260: uVar8 = iVar9 + 0xfffU & 0xfffff000;
+   261: *(uint *)((long)puVar12 + 0x24) = uVar8;
+   268: uVar8 = iVar9 + 0xfffU & 0xfffff000;
+   270: puVar14 = (undefined4 *)FUN_000d8d30(0,(long)(int)uVar8,7,0x21,0xffffffff,0);
+   271: if (puVar14 == (undefined4 *)0xffffffffffffffff) goto LAB_00097af8;
+   279: *(undefined8 *)(puVar14 + 0xd) = *(undefined8 *)(puVar19 + 0xd);
+   282: FUN_000d8760(puVar14 + 0x10,puVar19 + 0x10,(ulong)uVar8);
+   284: puVar19 = (undefined4 *)((long)(puVar14 + 0x10) + (ulong)uVar8);
+   285: iVar9 = *(int *)(lVar24 + 0x60);
+   293: lVar18 = (long)puVar19 + (long)(iVar9 << 2) + 0x28;
+   296: FUN_000d80a0(uVar15,puVar12[5],*(undefined4 *)(lVar24 + 0x20));
+   302: puVar27 = (undefined4 *)(lVar18 + (ulong)*(uint *)(lVar24 + 0x20));
+   303: for (uVar23 = 0; bVar4 = (long)(uVar23 - *(uint *)(lVar24 + 0x60)) < 0,
+   304: uVar23 < *(uint *)(lVar24 + 0x60); uVar23 = uVar23 + 1) {
+   308: iVar9 = *(int *)(lVar13 + (ulong)uVar8 + uVar23 * 0x20 + 0x18);
+   314: while ((uVar5 = (uVar22 & 0xffffffff) <= uVar21, (bool)uVar5 &&
+   325: if ((uVar7 >> 8 & 1) != 0) {
+   340: puVar16 = (undefined8 *)((long)puVar16 + 0x1c);
+   349: if ((uVar7 >> 8 & 1) != 0) {
+   362: puVar16 = (undefined8 *)((long)puVar16 + 0x1c);
+   370: FUN_000d8760((long)puVar14 + (long)*(int *)((long)puVar12 + 0x24));
+   373: if ((*(byte *)(puVar12 + 0xb) & 1) == 0) {
+   374: lVar18 = (long)puVar12 + 0x59;
+   393: lVar18 = (long)puVar12 + 0x59;
+   462: *(undefined8 *)((long)puVar12 + 0x2c) = uVar10;
+   463: puVar12[6] = 0x800000008;
+   475: *(undefined8 *)((long)puVar12 + 0x2c) = uVar10;
+   477: *(uint *)((long)puVar12 + 0x34) = param_7;
+
+════ 000a3460 (8736 字节) ════
+   187: iVar11 = FUN_000d6a1c((ulong)local_2a0 & 0xff);
+   270: uVar17 = (**(code **)(*plVar16 + 0x88))();
+   281: auVar39 = FUN_000d3314(*(undefined8 *)(*plVar15 + 0x480),plVar15,auVar40._8_8_,
+   288: FUN_000d33f4(*(undefined8 *)(*plVar15 + 0x488),lVar18,auVar39._8_8_,lVar18);
+   346: if ((!(bool)(iVar11 < 0x15 & (bVar3 ^ 1U))) && (lVar18 == -1)) {
+   438: *(undefined2 *)(lVar36 + (int)uVar37 + lVar18 + 0x2c8) = 0x101;
+   456: uVar34 = *(undefined4 *)((long)plVar16 + 0xc);
+   492: uVar17 = *(ulong *)(extraout_x11 + 0xf0);
+   503: (lVar22 = FUN_00096c3c(lVar36,&local_2a0,uVar17 & 0xffffffff), lVar22 != 0))
+   620: uStack_28e = (undefined4)((ulong)uVar27 >> 8);
+   621: uStack_28a = (undefined2)((ulong)uVar27 >> 0x28);
+   622: uStack_288 = (undefined1)((ulong)uVar27 >> 0x38);
+   624: uStack_296 = (undefined4)((ulong)uVar28 >> 8);
+   625: uStack_292 = (undefined2)((ulong)uVar28 >> 0x28);
+   626: uStack_290 = (undefined1)((ulong)uVar28 >> 0x38);
+   640: uStack_28a = (undefined2)((ulong)uVar27 >> 0x20);
+   641: uStack_288 = (undefined1)((ulong)uVar27 >> 0x30);
+   642: uStack_287._0_1_ = (undefined1)((ulong)uVar27 >> 0x38);
+   644: uStack_292 = (undefined2)((ulong)uVar28 >> 0x20);
+   645: uStack_290 = (undefined1)((ulong)uVar28 >> 0x30);
+   646: uStack_28f = (undefined1)((ulong)uVar28 >> 0x38);
+   666: uVar19 = FUN_000d41e4(*(undefined8 *)(*plVar15 + 0x388));
+   681: uVar24 = FUN_000d49f0(*(undefined8 *)(*plVar15 + 0x560),plVar15,
+   682: (ulong)(CONCAT17(uStack_c1,uStack_c8) - (long)local_d0) >> 4,uVar19);
+   687: iVar11 = *(int *)((long)plVar16 + 0xc);
+   690: uVar25 = (**(code **)(extraout_x8_09 + 0x728))(auVar40._0_8_,auVar40._8_8_,(int)lVar35);
+   691: (**(code **)(*plVar15 + 0x570))(plVar15,uVar24,iVar11 + -1,uVar25);
+   708: uVar19 = FUN_000d0e74(*(undefined8 *)(*plVar15 + 0x30),uVar19,uVar17);
+   720: FUN_000d4b18(auVar40._0_8_,auVar40._8_8_,uVar33,pcVar32 + 0x677);
+   732: for (uVar37 = 0; (uVar12 & ((int)uVar12 >> 0x1f ^ 0xffffffffU)) != uVar37;
+   734: auVar40 = FUN_000d4b0c(*(undefined8 *)(*plVar15 + 0x568));
+   737: (**(code **)(*plVar16 + 0x78))(plVar16,uVar26);
+   755: uVar17 = plVar16[1] - *plVar16 >> 3;
+   756: if (uVar17 >> 0x3d != 0) {
+   779: uVar27 = FUN_000d0e74(*(undefined8 *)(*plVar15 + 0x30),uVar27,uVar17);
+   834: uVar27 = FUN_000d49f0(*(undefined8 *)(*plVar15 + 0x560),plVar15,
+   835: uVar12 + (int)((ulong)((long)local_90 - (long)local_98) >> 3),lVar18
+   840: uVar12 = uVar12 & ((int)uVar12 >> 0x1f ^ 0xffffffffU);
+   841: if ((extraout_w8_03 < 10) || (*(char *)(auVar40._0_8_ + 0xc9) != '\0')) {
+   851: (**(code **)(*plVar15 + 0x570))(plVar15,uVar27,iVar11 + uVar37,uVar25);
+   866: auVar40 = (**(code **)(extraout_x8_18 + 0x570))(auVar40._0_8_,auVar40._8_8_,uVar12);
+   893: uVar34 = *(undefined4 *)((long)plVar16 + 0xc);
+   898: if ((iVar14 != 3) && (*(char *)(lVar36 + 0xe8) == '\0')) {
+   967: *(undefined8 *)(*local_2a0 + 0x48) = uVar19;
+  1004: uStack_287 = (undefined4)((ulong)uVar27 >> 8);
+  1005: uStack_283 = (undefined1)((ulong)uVar27 >> 0x28);
+  1006: uStack_282 = (undefined2)((ulong)uVar27 >> 0x30);
+  1008: uStack_28f = (undefined1)((ulong)uVar28 >> 8);
+  1009: uStack_28e = (undefined4)((ulong)uVar28 >> 0x10);
+  1010: uStack_28a = (undefined2)((ulong)uVar28 >> 0x30);
+  1019: lVar18 = FUN_000d0e74(*(undefined8 *)(*plVar15 + 0x30),uVar19,plVar16);
+  1041: if ((auVar40._0_8_ & 0xff) == 0) {
+  1052: if ((auVar40._0_8_ & 0xff) == 0) {
+  1063: if ((auVar40._0_8_ & 0xff) == 0) {
+  1123: FUN_000d10d0((ulong)local_80 & 0xff,uVar27,0);
+  1308: uStack_288 = (undefined1)((ulong)uVar27 >> 0x10);
+  1309: uStack_287 = (undefined4)((ulong)uVar27 >> 0x18);
+  1310: uStack_283 = (undefined1)((ulong)uVar27 >> 0x38);
+  1312: uStack_290 = (undefined1)((ulong)uVar28 >> 0x10);
+  1313: uStack_28f = (undefined1)((ulong)uVar28 >> 0x18);
+  1314: uStack_28e = (undefined4)((ulong)uVar28 >> 0x20);
+  1373: lVar18 = FUN_000d0e74(*(undefined8 *)(extraout_x8_29 + 0x30),uVar27,uVar17);
+  1391: lVar36 = FUN_000d3314(plVar15,extraout_x1_00,uVar33,pcVar32 + 0x93f);

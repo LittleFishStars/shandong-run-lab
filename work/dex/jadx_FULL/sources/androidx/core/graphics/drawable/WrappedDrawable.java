@@ -1,0 +1,12 @@
+package androidx.core.graphics.drawable;
+
+import android.graphics.drawable.Drawable;
+import androidx.annotation.RestrictTo;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_13_8952cls.dex */
+@RestrictTo({RestrictTo.Scope.LIBRARY_GROUP_PREFIX})
+public interface WrappedDrawable {
+    Drawable getWrappedDrawable();
+
+    void setWrappedDrawable(Drawable drawable);
+}

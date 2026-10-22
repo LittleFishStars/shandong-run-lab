@@ -1,0 +1,22 @@
+[*] spawned pid=31431
+[js] [*] min_exit.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] 已挂 java.lang.System.exit
+[js] [+] 已挂 java.lang.Runtime.exit
+[js] [+] 已挂 java.lang.Runtime.halt
+[js] [+] 已挂 Process.killProcess*
+[js] 
+★★★★★★ [java.lang.System.exit(0)] 完整 Java 栈：
+java.lang.Throwable
+	at java.lang.System.exit(Native Method)
+
+[js] 
+★★★★★★ [java.lang.Runtime.exit(0)] 完整 Java 栈：
+java.lang.Throwable
+	at java.lang.Runtime.exit(Native Method)
+	at java.lang.System.exit(System.java:1496)
+	at java.lang.System.exit(Native Method)
+
+[!] 进程已退出
+[*] 等待结束

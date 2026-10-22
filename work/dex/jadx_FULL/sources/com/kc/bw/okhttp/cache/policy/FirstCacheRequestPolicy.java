@@ -1,0 +1,91 @@
+package com.kc.bw.okhttp.cache.policy;
+
+import android.util.Log;
+import com.kc.bw.dexg;
+import com.kc.bw.okhttp.cache.CacheEntity;
+import com.kc.bw.okhttp.callback.Callback;
+import com.kc.bw.okhttp.model.Response;
+import com.kc.bw.okhttp.request.base.Request;
+import com.qihoo.SdkProtected.OSETSDK.Keep;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_09_10084cls.dex */
+@Keep
+public class FirstCacheRequestPolicy<T> extends BaseCachePolicy<T> {
+    public static final String TAG = dexg.dexa("XN`GjstuDbdifSfrvftu");
+
+    public FirstCacheRequestPolicy(Request<T, ? extends Request> request) {
+        super(request);
+    }
+
+    public void onCacheSuccess(Response<T> response) {
+        try {
+            Callback<T> callback = this.mCallback;
+            if (callback != null) {
+                callback.onCacheSuccess(response);
+                this.mCallback.onFinish();
+            } else {
+                Log.w(TAG, dexg.dexa("poDbdifTvddftt!nDbmmcbdl!jt!ovmm"));
+            }
+        } catch (Throwable th) {
+            Log.w(TAG, dexg.dexa("poDbdifTvddftt!gbjm-") + Log.getStackTraceString(th));
+        }
+    }
+
+    @Override // com.kc.bw.okhttp.cache.policy.CachePolicy
+    public void onError(Response<T> response) {
+        try {
+            Callback<T> callback = this.mCallback;
+            if (callback != null) {
+                callback.onError(response);
+                this.mCallback.onFinish();
+            } else {
+                Log.w(TAG, dexg.dexa("poFssps!nDbmmcbdl!jt!ovmm"));
+            }
+        } catch (Throwable th) {
+            Log.w(TAG, dexg.dexa("poFssps!gbjm-") + Log.getStackTraceString(th));
+        }
+    }
+
+    @Override // com.kc.bw.okhttp.cache.policy.CachePolicy
+    public void onSuccess(Response<T> response) {
+        try {
+            Callback<T> callback = this.mCallback;
+            if (callback != null) {
+                callback.onSuccess(response);
+                this.mCallback.onFinish();
+            } else {
+                Log.w(TAG, dexg.dexa("poTvddftt!nDbmmcbdl!jt!ovmm"));
+            }
+        } catch (Throwable th) {
+            Log.w(TAG, dexg.dexa("poTvddftt!gbjm-") + Log.getStackTraceString(th));
+        }
+    }
+
+    @Override // com.kc.bw.okhttp.cache.policy.CachePolicy
+    public void requestAsync(CacheEntity<T> cacheEntity, Callback<T> callback) {
+        this.mCallback = callback;
+        try {
+            prepareRawCall();
+            if (cacheEntity != null) {
+                onCacheSuccess(Response.success(true, cacheEntity.getData(), this.rawCall, null));
+            }
+            requestNetworkAsync();
+        } catch (Throwable th) {
+            onError(Response.error(false, this.rawCall, null, th));
+        }
+    }
+
+    @Override // com.kc.bw.okhttp.cache.policy.CachePolicy
+    public Response<T> requestSync(CacheEntity<T> cacheEntity) {
+        try {
+            prepareRawCall();
+            if (cacheEntity != null) {
+                Response.success(true, cacheEntity.getData(), this.rawCall, null);
+            }
+            Response<T> responseRequestNetworkSync = requestNetworkSync();
+            return (responseRequestNetworkSync.isSuccessful() || cacheEntity == null) ? responseRequestNetworkSync : Response.success(true, cacheEntity.getData(), this.rawCall, responseRequestNetworkSync.getRawResponse());
+        } catch (Throwable th) {
+            return Response.error(false, this.rawCall, null, th);
+        }
+    }
+}

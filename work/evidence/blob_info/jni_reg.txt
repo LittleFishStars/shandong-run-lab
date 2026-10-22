@@ -1,0 +1,26 @@
+JNI_OnLoad 字符串 @ 00014574
+  引用: 0007ed14  函数=FUN_0007ed08 @0007ed08
+  "signRequest" → 未找到
+  "encodeRun" → 未找到
+  "buildFlutterSecParams" → 未找到
+  "(Ljava/lang/String;I)Ljava/lang/String;" → 未找到
+
+JNI_OnLoad 反编译 (18 行) → jni_onload.c
+  ── 代码片段（前 60 行）──
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_0007ed08(long param_1)
+
+{
+  code *pcVar1;
+  
+  if (((param_1 != 0) &&
+      (pcVar1 = (code *)FUN_000d8cc0(param_1,s_JNI_OnLoad_00014574), pcVar1 != Reset)) &&
+     ((DAT_000e8415 & 1) == 0)) {
+    (*pcVar1)(_DAT_000e8a68,0);
+    DAT_000e8415 = 1;
+  }
+  return;
+}
+

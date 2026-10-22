@@ -1,0 +1,25 @@
+════ 密码学常量表定位 ════
+    AES-Sbox     未找到
+    AES-InvSbox  未找到
+    AES-Te0      未找到
+    MD5-T        未找到
+    SHA1-K       未找到
+    SHA256-K     未找到
+    SM3-IV       未找到
+    SM4-FK       未找到
+  ✓ CRC32        00000004, 00000005, 00000006, 00000007
+
+════ 引用密码学表的函数（加密原语候选）════
+
+════ 关键字符串引用的函数 ════
+  APK Sig Block 42       ← FUN_0009be9c @ 0009be9c (大小 8984)
+  signatureAlgorithm     ← FUN_0007c9f8 @ 0007c9f8 (大小 1044)
+  signerInfos            ← FUN_0007c9f8 @ 0007c9f8 (大小 1044)
+  tbsCertificate         ← FUN_0007c9f8 @ 0007c9f8 (大小 1044)
+  DigestAlgorithms       ← FUN_0007c9f8 @ 0007c9f8 (大小 1044)
+  signerInfo             ← FUN_0007c9f8 @ 0007c9f8 (大小 1044)
+
+════ 反编译候选加密函数（<600 字节）════
+════ 统计 ════
+总函数数: 3449
+引用密码学表的函数: 0

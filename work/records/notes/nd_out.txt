@@ -1,0 +1,50 @@
+[*] spawned pid=32143
+[js] [*] nesec_dump.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] System.exit 已挂
+[js] [+] RegisterNatives 已挂 @ 0x7cd8522860
+[js] ════ MyJni 注册 11 个 native，逐个挂钩：
+[js]    [✓] load @ 0x7cb2eedadc 已钩
+[js]    [✓] run @ 0x7cb2eee1ac 已钩
+[js]    [✓] d @ 0x7cb2eeea7c 已钩
+[js]    [✓] e @ 0x7cb2eeeb10 已钩
+[js]    [✓] cp @ 0x7cb2eeeb4c 已钩
+[js]    [✓] ip @ 0x7cb2eeeb90 已钩
+[js]    [✓] ra @ 0x7cb2eeee94 已钩
+[js]    [✓] getEnvInfo @ 0x7cb2ee72bc 已钩
+[js]    [✓] cl @ 0x7cb2eef184 已钩
+[js]    [✓] rp @ 0x7cb2eef21c 已钩
+[js]    [✓] ed @ 0x7cb2eef870 已钩
+[js] [*] libnesec.so base=0x7cb2e48000 size=1167360
+[js] [*] dump nesec_x +0x0  892928 B  r-x
+[dump] dump_nesec_x_0x0_0x0.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0x20000.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0x40000.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0x60000.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0x80000.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0xa0000.bin.bin 131072 B
+[dump] dump_nesec_x_0x0_0xc0000.bin.bin 106496 B
+[js] [*] dump nesec_x +0xda000  8192 B  r-x
+[dump] dump_nesec_x_0xda000_0x0.bin.bin 8192 B
+[js] [*] dump nesec_x +0xdc000  4096 B  r-x
+[dump] dump_nesec_x_0xdc000_0x0.bin.bin 4096 B
+[js] [*] dump nesec_r +0xdd000  24576 B  rw-
+[dump] dump_nesec_r_0xdd000_0x0.bin.bin 24576 B
+[js] [*] dump nesec_x +0xe3000  12288 B  r-x
+[dump] dump_nesec_x_0xe3000_0x0.bin.bin 12288 B
+[js] [*] dump nesec_r +0xe6000  16384 B  rw-
+[dump] dump_nesec_r_0xe6000_0x0.bin.bin 16384 B
+[js] [*] dump nesec_x +0xea000  24576 B  r-x
+[dump] dump_nesec_x_0xea000_0x0.bin.bin 24576 B
+[js] [*] dump nesec_x +0xf0000  61440 B  r-x
+[dump] dump_nesec_x_0xf0000_0x0.bin.bin 61440 B
+[js] [*] dump nesec_x +0xff000  12288 B  r-x
+[dump] dump_nesec_x_0xff000_0x0.bin.bin 12288 B
+[js] [*] dump nesec_r +0x106000  94208 B  rw-
+[dump] dump_nesec_r_0x106000_0x0.bin.bin 94208 B
+[js] [*] dump 完毕
+[js] ★★★ System.exit(0) 时正在执行的 native 栈：
+      load (+0xa5adc)
+[!] 进程已退出
+[*] 等待结束

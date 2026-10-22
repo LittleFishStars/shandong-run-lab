@@ -1,0 +1,20 @@
+[*] spawned pid=30465
+[js] [*] libc 挂钩数 = 15
+[js] [*] sig_route3.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] 已挂 java.lang.System.exit
+[js] [+] 已挂 java.lang.Runtime.exit
+[js] [+] 已挂 java.lang.Runtime.halt
+[js] [+] 已挂 android.os.Process.killProcess
+[js] [-] 挂 java.lang.Shutdown.exit 失败
+[js] [-] 挂 java.lang.Shutdown.shutdown 失败
+[js] [+] 已挂 android.os.Process.killProcessQuiet
+[js] [*] JNIEnv* = 0x7cd88df7e0  表 = 0x7cd87d7390
+[js] [*] JNI 全表挂钩数 = 229
+[js] [JNI#6] ★★★ 调用者 = ★libnesec.so+0x95d10
+      栈: ★libnesec.so+0x95d10 ← libopenjdkjvm.so+0x411c ← boot.oat+0x2e9b1c ← boot.oat+0x2e9b1c
+[js] [JNI#17] ★★★ 调用者 = ★libnesec.so+0x95d40
+      栈: ★libnesec.so+0x95d40 ← libopenjdkjvm.so+0x411c ← boot.oat+0x2e9b1c ← boot.oat+0x2e9b1c
+[!] 进程已退出
+[*] 等待结束

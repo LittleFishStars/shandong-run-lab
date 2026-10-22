@@ -1,0 +1,12 @@
+[*] spawned pid=11979
+[*] script loaded
+[js] ns_whoexit 就绪
+[js] System.exit 已挂钩
+[js] Runtime.exit 已挂钩
+[js] libc exit 已挂钩
+[js] libc _exit 已挂钩
+[js] libc _Exit 已挂钩
+[js] libc abort 已挂钩
+[js] libc pthread_exit 已挂钩
+[!] 进程已退出
+[*] 等待结束

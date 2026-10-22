@@ -1,0 +1,95 @@
+package cj.mobile.wm.common.utils;
+
+import cj.mobile.wm.dexc;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_12_10194cls.dex */
+public class LogTagUtils {
+    public static final String TAG_COMMON_TAG = dexc.dexa("mzxn`mph>>");
+    public static final String TAG_PLUGIN_WEAK = dexc.dexa("qmh}");
+    public static final String TAG_INST_WEAK = dexc.dexa("jotu}");
+    public static final String TAG_INIT_WEAK = dexc.dexa("joju}");
+    public static final String TAG_OAID_WEAK = dexc.dexa("ype}");
+    public static final String TAG_COMMON_WEAK = dexc.dexa("ydn}");
+    public static final String TAG_HOOK_WEAK = dexc.dexa("yll}");
+
+    public interface Reason {
+        public static final String INIT_NETWORK_FAIL = dexc.dexa("joju!ofuxpsl!gbjm!");
+        public static final String READ_LOCAL_CONFIG = dexc.dexa("mpbe!mdgh!!");
+        public static final String READ_LOCAL_CONFIG_SUCCESS = dexc.dexa("mdgh!mpbe!epof!");
+        public static final String LOCAL_CONFIG_INVALID = dexc.dexa("mdgh!jowbme");
+        public static final String MEDIA_LOCAL_CONFIG_NOT_EXIST = dexc.dexa("nfejb!dgh!jowbmje!");
+        public static final String READ_MEDIA_LOCAL_CONFIG = dexc.dexa("nfejb!dghObnf>");
+        public static final String READ_MEDIA_LOCAL_CONFIG_COMPLETED = dexc.dexa("nfejb!dgh!mpbe!epof!");
+        public static final String FETCH_REMOTE_CONFIG = dexc.dexa("gfudi!dgh!");
+        public static final String FETCH_REMOTE_CONFIG_SUCCESS = dexc.dexa("gfudi!dgh!epof!");
+        public static final String FETCH_REMOTE_CONFIG_FAIL = dexc.dexa("gfudi!dgh!gbjm!");
+        public static final String READ_LOCAL_CACHE_OAID = dexc.dexa("smdp!");
+        public static final String UPDATE_LOCAL_OAID = dexc.dexa("vmp!");
+        public static final String DEV_OAID_VALUE = dexc.dexa("epw!");
+        public static final String GET_OAID_FAIL = dexc.dexa("hpg!");
+        public static final String FETCH_REMOTE_BLACKLIST_CONFIG = dexc.dexa("gscd!");
+        public static final String FETCH_REMOTE_BLACKLIST_CONFIG_FAIL = dexc.dexa("gscdg!");
+        public static final String REMOTE_BLACKLIST_INVALID = dexc.dexa("scj!");
+        public static final String REMOTE_BLACKLIST_CHANGES = dexc.dexa("scmd!");
+        public static final String BLACKLIST_NO_CHANGES = dexc.dexa("cmod!");
+        public static final String READ_LOCAL_CREATIVE_IDS_SUCCESS = dexc.dexa("smdjt!");
+        public static final String READ_LOCAL_CREATIVE_IDS_FAILED = dexc.dexa("smdjg!");
+        public static final String REPORT_TRACK_LOG_FAIL = dexc.dexa("sumg!");
+        public static final String BUILD_SPLASH_CONTAINER_START = dexc.dexa("ctdt!");
+        public static final String BUILD_SPLASH_CONTAINER_END = dexc.dexa("ctdf!");
+        public static final String API_SPLASH_SHOW = dexc.dexa("btt!");
+        public static final String API_SPLASH_RENDER = dexc.dexa("bts!");
+        public static final String FETCH_BANNER_AD = dexc.dexa("gfudi!tqmbti!be!");
+        public static final String OAID_IS_VALID = dexc.dexa("qbtt");
+        public static final String FETCH_SPLASH_AD = dexc.dexa("gfudi!tqmbti!be!");
+        public static final String FETCH_BUYER_ID = dexc.dexa("gfudi!cvzfsJe");
+        public static final String FETCH_POPUP_AD = dexc.dexa("gfudi!tqmbti!be!");
+        public static final String FETCH_EXPRESS_AD = dexc.dexa("gfudi!fyqsftt!be!");
+        public static final String FETCH_NATIVE_AD = dexc.dexa("gfudi!obujwf!be!");
+        public static final String FETCH_REWARD_AD = dexc.dexa("gfudi!sfxbse!be!");
+        public static final String FETCH_PATCH_AD = dexc.dexa("gfudi!qbudi!be!");
+        public static final String FETCH_FULLSCREEN_AD = dexc.dexa("gfudi!GvmmTdsffo!be!");
+        public static final String DISPATCH_ACTION = dexc.dexa("ejtqbudi!bdujpo!");
+        public static final String REPORT_APP_DP_STATUS_SUCCESS = dexc.dexa("sbett!");
+        public static final String REPORT_APP_DP_STATUS_FAIL = dexc.dexa("sbetg!");
+        public static final String REGISTER_CRASH_HANDLE = dexc.dexa("sfh!dsbti!");
+        public static final String REGISTER_HIDDEN_API_EXEMPTIONS = dexc.dexa("sfh!ijeefo!");
+        public static final String PLUGIN_EXPORTED = dexc.dexa("qmh!sfbez");
+        public static final String PLUGIN_EXPORT = dexc.dexa("qmh!fyq");
+        public static final String LOCAL_PLUGIN_VERSION_INVALID = dexc.dexa("mqmh!wfstjpo!jowbmje!");
+        public static final String HOTFIX_PLUGIN_VERSION_INVALID = dexc.dexa("iqmh!wfstjpo!jowbmje!");
+        public static final String PRE_PLUGIN_VERSION_INVALID = dexc.dexa("qsfqmh!wfstjpo!jowbmje");
+        public static final String GET_CURRENT_PLUGIN_VERSION_FAIL = dexc.dexa("gfudi!dqmh!wfstjpo!gbjm!");
+        public static final String CURRENT_PLUGIN_VERSION_INVALID = dexc.dexa("dqmh!wfstjpo!jowbmje");
+        public static final String PLUGIN_VERSION_SAME = dexc.dexa("tbnf!wfstjpo");
+        public static final String PLUGIN_VERSION_DIFFERENT = dexc.dexa("ejggfsfou!wfstjpo");
+        public static final String PLUGIN_PATH_INVALID = dexc.dexa("qmh!qbui!jowbmje");
+        public static final String PLUGIN_NAME_INVALID = dexc.dexa("qmh!obnf!jowbmje");
+        public static final String EXPORT_PLUGIN_COMPLETED = dexc.dexa("qmh!fyq!epof!");
+        public static final String EXPORT_PLUGIN_FAIL = dexc.dexa("qmh!fyq!gbjm!");
+        public static final String HOTFIX_PLUGIN_CHECK = dexc.dexa("qmh!difdl!");
+        public static final String HOTFIX_PLUGIN_UPGRADE_RESPONSE = dexc.dexa("qmh!sftq!");
+        public static final String HOTFIX_PLUGIN_UPGRADE_FAIL = dexc.dexa("qmh!sftq!gbjm!");
+        public static final String CHECK_NEED_DOWNLOAD_PLUGIN_FAIL = dexc.dexa("qmh!difdl!gbjm");
+        public static final String DOWNLOAD_HOTFIX_PLUGIN = dexc.dexa("qmh!epxompbe!");
+        public static final String DOWNLOAD_HOTFIX_PLUGIN_DONE = dexc.dexa("qmh!epxompbe!epof!");
+        public static final String DOWNLOAD_HOTFIX_PLUGIN_FAIL = dexc.dexa("qmh!epxompbe!gbjm!");
+        public static final String HOTFIX_PLUGIN_VERIFY = dexc.dexa("qmh!wfsjgz");
+        public static final String HOTFIX_PLUGIN_VERIFY_FAIL = dexc.dexa("qmh!wfsjgz!gbjm");
+        public static final String OVERWRITE_HOTFIX_PLUGIN = dexc.dexa("qmh!pwfsxsjuf!");
+        public static final String CLEAR_AD_LOADER_INSTANCE = dexc.dexa("dmfbs!jotubodf!");
+        public static final String LOCAL_PLUGIN_FILE_INVALID = dexc.dexa("mqmh!gjmf!jowbmje!");
+        public static final String HOTFIX_PLUGIN_FILE_INVALID = dexc.dexa("iqmh!gjmf!jowbmje!");
+        public static final String HOTFIX_PLUGIN_PACKAGE_INVALID = dexc.dexa("iqmh!qbdlbhf!jowbmje!");
+        public static final String LOCAL_PLUGIN_PACKAGE_INVALID = dexc.dexa("mqmh!qbdlbhf!jowbmje");
+        public static final String LOADER_PLUGIN_START = dexc.dexa("mpbe!qmh!");
+        public static final String CURRENT_PLUGIN_PATH_INVALID = dexc.dexa("dqmh!qbui!jowbmje!");
+        public static final String CURRENT_PLUGIN_FILE_INVALID = dexc.dexa("dqmh!gjmf!jowbmje!");
+        public static final String AD_LOADER_BUILD_SUCCESS = dexc.dexa("beMpbe!jotubodf!");
+        public static final String AD_LOADER_INIT = dexc.dexa("beMpbe!joju!");
+        public static final String ADD_ASSETS_PATH = dexc.dexa("bee!bttfut!!");
+        public static final String PLUGIN_RESOURCE_BUILD_SUCCESS = dexc.dexa("sft!cvjme!epof!");
+        public static final String AD_LOADER_BUILD_COMPLETED = dexc.dexa("beMpbe!cvjme!epof!");
+        public static final String AD_LOADER_READY = dexc.dexa("beMpbe!sfbez!");
+    }
+}

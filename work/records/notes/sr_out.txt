@@ -1,0 +1,6 @@
+[*] spawned pid=31295
+[js] [*] libc 轻量挂钩数 = 8
+[js] [*] sig_read.js 装载完成
+[*] script loaded
+[!] 进程已退出
+[*] 等待结束

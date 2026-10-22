@@ -1,0 +1,503 @@
+package com.fl.saas.base.widget;
+
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.content.Context;
+import android.util.AttributeSet;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.animation.ScaleAnimation;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import com.fl.saas.common.util.ImageLoader;
+import com.fl.saas.common.util.ViewHelper;
+import com.fl.saas.config.utils.DeviceUtil;
+import com.fl.saas.s2s.R;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_08_10593cls.dex */
+public class FingerSlidingAndTwistingView extends FrameLayout implements View.OnTouchListener {
+    private View bgView;
+    private boolean isCallback;
+    private boolean isVisibility;
+    private Animator mAnimator;
+    private GestureDetector mGestureDetector;
+    private ImageView mImageView;
+    private SlidingListener mSlidingListener;
+    private int scale_type;
+    private int slidingThreshold;
+    private int viewHeight;
+
+    public interface SlidingListener {
+        void onDown(int i, int i2, View view);
+
+        void onShake(int i, int i2, int i3);
+
+        void onSliding();
+
+        void onUp(int i, int i2, View view);
+    }
+
+    public FingerSlidingAndTwistingView(@NonNull Context context) {
+        super(context);
+        this.slidingThreshold = 100;
+        this.isCallback = false;
+        this.isVisibility = false;
+    }
+
+    public FingerSlidingAndTwistingView(@NonNull Context context, @Nullable AttributeSet attributeSet) {
+        this(context, attributeSet, 0);
+    }
+
+    public FingerSlidingAndTwistingView(@NonNull Context context, @Nullable AttributeSet attributeSet, int i) {
+        super(context, attributeSet, i);
+        this.slidingThreshold = 100;
+        this.isCallback = false;
+        this.isVisibility = false;
+        createView(true);
+    }
+
+    private void cancelAnimator() {
+        Animator animator = this.mAnimator;
+        if (animator != null) {
+            animator.cancel();
+        }
+        View view = this.bgView;
+        if (view != null) {
+            view.clearAnimation();
+        }
+    }
+
+    private Animator createAnimatorSet(View view, long j, float f) {
+        if (view == null) {
+            return null;
+        }
+        view.setPivotX(view.getMeasuredHeight() / 2.0f);
+        view.setPivotY(view.getMeasuredWidth() / 2.0f);
+        AnimatorSet animatorSet = new AnimatorSet();
+        ObjectAnimator objectAnimatorOfFloat = ObjectAnimator.ofFloat(view, "translationX", 0.0f, f);
+        objectAnimatorOfFloat.setDuration(j);
+        ObjectAnimator objectAnimatorOfFloat2 = ObjectAnimator.ofFloat(view, "translationX", f, 0.0f);
+        objectAnimatorOfFloat2.setDuration(j);
+        ObjectAnimator objectAnimatorOfFloat3 = ObjectAnimator.ofFloat(view, "translationY", 0.0f, f);
+        objectAnimatorOfFloat3.setDuration(j);
+        objectAnimatorOfFloat3.setStartDelay(200L);
+        ObjectAnimator objectAnimatorOfFloat4 = ObjectAnimator.ofFloat(view, "translationY", f, 0.0f);
+        objectAnimatorOfFloat4.setDuration(j);
+        float f2 = -f;
+        ObjectAnimator objectAnimatorOfFloat5 = ObjectAnimator.ofFloat(view, "translationX", 0.0f, f2);
+        objectAnimatorOfFloat5.setDuration(j);
+        objectAnimatorOfFloat5.setStartDelay(200L);
+        ObjectAnimator objectAnimatorOfFloat6 = ObjectAnimator.ofFloat(view, "translationX", f2, 0.0f);
+        objectAnimatorOfFloat6.setDuration(j);
+        ObjectAnimator objectAnimatorOfFloat7 = ObjectAnimator.ofFloat(view, "translationY", 0.0f, f2);
+        objectAnimatorOfFloat7.setDuration(j);
+        objectAnimatorOfFloat7.setStartDelay(200L);
+        ObjectAnimator objectAnimatorOfFloat8 = ObjectAnimator.ofFloat(view, "translationY", f2, 0.0f);
+        objectAnimatorOfFloat8.setDuration(j);
+        animatorSet.playSequentially(objectAnimatorOfFloat, objectAnimatorOfFloat2, objectAnimatorOfFloat3, objectAnimatorOfFloat4, objectAnimatorOfFloat5, objectAnimatorOfFloat6, objectAnimatorOfFloat7, objectAnimatorOfFloat8);
+        animatorSet.setStartDelay(400L);
+        animatorSet.addListener(new AnimatorListenerAdapter() { // from class: com.fl.saas.base.widget.FingerSlidingAndTwistingView.2
+            @Override // android.animation.AnimatorListenerAdapter, android.animation.Animator.AnimatorListener
+            public void onAnimationCancel(Animator animator) {
+            }
+
+            @Override // android.animation.AnimatorListenerAdapter, android.animation.Animator.AnimatorListener
+            public void onAnimationEnd(Animator animator) {
+                if (FingerSlidingAndTwistingView.this.isVisibility) {
+                    animator.start();
+                }
+            }
+        });
+        return animatorSet;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$createView$0(int i, int i2, int i3) {
+        this.mSlidingListener.onShake(i, i2, i3);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void playAnimator() {
+        if (this.bgView != null) {
+            ScaleAnimation scaleAnimation = new ScaleAnimation(1.0f, 1.0f, 1.0f, 1.1f, 1, 0.5f, 1, 1.0f);
+            scaleAnimation.setDuration(700L);
+            scaleAnimation.setRepeatCount(-1);
+            scaleAnimation.setRepeatMode(2);
+            this.bgView.startAnimation(scaleAnimation);
+        }
+        if (this.mAnimator == null) {
+            this.mAnimator = createAnimatorSet(this.mImageView, 400L, DeviceUtil.dip2px(20.0f));
+        }
+        if (this.mAnimator.isRunning()) {
+            return;
+        }
+        this.mAnimator.start();
+    }
+
+    /* JADX WARN: Code duplicated, block: B:11:0x004f  */
+    /* JADX WARN: Code duplicated, block: B:13:0x0059  */
+    /* JADX WARN: Code duplicated, block: B:15:0x005c  */
+    /* JADX WARN: Code duplicated, block: B:18:0x00a0 A[RETURN] */
+    /* JADX WARN: Code duplicated, block: B:19:0x00a1  */
+    /* JADX WARN: Instruction removed from duplicated block: B:11:0x004f, please report this as an issue */
+    public void createView(boolean z) {
+        int i;
+        ShakeView shakeView;
+        double d;
+        float f;
+        View viewInflate = ViewHelper.inflate(getContext(), R.layout.yd_saas_view_sliding_twisting_spread);
+        this.mImageView = (ImageView) viewInflate.findViewById(R.id.iv_finger);
+        ImageLoader.loadImage("https://creative.medproad.com/medpro/imgs/yd_saas_icon_all_arrow.webp", (ImageView) viewInflate.findViewById(R.id.iv_all_arrow));
+        ImageLoader.loadImage("https://creative.medproad.com/medpro/imgs/yd_saas_spread_guide.webp", this.mImageView);
+        int mobileHeight = DeviceUtil.getMobileHeight();
+        if (mobileHeight > 0) {
+            f = mobileHeight < DeviceUtil.px2dip(500.0f) ? 800.0f : 900.0f;
+            double d2 = mobileHeight;
+            this.viewHeight = (int) (0.2d * d2);
+            i = this.scale_type;
+            if (i == 1) {
+                d = i == 2 ? 0.4d : 0.3d;
+                FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-1, this.viewHeight);
+                layoutParams.gravity = 80;
+                View view = new View(getContext());
+                this.bgView = view;
+                view.setBackgroundResource(R.drawable.yd_saas_slide_bg);
+                addView(this.bgView, layoutParams);
+                FrameLayout.LayoutParams layoutParams2 = new FrameLayout.LayoutParams(-1, this.viewHeight + DeviceUtil.dip2px(140.0f));
+                layoutParams2.gravity = 80;
+                addView(viewInflate, layoutParams2);
+                shakeView = (ShakeView) viewInflate.findViewById(R.id.yd_shake_view);
+                if (shakeView == null) {
+                    return;
+                }
+                shakeView.setCallback(!z);
+                shakeView.setShakeListener(this.slidingThreshold / 4, new ShakeView.ShakeListener() { // from class: com.zj.adlib.fh3
+                    @Override // com.fl.saas.base.widget.ShakeView.ShakeListener
+                    public final void onShake(int i2, int i3, int i4) {
+                        this.f41674a.lambda$createView$0(i2, i3, i4);
+                    }
+                });
+                this.mGestureDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() { // from class: com.fl.saas.base.widget.FingerSlidingAndTwistingView.1
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public boolean onDown(@NonNull MotionEvent motionEvent) {
+                        FingerSlidingAndTwistingView.this.isCallback = false;
+                        return true;
+                    }
+
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public boolean onFling(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                        return true;
+                    }
+
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public void onLongPress(@NonNull MotionEvent motionEvent) {
+                    }
+
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public boolean onScroll(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                        if (FingerSlidingAndTwistingView.this.isCallback) {
+                            return true;
+                        }
+                        float fAbs = Math.abs(motionEvent2.getX() - motionEvent.getX());
+                        float fAbs2 = Math.abs(motionEvent2.getY() - motionEvent.getY());
+                        if ((fAbs > FingerSlidingAndTwistingView.this.slidingThreshold || fAbs2 > FingerSlidingAndTwistingView.this.slidingThreshold) && FingerSlidingAndTwistingView.this.mSlidingListener != null) {
+                            FingerSlidingAndTwistingView.this.mSlidingListener.onUp((int) motionEvent2.getX(), (int) motionEvent2.getY(), FingerSlidingAndTwistingView.this);
+                            FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                            FingerSlidingAndTwistingView.this.isCallback = true;
+                        }
+                        return true;
+                    }
+
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public void onShowPress(@NonNull MotionEvent motionEvent) {
+                    }
+
+                    @Override // android.view.GestureDetector.OnGestureListener
+                    public boolean onSingleTapUp(@NonNull MotionEvent motionEvent) {
+                        if (motionEvent.getY() <= FingerSlidingAndTwistingView.this.getHeight() - FingerSlidingAndTwistingView.this.viewHeight) {
+                            return true;
+                        }
+                        FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                        return true;
+                    }
+                });
+                setOnTouchListener(this);
+                setFocusable(true);
+                setClickable(true);
+                setLongClickable(true);
+            }
+            this.viewHeight = (int) (d2 * d);
+            FrameLayout.LayoutParams layoutParams3 = new FrameLayout.LayoutParams(-1, this.viewHeight);
+            layoutParams3.gravity = 80;
+            View view2 = new View(getContext());
+            this.bgView = view2;
+            view2.setBackgroundResource(R.drawable.yd_saas_slide_bg);
+            addView(this.bgView, layoutParams3);
+            FrameLayout.LayoutParams layoutParams4 = new FrameLayout.LayoutParams(-1, this.viewHeight + DeviceUtil.dip2px(140.0f));
+            layoutParams4.gravity = 80;
+            addView(viewInflate, layoutParams4);
+            shakeView = (ShakeView) viewInflate.findViewById(R.id.yd_shake_view);
+            if (shakeView == null) {
+                return;
+            }
+            shakeView.setCallback(!z);
+            shakeView.setShakeListener(this.slidingThreshold / 4, new ShakeView.ShakeListener() { // from class: com.zj.adlib.fh3
+                @Override // com.fl.saas.base.widget.ShakeView.ShakeListener
+                public final void onShake(int i2, int i3, int i4) {
+                    this.f41674a.lambda$createView$0(i2, i3, i4);
+                }
+            });
+            this.mGestureDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() { // from class: com.fl.saas.base.widget.FingerSlidingAndTwistingView.1
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onDown(@NonNull MotionEvent motionEvent) {
+                    FingerSlidingAndTwistingView.this.isCallback = false;
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onFling(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public void onLongPress(@NonNull MotionEvent motionEvent) {
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onScroll(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                    if (FingerSlidingAndTwistingView.this.isCallback) {
+                        return true;
+                    }
+                    float fAbs = Math.abs(motionEvent2.getX() - motionEvent.getX());
+                    float fAbs2 = Math.abs(motionEvent2.getY() - motionEvent.getY());
+                    if ((fAbs > FingerSlidingAndTwistingView.this.slidingThreshold || fAbs2 > FingerSlidingAndTwistingView.this.slidingThreshold) && FingerSlidingAndTwistingView.this.mSlidingListener != null) {
+                        FingerSlidingAndTwistingView.this.mSlidingListener.onUp((int) motionEvent2.getX(), (int) motionEvent2.getY(), FingerSlidingAndTwistingView.this);
+                        FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                        FingerSlidingAndTwistingView.this.isCallback = true;
+                    }
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public void onShowPress(@NonNull MotionEvent motionEvent) {
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onSingleTapUp(@NonNull MotionEvent motionEvent) {
+                    if (motionEvent.getY() <= FingerSlidingAndTwistingView.this.getHeight() - FingerSlidingAndTwistingView.this.viewHeight) {
+                        return true;
+                    }
+                    FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                    return true;
+                }
+            });
+            setOnTouchListener(this);
+            setFocusable(true);
+            setClickable(true);
+            setLongClickable(true);
+        }
+        mobileHeight = DeviceUtil.dip2px(f);
+        double d3 = mobileHeight;
+        this.viewHeight = (int) (0.2d * d3);
+        i = this.scale_type;
+        if (i == 1) {
+            if (i == 2) {
+            }
+            FrameLayout.LayoutParams layoutParams5 = new FrameLayout.LayoutParams(-1, this.viewHeight);
+            layoutParams5.gravity = 80;
+            View view3 = new View(getContext());
+            this.bgView = view3;
+            view3.setBackgroundResource(R.drawable.yd_saas_slide_bg);
+            addView(this.bgView, layoutParams5);
+            FrameLayout.LayoutParams layoutParams6 = new FrameLayout.LayoutParams(-1, this.viewHeight + DeviceUtil.dip2px(140.0f));
+            layoutParams6.gravity = 80;
+            addView(viewInflate, layoutParams6);
+            shakeView = (ShakeView) viewInflate.findViewById(R.id.yd_shake_view);
+            if (shakeView == null) {
+                return;
+            }
+            shakeView.setCallback(!z);
+            shakeView.setShakeListener(this.slidingThreshold / 4, new ShakeView.ShakeListener() { // from class: com.zj.adlib.fh3
+                @Override // com.fl.saas.base.widget.ShakeView.ShakeListener
+                public final void onShake(int i2, int i3, int i4) {
+                    this.f41674a.lambda$createView$0(i2, i3, i4);
+                }
+            });
+            this.mGestureDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() { // from class: com.fl.saas.base.widget.FingerSlidingAndTwistingView.1
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onDown(@NonNull MotionEvent motionEvent) {
+                    FingerSlidingAndTwistingView.this.isCallback = false;
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onFling(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public void onLongPress(@NonNull MotionEvent motionEvent) {
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onScroll(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                    if (FingerSlidingAndTwistingView.this.isCallback) {
+                        return true;
+                    }
+                    float fAbs = Math.abs(motionEvent2.getX() - motionEvent.getX());
+                    float fAbs2 = Math.abs(motionEvent2.getY() - motionEvent.getY());
+                    if ((fAbs > FingerSlidingAndTwistingView.this.slidingThreshold || fAbs2 > FingerSlidingAndTwistingView.this.slidingThreshold) && FingerSlidingAndTwistingView.this.mSlidingListener != null) {
+                        FingerSlidingAndTwistingView.this.mSlidingListener.onUp((int) motionEvent2.getX(), (int) motionEvent2.getY(), FingerSlidingAndTwistingView.this);
+                        FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                        FingerSlidingAndTwistingView.this.isCallback = true;
+                    }
+                    return true;
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public void onShowPress(@NonNull MotionEvent motionEvent) {
+                }
+
+                @Override // android.view.GestureDetector.OnGestureListener
+                public boolean onSingleTapUp(@NonNull MotionEvent motionEvent) {
+                    if (motionEvent.getY() <= FingerSlidingAndTwistingView.this.getHeight() - FingerSlidingAndTwistingView.this.viewHeight) {
+                        return true;
+                    }
+                    FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                    return true;
+                }
+            });
+            setOnTouchListener(this);
+            setFocusable(true);
+            setClickable(true);
+            setLongClickable(true);
+        }
+        this.viewHeight = (int) (d3 * d);
+        FrameLayout.LayoutParams layoutParams7 = new FrameLayout.LayoutParams(-1, this.viewHeight);
+        layoutParams7.gravity = 80;
+        View view4 = new View(getContext());
+        this.bgView = view4;
+        view4.setBackgroundResource(R.drawable.yd_saas_slide_bg);
+        addView(this.bgView, layoutParams7);
+        FrameLayout.LayoutParams layoutParams8 = new FrameLayout.LayoutParams(-1, this.viewHeight + DeviceUtil.dip2px(140.0f));
+        layoutParams8.gravity = 80;
+        addView(viewInflate, layoutParams8);
+        shakeView = (ShakeView) viewInflate.findViewById(R.id.yd_shake_view);
+        if (shakeView == null) {
+            return;
+        }
+        shakeView.setCallback(!z);
+        shakeView.setShakeListener(this.slidingThreshold / 4, new ShakeView.ShakeListener() { // from class: com.zj.adlib.fh3
+            @Override // com.fl.saas.base.widget.ShakeView.ShakeListener
+            public final void onShake(int i2, int i3, int i4) {
+                this.f41674a.lambda$createView$0(i2, i3, i4);
+            }
+        });
+        this.mGestureDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() { // from class: com.fl.saas.base.widget.FingerSlidingAndTwistingView.1
+            @Override // android.view.GestureDetector.OnGestureListener
+            public boolean onDown(@NonNull MotionEvent motionEvent) {
+                FingerSlidingAndTwistingView.this.isCallback = false;
+                return true;
+            }
+
+            @Override // android.view.GestureDetector.OnGestureListener
+            public boolean onFling(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                return true;
+            }
+
+            @Override // android.view.GestureDetector.OnGestureListener
+            public void onLongPress(@NonNull MotionEvent motionEvent) {
+            }
+
+            @Override // android.view.GestureDetector.OnGestureListener
+            public boolean onScroll(@NonNull MotionEvent motionEvent, @NonNull MotionEvent motionEvent2, float f2, float f3) {
+                if (FingerSlidingAndTwistingView.this.isCallback) {
+                    return true;
+                }
+                float fAbs = Math.abs(motionEvent2.getX() - motionEvent.getX());
+                float fAbs2 = Math.abs(motionEvent2.getY() - motionEvent.getY());
+                if ((fAbs > FingerSlidingAndTwistingView.this.slidingThreshold || fAbs2 > FingerSlidingAndTwistingView.this.slidingThreshold) && FingerSlidingAndTwistingView.this.mSlidingListener != null) {
+                    FingerSlidingAndTwistingView.this.mSlidingListener.onUp((int) motionEvent2.getX(), (int) motionEvent2.getY(), FingerSlidingAndTwistingView.this);
+                    FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                    FingerSlidingAndTwistingView.this.isCallback = true;
+                }
+                return true;
+            }
+
+            @Override // android.view.GestureDetector.OnGestureListener
+            public void onShowPress(@NonNull MotionEvent motionEvent) {
+            }
+
+            @Override // android.view.GestureDetector.OnGestureListener
+            public boolean onSingleTapUp(@NonNull MotionEvent motionEvent) {
+                if (motionEvent.getY() <= FingerSlidingAndTwistingView.this.getHeight() - FingerSlidingAndTwistingView.this.viewHeight) {
+                    return true;
+                }
+                FingerSlidingAndTwistingView.this.mSlidingListener.onSliding();
+                return true;
+            }
+        });
+        setOnTouchListener(this);
+        setFocusable(true);
+        setClickable(true);
+        setLongClickable(true);
+    }
+
+    @Override // android.view.ViewGroup, android.view.View
+    public void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        cancelAnimator();
+        this.mAnimator = null;
+    }
+
+    @Override // android.view.View.OnTouchListener
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        if (motionEvent.getAction() == 0) {
+            int x = (int) motionEvent.getX();
+            int y = (int) motionEvent.getY();
+            SlidingListener slidingListener = this.mSlidingListener;
+            if (slidingListener != null) {
+                slidingListener.onDown(x, y, this);
+            }
+        }
+        if (motionEvent.getAction() == 1) {
+            int x2 = (int) motionEvent.getX();
+            int y2 = (int) motionEvent.getY();
+            SlidingListener slidingListener2 = this.mSlidingListener;
+            if (slidingListener2 != null) {
+                slidingListener2.onUp(x2, y2, this);
+            }
+        }
+        return this.mGestureDetector.onTouchEvent(motionEvent);
+    }
+
+    @Override // android.view.View
+    public void onWindowVisibilityChanged(int i) {
+        super.onWindowVisibilityChanged(i);
+        this.isVisibility = i == 0;
+        if (i == 0) {
+            this.mImageView.post(new Runnable() { // from class: com.zj.adlib.dh3
+                @Override // java.lang.Runnable
+                public final void run() {
+                    this.f41181a.playAnimator();
+                }
+            });
+        } else {
+            cancelAnimator();
+        }
+    }
+
+    public void setScale_type(int i) {
+        this.scale_type = i;
+    }
+
+    public void setSlidingListener(int i, SlidingListener slidingListener) {
+        this.mSlidingListener = slidingListener;
+        this.slidingThreshold = i * 4;
+    }
+}

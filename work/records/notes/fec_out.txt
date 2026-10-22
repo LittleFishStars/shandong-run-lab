@@ -1,0 +1,13 @@
+[*] spawned pid=27878
+[js] [*] libart.so base=0x7cd81c2000 size=6418432
+[js] [*] libart JNI 调用点已挂: 0
+[js] [*] find_exit_caller.js 装载完成
+[*] script loaded
+[js] [+] System.exit 已挂
+[js] [+] getPackageInfo 已挂
+[js] [PKGINFO] flags=0x40
+[js]       
+[js] [EXIT-JAVA] System.exit(0)
+[js]       
+[!] 进程已退出
+[*] 等待结束

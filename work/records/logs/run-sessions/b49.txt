@@ -1,0 +1,1153 @@
+[assistant]
+Let me now do the walker.py改造：加 H0 过滤、围栏外丢弃、无效点也落库。
+
+Let me read the walker.py sections I need to edit precisely. Let me read the __init__ state fields and _sample_if_due region, plus tick.
+
+I've read lines 1-300 and 300-419 (earlier). Now I have enough. Let me read 420-448 for the rest.
+
+Actually earlier read showed 300-419. Let me see the remaining module-level functions 420-448.
+
+[assistant • read]
+{"limit": 35, "offset": 419, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py"}
+
+[tool • read]
+0M3│    p1, p2 = math.radians(lat1), math.radians(lat2)
+AZO│    d_lat = p2 - p1
+0iZ│    d_lng = math.radians(lng2 - lng1)
+fOk│    a = math.sin(d_lat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(d_lng / 2) ** 2
+iL9│    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+jNA│
+kOB│
+cwg│def _round6(v: float) -> float:
+Il6│    return math.floor(v * 1e6 + 0.5) / 1e6
+Jm7│
+Kn8│
+mt1│def route_from_checkpoints(center_lat: float, center_lng: float,
+uvq│                           cps: Sequence[Dict[str, Any]],
+Y8b│                           loop: bool = True) -> List[List[float]]:
+gau│    """把打卡点连成一条可自动走的路线（最近邻排序，可选闭合回中心）
+hbv│
+SHE│    顺序很重要：按服务端下发顺序直连会来回穿插，绕路会让实际距离远超目标距离；
+F2O│    最近邻排序缩短单圈长度，也就缩短了"走完全部打卡点至少要跑多远"。
+G3P│    """
+h3I│    rest = [(float(c["lat"]), float(c["lng"])) for c in (cps or [])
+Ch6│            if c.get("lat") is not None and c.get("lng") is not None]
+qUo│    out: List[List[float]] = []
+4V1│    cur = (float(center_lat), float(center_lng))
+b7u│    while rest:
+QPV│        i = min(range(len(rest)), key=lambda k: _haversine(cur[0], cur[1], rest[k][0], rest[k][1]))
+bNW│        cur = rest.pop(i)
+MXF│        out.append([cur[0], cur[1]])
+IoQ│    if loop and out:
+LqC│        out.append([float(center_lat), float(center_lng)])
+MrD│    return out
+
+[assistant]
+Now I need to implement the walker.py changes: H0 gate, W1 semantics, fence check, valid/invalid points. Let me plan the edits.
+
+Current `_sample_if_due` builds a RunLatLng and appends to _pending + _pending_meta. I need to restructure to follow W1:
+
+1. In tick: per-frame accumulate; but sampling occurs at 3s intervals. Original app: each location callback (every 3s) creates a point; if not in fence → drop entirely (don't even add to list). Then compute distance to previous point; apply offFenceDisM subtraction; H0 gate → if valid, add to accepted list + accumulate distance; always store the point (valid or not) with is_valid flag.
+
+So the walker needs:
+- `self._accepted: List[RunLatLng]` = f12593a equivalent (valid points only); last accepted = `self.b` (b field).
+- `_sample_if_due` should:
+  - check fence: if polygon non-empty and point not inside polygon → discard entirely (don't append to _pending, don't count distance). Hmm but distance accumulation happens in tick already (dist_m += move). In original, distance is computed from haversine between consecutive accepted points, not from kinematics. That's a big change: `runData.distance += jLongValue`.
+
+Hmm. Let me think about how deep to go. The user wants "完全依照原app的实现逻辑，只是不记录真实数据，而是记录我们用摇杆模拟出来的数据". So the recording pipeline should be原版逻辑: from the simulated sensor stream (positions at 3s intervals, steps, etc.) feed into the original algorithm.
+
+So distance should be accumulated from haversine between consecutive accepted points, exactly like W1. That means `dist_m` in the walker should be the "runData.distance" — accumulated only from accepted points. But the walker also uses dist_m for target distance & position advancement. Hmm, position advancement is independent (lat/lng). dist_m is used for "arrived" target check and progress.
+
+I think the cleanest faithful approach: keep a separate `self.run_distance_m` = RunData.distance accumulated via W1 rules, and keep `dist_m` as kinematics distance for UI navigation. Actually, simpler: make `dist_m` BE the W1-accumulated distance. Original uses runData.distance for pace, targets, etc. The walker's `dist_m` is used for: `arrived` check (target_distance_m), samples, meta abs_dist_m. Using W1 distance is more faithful. But then route progress relies on lat/lng anyway. Let me just make dist_m the run distance (W1 accumulation). Hmm, but tick currently does `self.dist_m += move` before sampling. If I remove that, dist_m only updates at sample time. The distance check for target would lag by up to 3s. That's acceptable & faithful.
+
+Actually careful: pace and stride calcs. Original J0() = Q0()/(S0()/1000) uses runData.distance. So yes, distance = W1 accumulation.
+
+Let me design:
+
+```python
+# W1 等价状态
+self.run_dist_m = 0.0          # RunData.distance（只按有效点之间的球面线段累加）
+self._accepted: List[RunLatLng] = []   # f12593a：本轮全部有效点
+self._last_valid: Optional[RunLatLng] = None  # this.b
+self.valid_step_base = 0        # M0
+```
+
+But to limit churn, I'll keep `self.dist_m` as the authoritative run distance and drop the kinematic accumulation. Wait — but samples list uses dist_m. And `summary()` uses dist_m. Let's do it: `dist_m` = runData.distance.
+
+Hmm, but there's a subtlety: at start, before the first accepted point, dist=0. Fine.
+
+Now `tick`:
+- move lat/lng (kinematics)
+- `_refresh_sensor()`
+- `_check_targets()`  (checkpoint hit; original checks inFence with validDistance)
+- `_sample_if_due(speed)` → does the W1 pipeline at 3s boundaries.
+
+But original: the location callback yields a point every 3s; the "distance" for checkpoint "arrived" notification uses run distance. Fine.
+
+Now `_check_targets` when fence: original `SunshineRunService.D()` requires the point to be inside the fence; if not, the whole point is dropped (so also no checkpoint hits outside fence). I'll implement `_in_fence(lat,lng)` and require it in `_check_targets` too... Actually original checkpoint marking (F0) is triggered by passed-point notifications and uses `isInFence()` per target with validDistance. It's called after W1 within D() — so only when the point passed the fence gate. So yes: only check targets when in fence.
+
+Now what about "被拒点也要落库" (H0 rejected → still i0(runLatLng)). So `_pending` should contain BOTH valid and invalid points, with `is_valid` flag set accordingly.
+
+Let me now write the code.
+
+Key method:
+
+```python
+def _accept_point(self, point: RunLatLng) -> Optional[RunLatLng]:
+    """H0()：点过滤闸门。返回 None 表示该点无效（但仍会落库、不计距离）"""
+    if self.gps_white_flag:
+        if point.accuracy > GPS_FILTER_ACCURACY: return None
+    else:
+        if point.accuracy > RUN_FILTER_ACCURACY: return None
+        b = self._last_valid
+        if point.speed < 0.0 and b is not None and b.speed < 0.0: return None
+        if b is not None:
+            dt = point.collect_time - b.collect_time  # ms
+            # 原版用 subDistance 与时间差算等效速度
+            if dt > 0 and (sub_distance * 1000.0) / dt > MAX_SPEED_MPS: return None
+    point.is_valid = True
+    return point
+```
+
+Careful: in original, `addressInfo.getTimestamp()` is the point's own timestamp (from HCJAddressInfo.getTime()) and b's timestamp is the previous accepted point's collect timestamp. Our `collect_time` = start_ms + move_sec*1000 which is the equivalent. Good.
+
+Note the original's check `ts - b.getTimestamp() > 0`.
+
+Now `_sample_if_due`:
+
+```python
+def _sample_if_due(self, speed: float) -> None:
+    if self.move_sec - self._last_sample_at < self.sample_s - 1e-9: return
+    self._last_sample_at = self.move_sec
+    lat, lng = _round6(self.lat), _round6(self.lng)
+    # SunshineRunService.D()：不在围栏内的点直接整点丢弃，连库都不入
+    if self.polygon and not point_in_polygon(lat, lng, self.polygon):
+        self._dropped += 1
+        return
+    self.samples.append((self.dist_m, self.move_sec))
+    off = int(distance_to_polygon_edge(lat, lng, self.polygon)) if self.polygon else 0
+    point = RunLatLng(lat=..., lng=..., lat_lng_index=self._poi_index,
+                      run_time=int(self.move_sec*1000),
+                      collect_time=self.start_ms + int(self.move_sec*1000),
+                      state=STATE_INIT, off_fence_dis_m=off,
+                      accuracy=..., speed=..., satellites=...)
+    sub = 0
+    if self._last_valid is not None:
+        sub = int(_round_half_up(haversine(prev.lat, prev.lng, lat, lng)))
+        if off >= 0: sub -= off
+        if sub <= 0: sub = 0
+    accepted = self._accept_point(point, sub)
+    if accepted is not None:
+        self._last_valid = accepted
+        self._accepted.append(accepted)
+        if sub > 0:
+            self.dist_m += sub
+    # W1 末尾：i0(runLatLng) —— 无效点也要入库
+    self._pending.append(point)
+    self._pending_meta.append({...})
+    self._poi_index += 1
+```
+
+Wait, but original `offFenceDisM`: `jV2 = B1() ? v2(null, addressInfo, 0L) : -1`. `v2` computes the out-fence distance. Complex. I'll approximate: `off = int(distance_to_polygon_edge(...))` if inside polygon else -1... Actually per original, F() computes firstOffDisM when NOT in the fence. Hmm. Getting exact off-fence semantics is deep. Current code uses distance_to_polygon_edge always. I'll keep: off = int(round(distance_to_polygon_edge(lat,lng,polygon))) if polygon else 0. And the subtraction `if outFenceDisM >= 0: sub -= offFenceDisM`. Since we're inside the fence and off = distance to edge, that would subtract too much! In original, `outFenceDisM` is the distance you traveled *outside* the fence (from F() = firstOffDisM)... 
+
+Let me reason: F() is triggered when state==autoPause and point is NOT in fence; it computes jLongValue = distance from last point to this point, and calls `v2(addressInfo, null, jLongValue)` — v2 with firstOffDisM. So outFenceDisM semantics = how far outside the fence you are. Then W1 subtracts it from the segment distance ("离开围栏的距离已删减"). So the off-fence distance is the portion of the segment spent outside. Since our sim stays inside the fence (we drop points outside), outFenceDisM would be -1 (B1() false → jV2=-1) and `-1 >= 0` is false → no subtraction. 
+
+So faithful behavior: if the point is inside the fence, out_fence_dis_m should be -1 (meaning "no fence-overflow adjustment"), and offFenceDisM field stored... but W1 constructs RunLatLng with `outFenceDisM` as offFenceDisM. So offFenceDisM would be -1 for in-fence points. Hmm, that matches `jV2 = -1` when B1() is false.
+
+Actually B1() presumably = "has fence config / need fence check". If B1() true, v2(...) returns the distance outside. For points inside the fence, that distance would be 0. Let me check v2/B1 quickly. Let me grep.
+
+Let me look at v2 and B1 in DataComponent.
+
+Let me just grep them.
+
+Actually, I should be careful about over-engineering. But since the user asked for exact fidelity, let me check v2/B1 to get offFenceDisM right.
+
+Let me grep.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/work/jadx_FULL/sources/com/huachenjie && echo \"=== v2 ===\" && awk '/long v2\\(HCJAddressInfo/,/^    }$/' run/service/DataComponent.java && echo \"=== B1 ===\" && awk '/boolean B1\\(\\)/,/^    }$/' run/service/DataComponent.java && echo \"=== C1 ===\" && awk '/boolean C1\\(\\)/,/^    }$/' run/service/DataComponent.java && echo \"=== m1 ===\" && awk '/int m1\\(\\)/,/^    }$/' run/service/DataComponent.java", "description": "读 v2/B1/C1/m1 围栏语义"}
+
+[tool • bash]
+=== v2 ===
+    public long v2(HCJAddressInfo offFirstP, HCJAddressInfo enterFirstP, long firstPoint2LastDis) {
+        if (this.f12595a == null) {
+            this.f12595a = new HCJAddressInfo[2];
+        }
+        HCJAddressInfo[] hCJAddressInfoArr = this.f12595a;
+        if (hCJAddressInfoArr[0] == null && offFirstP != null) {
+            hCJAddressInfoArr[0] = offFirstP;
+            this.e = firstPoint2LastDis;
+        }
+        if (hCJAddressInfoArr[1] == null && enterFirstP != null) {
+            hCJAddressInfoArr[1] = enterFirstP;
+        }
+        if (hCJAddressInfoArr[0] == null || hCJAddressInfoArr[1] == null || enterFirstP == null) {
+            return -1L;
+        }
+        i4a.b(this.g, "开始计算进出围栏的总距离");
+        long jLongValue = BigDecimal.valueOf(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(this.f12595a[0].getLat(), this.f12595a[0].getLng()), new HCJLatLng(this.f12595a[1].getLat(), this.f12595a[1].getLng()))).setScale(0, RoundingMode.HALF_UP).longValue();
+        long j2 = this.e;
+        if (j2 <= 20) {
+            jLongValue += j2;
+        }
+        i4a.b(this.g, "离开围栏的总距离：mOffFenceDisM=" + jLongValue);
+        HCJAddressInfo[] hCJAddressInfoArr2 = this.f12595a;
+        hCJAddressInfoArr2[0] = null;
+        hCJAddressInfoArr2[1] = null;
+        this.e = 0L;
+        return jLongValue;
+    }
+=== B1 ===
+    public boolean B1() {
+        HCJAddressInfo[] hCJAddressInfoArr = this.f12595a;
+        return hCJAddressInfoArr != null && hCJAddressInfoArr.length == 2 && hCJAddressInfoArr[1] == null && hCJAddressInfoArr[0] != null;
+    }
+=== C1 ===
+    public boolean C1() {
+        HCJAddressInfo[] hCJAddressInfoArr = this.f12595a;
+        if (hCJAddressInfoArr == null) {
+            return true;
+        }
+        return hCJAddressInfoArr.length == 2 && hCJAddressInfoArr[0] == null;
+    }
+=== m1 ===
+    public int m1() {
+        return this.O;
+    }
+
+
+[assistant]
+围栏进出逻辑比较复杂。用户要的是「完全依照原 app 的实现逻辑，只是不记录真实数据，而是记录我们用摇杆模拟出来的数据」。核心是记录链路（采样/过滤/落库/分段/上传），围栏进出距离结算（v2/B1/C1）是补充功能。我应该聚焦核心，把围栏外丢弃实现掉（K1），v2 的进出距离计算可以简化实现——但用户要求"完全依照"，我尽量实现。
+
+实际上 outFenceDisM 的语义：当跑出围栏时，离开围栏走过的距离不算数（因为围栏外那段要删掉）。这是一个"防作弊"机制：围栏外的距离不计。
+
+对我们的模拟来说，路径基本都在围栏内，所以 outFenceDisM 基本恒为 -1（即不删减）。我实现 K1（围栏外丢弃）+ 简化的 v2（记录进出点，算出围栏外距离并从累计距离里删减）。
+
+让我先看 SunshineRunService 里进入围栏的调用点。E() 是 preStart→normal 状态切换。查找 v2(enterFirstP) 的调用。
+
+让我 grep v2 的调用。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/work/jadx_FULL/sources/com/huachenjie && grep -rn \"\\.v2(\\|v2(null\" --include=*.java . | head -20 && echo \"=== setRunState 与 normal ===\" && grep -n \"setRunState\\|State.normal\\|f12595a\" run/service/SunshineRunService.java | head -30", "description": "找 v2 调用点"}
+
+[tool • bash]
+./run/service/SunshineRunService.java:297:                jV2 = ((BaseRunService) this).f12580a.v2(null, addressInfo, 0L);
+./run/service/SunshineRunService.java:356:            ((BaseRunService) this).f12580a.v2(addressInfo, null, jLongValue);
+=== setRunState 与 normal ===
+108:            if (((BaseRunService) sunshineRunService).f12574a == RunStateChangeListener.State.normal) {
+198:                f36003a[RunStateChangeListener.State.normal.ordinal()] = 7;
+292:        if (((BaseRunService) this).f12574a == RunStateChangeListener.State.normal) {
+343:        setRunState(RunStateChangeListener.State.normal, false, null);
+383:        setRunState(RunStateChangeListener.State.finish, !isAuto, map);
+436:                    return state == RunStateChangeListener.State.normal || state == RunStateChangeListener.State.finish || state == RunStateChangeListener.State.autoPause;
+438:                    return state == RunStateChangeListener.State.normal || state == RunStateChangeListener.State.finish;
+449:                    return state == RunStateChangeListener.State.normal || state == RunStateChangeListener.State.finish;
+453:                return state == RunStateChangeListener.State.autoPause || state == RunStateChangeListener.State.normal || state == RunStateChangeListener.State.finish;
+456:                return state == RunStateChangeListener.State.normal || state == RunStateChangeListener.State.finish || state == RunStateChangeListener.State.autoPause;
+476:                setRunState(RunStateChangeListener.State.normal, false, null);
+575:                setRunState(RunStateChangeListener.State.autoPause, false, null);
+606:        if (((BaseRunService) this).f12574a == RunStateChangeListener.State.normal) {
+639:            if (((BaseRunService) this).f12574a != RunStateChangeListener.State.normal || ((BaseRunService) this).f12580a.D1()) {
+681:                setRunState(RunStateChangeListener.State.autoPause, false, null);
+688:            setRunState(RunStateChangeListener.State.normal, false, null);
+720:            SunshineRunNotificationHelper.d().k(state != RunStateChangeListener.State.normal);
+741:            boolean runState = setRunState(RunStateChangeListener.State.userPause, true, null);
+787:            setRunState(RunStateChangeListener.State.normal, true, null);
+815:        setRunState(RunStateChangeListener.State.faceRecognition, true, null);
+827:        setRunState(RunStateChangeListener.State.nfcCheck, true, null);
+838:        setRunState(RunStateChangeListener.State.normal, true, null);
+883:        setRunState(RunStateChangeListener.State.finish, !isAuto, null);
+903:        boolean z = state2 == RunStateChangeListener.State.normal && ((state = ((BaseRunService) this).f12583b) == RunStateChangeListener.State.userPause || state == RunStateChangeListener.State.autoPause || state == RunStateChangeListener.State.faceRecognition || state == RunStateChangeListener.State.nfcCheck);
+
+
+[assistant]
+好的，围栏逻辑：
+- `B1()` = 已记录「离开围栏的第一个点」（slot0 有值、slot1 空）→ 表示"现在在围栏外，已经记录了出界点"，此时每来一个点都尝试 v2 计算"离开围栏的总距离"。
+- `C1()` = slot0 为空（即没有出界记录）→ 表示"在围栏内"（或者还没出过界）。
+- `F()`（:346-358，autoPause 时）计算 firstOffDisM 并 `v2(addressInfo, null, jLongValue)` → 记录 slot0 = 出界点，e = firstOffDisM。
+- `D()`（:289-297）在 normal 状态下，若 `K1(addressInfo)` 为 true（在围栏内）→ 继续；若 `B1()` 为 true（当前处于"已出界、等待回围栏"状态）→ 此时拿到 addressInfo（在围栏内）→ `v2(null, addressInfo, 0L)` → 记录 slot1 = 回界点 → 两个点都有 → 计算球面距离 = 离开围栏的总距离，若 e<=20 则加上 e；然后清空 slot0/slot1/e，返回总距离；否则（还没出过界）返回 -1。
+
+在 `D()` 里：若 B1() 为假 → jV2 = -1 → W1 传 -1 → `if (outFenceDisM >= 0)` 不成立 → 不减。
+若 B1() 为真且当前点在围栏内 → v2 返回「离开围栏总距离」→ W1 里 jLongValue -= outFenceDisM（把绕出去那段的距离扣掉）。
+
+好，现在我对原版围栏语义有完整理解。
+
+对 walker.py 的照抄方式：
+- `_polygon` 空 → 不做围栏判定（`K1` 在原版：q1()==null 或 fenceList 空 → return false → `D()` 里 `if (!K1(addressInfo)) return;` → **全部点被丢弃**！注意：原版 `D()` 是 `if (!K1) return`，也就是围栏为空时所有点都不记录。但本项目在无围栏时（比如离线干跑）会完全无法跑。这需要谨慎：干跑 mode='dry' 时没有围栏，若照抄就会一个点都不产生。
+
+我需要一个合理的处理：**干跑（dry）不做围栏丢弃；实跑（real）若有围栏才做围栏丢弃**。或者：Walker 增加 `enforce_fence` 开关，由 WalkSession 按 mode 与是否有围栏决定。
+
+原版是真的：没有围栏信息时 K1 返回 false，所有点丢弃。但原版的围栏是服务端下发的，实际跑步必然有围栏。我们的 dry 模式是调试用，必须能跑。
+
+设计：`Walker.fence_enforced` 属性（默认 False）。`set_polygon(polygon, enforce=None)`：若传入 polygon 非空则 enforce=True；由 WalkSession 控制。
+
+更简洁：Walker 新增 `set_fence(polygon, enforce: bool)`。若 enforce 且 polygon 非空 → 点在多边形外则丢弃。
+
+好，现在开始写 walker.py，我要一次性写完整文件最稳妥？walker.py 448 行，改动范围大（新增围栏状态机、H0 过滤、W1 落库语义、距离累加、采样点 is_valid）。用 edit 分块改比较危险。我选择用 write 重写整个 walker.py —— 但必须先 read 全部（已经读了 1-130、131-300、300-419、419-448，全文已读）。write 重写需要我把整个文件内容写出来，约 500 行，成本高但可控且不易出错。
+
+不过 read 出来的行带 HASH 前缀，我不能直接复制。我要凭理解重写。风险：丢掉细节。
+
+替代：分块 edit。改动点：
+1. 模块 docstring（已改）
+2. imports（已改）
+3. Walker.__init__ 增加字段：`_last_valid_point`, `_fence_enforce`, `_fence_state`（出界点/回界点）, `_invalid_dropped`, `_fence_dropped`, `_polygon`
+4. set_polygon 增加 enforce 参数
+5. tick 里：位置推进后 → `_apply_w1()`（围栏丢弃 + 距离累加 + H0 过滤 + 采样）
+6. _sample_if_due：加 is_valid 参数
+7. start()：重置新状态
+8. state()：加 invalid/fence_dropped 计数
+9. summary()：加统计
+10. 新增方法 `_fence_contains`, `_w1_step`, `_h0_filter`
+
+我按顺序做几个 edit。先构造。
+
+关键语义实现（walk 的 W1 等价物，在每个 tick 结束后对当前点执行一次）：
+
+```python
+def _w1_step(self, speed: float) -> None:
+    """照抄 DataComponent.W1()：围栏门 → H0 过滤 → 距离累加 → 落点"""
+    # SunshineRunService.D(): 围栏外直接丢弃，连 W1 都不进
+    if self._fence_enforce and self.polygon and not self._in_fence(self.lat, self.lng):
+        self._fence_dropped += 1
+        # 记录"离开围栏的第一个点"，回界时扣掉这段
+        ...
+        return
+    # 距离：与上一个被接受点的球面距离，取整
+    ...
+```
+
+等等 —— 原版的距离计算是 `calculateLineDistance(prev, cur)`，prev 是 f12593a 最后一个**被接受**的点（不是上一个采样点！）。而 W1 是每个定位回调调一次（3 秒一次），所以 prev 就是上一个采样点（若被拒则更早）。tick 是 0.1 秒一次，不是 3 秒一次。
+
+所以：**W1 语义必须只在采样节拍上执行**，而不是每 tick。原版的 D() 由 LocationComponent 的 3 秒回调驱动。
+
+正确结构：
+- tick 推进位置、刷新传感器、检查打卡（这些是连续的）。
+- 每 3 秒（采样节拍）执行一次「W1 等价」：围栏门 → H0 → 距离累加 → 产出采样点。
+
+这意味着「距离」这个概念在原版里是**按 3 秒采样点之间的球面折线累计的**，而不是每 0.1 秒的位移累计！这是本项目当前实现（`self.dist_m += move` 每 tick 累加）与原版的关键差异。
+
+照抄后：`self.dist_m` 应该改为"按采样点折线累计"，否则 H0 的瞬移判定、距离上报都不一致。
+
+但 WalkState.dist_m 是界面显示的实时距离。若只在采样点更新，界面每 3 秒跳一下。原版也是每 3 秒更新一次距离（通知栏），所以这就是原版行为。
+
+实现：
+```python
+self.dist_m            # 累计显示距离（按采样点折线）
+self._moved_m          # 真实推进的几何里程（每 tick 累加，用于速度/调试）
+```
+嗯，但 target_distance_m 判定、route 导航都用 dist_m。用折线累计的 dist_m 会让 target 判定略微偏慢（折线距离 ≥ 直线累计？不，折线距离会略小于每 tick 的弦长累加吗？实际上采样点折线是每 tick 窄弦的子集...）
+
+具体：每 tick 弦长 c_i 求和 = 每 tick 累加。采样折线是每隔 N 个 tick 的弦长。折线总长 ≤ 每 tick 弦长和（三角不等式，因为折线跳过了一些中间点，折线是更长路径的"弦"）。所以折线距离 ≤ tick 累加距离。差别很小（3 秒直线段 vs 0.1 秒直线段，直线上完全相等；转弯处略有差别）。
+
+好，这是照抄。我保留 `self.dist_m` 作为「原版口径距离」（采样折线累计），另加 `self.raw_m` 作为几何里程（每 tick）。
+
+嗯，但改动会牵扯 walk.py（`w.dist_m` 用于配速段、target 判定、summary）。这些都是原版口径 → 用 dist_m 正确。
+
+target_distance_m 判定：用 dist_m（原版没有目标距离概念，这是我们加的调试功能），用原版口径距离合理。
+
+OK。现在还有一个重要点：**原版 H0 的瞬移判定用 `subDistance`（相邻采样点取整后的距离）与两点 timestamp 差**。采样点 timestamp 是定位回调时间（绝对毫秒 `addressInfo.getTime()`），不是 run_time。而 RunLatLng.timestamp 在 W1 中是 `addressInfo.getTime()`（绝对采集时间）。我们项目 RunLatLng 用 `collect_time` 表示绝对时间、`run_time` 相对毫秒。所以 H0 的 `timestamp` = `collect_time`。
+
+在我们的 walker 中：
+- collect_time = start_ms + move_sec*1000
+- 两点 collect_time 差 = (move_sec 差)*1000 ≈ 3000 ms
+
+那么 `(subDistance*1000)/(ts diff) = subDistance/3` m/s。10.438 m/s 上限 → subDistance > 31.3 米/3秒 触发。以 2.5 m/s 慢跑，3 秒走 7.5 米 → 远低于上限。好，正常不会触发。除非加速 `sim.speed` 或 dt 被放大（WalkSession 的 speed 倍速会让 move_sec 增长更快，但 collect_time 也跟着增长 → 一致，不会误判）。
+
+注意：WalkSession 的 speed 是「时间倍速」，它会同时影响 dt 与 move_sec。但采样是每 3 "虚拟秒"一次，collect_time 用虚拟时间。所以等效速度恒定。好。
+
+现在写代码。我逐块 edit。
+
+块 1：__init__ 新增字段。
+现有（行 ~140-155）：
+```
+        # 采样与产出
+        self.samples: List[Tuple[float, float]] = []      # (距离, 运动秒)
+        self._pending: List[RunLatLng] = []              # 待调用方取走的轨迹点
+        self._hits: List[Dict[str, Any]] = []            # 本轮新命中的打卡点（调用方落库 + 界面提示）
+        self._pending_meta: List[Dict[str, Any]] = []    # 每个采样点的分段元数据（步频/配速）
+        self._last_sample_dist = 0.0
+        self._last_sample_at_prev_sec = 0.0
+        self._last_sample_steps = 0
+        self._poi_index = 0
+        self._last_sample_at = 0.0
+        self._sensor: Dict[str, Any] = {}
+```
+
+我要加：
+```
+        # 原版口径的落点状态（DataComponent.W1 / H0）
+        self._last_valid_point: Optional[RunLatLng] = None   # f12593a 的尾点（只收有效点）
+        self._geom_m = 0.0                # 几何里程（每 tick 弦长累加，仅调试/参考）
+        self._fence_enforce = False       # 是否执行「围栏外整点丢弃」
+        self._fence_out_point: Optional[Tuple[float, float]] = None  # 出界第一个点
+        self._fence_out_dis_m = 0.0       # 出界时距上一点的距离
+        self.fence_dropped = 0            # 被围栏门丢弃的点数
+        self.invalid_dropped = 0          # 被 H0 判为无效的点数（仍会落库）
+```
+
+块 2：set_polygon 增加 enforce。
+```python
+    def set_fence(self, polygon: Sequence[Sequence[float]],
+                  enforce: bool = True) -> None:
+        """设置围栏：enforce=True 时照抄 SunshineRunService.D() 的围栏门"""
+        self.polygon = [list(p) for p in (polygon or [])]
+        self._fence_enforce = bool(enforce) and bool(self.polygon)
+```
+保留 set_polygon（兼容），改为调用 set_fence(polygon, enforce=False)。
+
+块 3：tick 改造。
+
+现有 tick：
+```python
+        speed = 0.0
+        if mag > JOYSTICK_DEADZONE:
+            speed = self.target_speed_mps * mag
+            move = speed * dt
+            self.lat += (dy * move) / EARTH_M_PER_DEG_LAT
+            self.lng += (dx * move) / (EARTH_M_PER_DEG_LAT *
+                                       max(1e-6, math.cos(math.radians(self.lat))))
+            self.dist_m += move
+            self.move_sec += dt
+            self._refresh_sensor()
+            self._check_targets()
+            self._sample_if_due(speed)
+
+        # 步数用「真实运动时长」...
+        self._refresh_sensor()
+```
+
+新：
+```python
+        speed = 0.0
+        if mag > JOYSTICK_DEADZONE:
+            speed = self.target_speed_mps * mag
+            move = speed * dt
+            self.lat += (dy * move) / EARTH_M_PER_DEG_LAT
+            self.lng += (dx * move) / (EARTH_M_PER_DEG_LAT *
+                                       max(1e-6, math.cos(math.radians(self.lat))))
+            # 几何里程单记一份：原版口径的 dist_m 只按 3 秒采样点之间的
+            # 球面折线累计（DataComponent.W1），与每帧弦长之和略有出入
+            self._geom_m += move
+            self.move_sec += dt
+            self._refresh_sensor()
+            self._check_targets()
+            self._sample_if_due(speed)
+```
+即：删掉 `self.dist_m += move`，dist_m 只在采样时累加。
+
+块 4：_sample_if_due 改造（核心）。
+
+新版本：
+```python
+    def _sample_if_due(self, speed: float) -> None:
+        """每 sample_s 秒走一次「原版落点」
+
+        照抄 DataComponent.W1() 的顺序：
+          1. 围栏门（SunshineRunService.D()）——围栏外整点丢弃，连库都不入；
+          2. 与上一个**被接受**点的球面距离取整，得到本段米数；
+          3. H0 过滤——精度/速度/瞬移判定；
+          4. 距离只在本点被接受且不是回退时累加；
+          5. 无论接受与否，点都要交给调用方落库（is_valid 区分）。
+        """
+        if self.move_sec - self._last_sample_at < self.sample_s - 1e-9:
+            return
+        self._last_sample_at = self.move_sec
+        self.samples.append((self.dist_m, self.move_sec))
+        lat = _round6(self.lat)
+        lng = _round6(self.lng)
+        off = 0
+        if self.polygon:
+            off = int(distance_to_polygon_edge(lat, lng, self.polygon))
+        ...
+```
+
+嗯等一下，重排：`self.samples.append((self.dist_m, self.move_sec))` 记录的是采样前的距离。保持原样即可（用于 summary 的 samples 计数与曲线）。
+
+现在完整逻辑：
+
+```python
+    def _sample_if_due(self, speed: float) -> None:
+        if self.move_sec - self._last_sample_at < self.sample_s - 1e-9:
+            return
+        self._last_sample_at = self.move_sec
+
+        lat = _round6(self.lat)
+        lng = _round6(self.lng)
+        collect_ms = self.start_ms + int(self.move_sec * 1000)
+
+        # ① 围栏门：原版 D() 在 !K1(addressInfo) 时直接 return，
+        #    这个点既不进 W1 也不落库
+        if self._fence_enforce and not self._in_fence(lat, lng):
+            self._fence_dropped += 1
+            self._fence_out_record(lat, lng)
+            self._last_sample_dist = self.dist_m
+            self._last_sample_at_prev_sec = self.move_sec
+            self._last_sample_steps = self._steps()
+            return
+
+        # ② 本段米数：与上一个被接受点的球面距离，HALF_UP 取整
+        seg_m = 0
+        if self._last_valid_point is not None:
+            prev = self._last_valid_point
+            seg_m = int(math.floor(haversine(prev.lat, prev.lng, lat, lng) + 0.5))
+            # ③ 回围栏：把绕出去的那段距离扣掉（W1: outFenceDisM >= 0 时相减）
+            out_dis = self._fence_back_dis(lat, lng)
+            if out_dis is not None and out_dis >= 0:
+                seg_m -= int(out_dis)
+            if seg_m <= 0:
+                seg_m = 0
+
+        # ④ H0 过滤
+        ok = self._h0_accept(lat, lng, collect_ms, seg_m, speed)
+        off = int(distance_to_polygon_edge(lat, lng, self.polygon)) if self.polygon else 0
+        idx = self._poi_index
+        point = RunLatLng(
+            lat=lat, lng=lng, lat_lng_index=idx,
+            run_time=int(self.move_sec * 1000), collect_time=collect_ms,
+            state=STATE_INIT, off_fence_dis_m=off,
+            accuracy=..., speed=round(speed, 2), satellites=...,
+            is_valid=ok,
+        )
+        self._pending.append(point)
+        ...
+```
+
+Hmm，精度：原版 H0 用的是 addressInfo.getAccuracy()，也就是定位精度。我们模拟的精度是 `rng.uniform(5.0, 12.0)`，永远 < 50，永远不会被精度门拒。为了能演示 H0，可以让精度偶尔超标（例如 dropout 或低概率大误差）。这符合"模拟功能"的定位：`sim.dropout_rate` 已经存在。我可以增加一个「GPS 漂移」概率：小概率产生 accuracy 很大的点（模拟信号差），从而真的被 H0 拒。
+
+不过要小心不要让它太频繁。用一个可配比例：`gps_bad_rate = 0.0`（默认关，避免影响既有测试）。嗯，但这样 H0 永远不触发，改造就成了死代码，测试也测不出。
+
+更好：把精度抽成 `_sample_accuracy()`，默认 5~12，另有 `fence/enforce` 之类开关。测试里可以直接构造 Walker 并注入异常点（比如手工设置 `self.rng`，或直接调用 `_h0_accept`）。
+
+我选择：新增 Walker 参数 `gps_bad_rate: float = 0.0`（0 = 永不产生坏点），由 WalkSession 从 cfg `walk.gps_bad_rate` 读取，默认 0.0。测试里显式设 1.0 来验证过滤。这样既有可测性又不影响正常行为。
+
+再加一个「瞬移」的触发：如果 dt 被放大（比如故障），或者 route 跳变。测试里可以直接制造：把 walker.lat 手动挪很远再 tick。不过采样节拍内挪动 30 米+ 需要特殊构造。测试可以直接调用 `_w1_sample` 手工喂点。
+
+为了可测，我把「落一个点」抽成独立方法 `_commit_point(lat, lng, speed)`，采样与测试都能调用。这样测试可以连续喂两个相距很远的点来触发瞬移门。
+
+好，设计定型：
+
+```python
+def _commit_point(self, lat, lng, speed) -> Optional[RunLatLng]:
+    """照抄 W1：把当前经纬度当作一个定位回调点处理
+
+    返回落库的点（被围栏门丢弃时返回 None），并把 H0 的判定结果写进 is_valid。
+    """
+```
+
+然后 `_sample_if_due` 只负责节拍与 meta，调用 `_commit_point`。
+
+meta 里的 abs_dist_m / abs_steps 用点落库后的值。
+
+再考虑：被围栏丢弃的点，原版完全不入库，但 meta（分段用）呢？原版围栏外点不产生任何记录。所以 meta 也不该产生。但采样节拍的推进记录（_last_sample_*）要更新，否则下次采样会立刻触发。我上面已经处理。
+
+现在写 _in_fence / 围栏状态机：
+
+原文：
+```java
+// F(): autoPause 且 !K1(addressInfo) 且 (m1()&1)>0 且 C1() → v2(addressInfo, null, firstOffDisM)
+// D(): normal 态且 K1(addressInfo) 且 B1() → v2(null, addressInfo, 0) → 得到离开围栏总距离
+```
+v2 累积两个点，都齐了就算球面距离，`if (e <= 20) jLongValue += e;` 然后清空。
+
+简化照抄（walk 侧不区分 autoPause，因为我们只跑 normal 态）：
+- 当点**在围栏外**：若 slot0 为空 → slot0 = 该点，e = 该点到上一点的距离（原版 F 里算的 firstOffDisM）。返回 None（丢弃）。
+- 当点**在围栏内**且 slot0 非空且 slot1 空 → slot1 = 该点 → 计算 dis = round(haversine(slot0, slot1))；若 e<=20 则 dis += e；清空 slot0/slot1/e；记 `self._pend_out_dis = dis`（给本次点的 seg_m 扣减）。
+- 否则返回 None（不扣）。
+
+注意 v2 返回 -1 时 W1 不减。第一次回围栏时返回 dis（≥0）→ 减。
+
+实现里我用 `self._fence_pending_dis: Optional[int]`，在 `_commit_point` 取用后清空。
+
+好。现在 `_h0_accept`:
+
+```python
+    def _h0_accept(self, lat, lng, collect_ms, seg_m, speed) -> bool:
+        """DataComponent.H0()：判定该点是否有效（无效点仍会落库，只是 is_valid=0）"""
+        acc = self._accuracy
+        if self._gps_white:
+            if acc > GPS_FILTER_ACCURACY:
+                return False
+        else:
+            if acc > RUN_FILTER_ACCURACY:
+                return False
+            prev = self._last_valid_point
+            if speed < 0.0 and prev is not None and prev.speed < 0.0:
+                return False
+            if prev is not None:
+                dt_ms = collect_ms - prev.collect_time
+                if dt_ms > 0 and (seg_m * 1000.0) / dt_ms > MAX_SPEED_MPS:
+                    return False
+        return True
+```
+
+原版 speed 是定位回调给的瞬时速度，可能为负（无效）。我们的模拟速度是非负的。保留判定即可。
+
+`prev.speed` —— RunLatLng.speed 字段存在。好。
+
+距离累加：
+```python
+        if ok:
+            self._last_valid_point = point
+            if seg_m > 0 and not first_back2_stop:
+                self.dist_m += seg_m
+```
+firstBack2Stop 在我们的场景恒 False。
+
+现在 `state()` 的 `points` 用 len(self.samples)（已存在），可改为 len(self.samples)。
+
+`summary()` 增加 `invalid_points`（被 H0 拒的点数）、`fence_dropped`。
+
+我需要在 Walker 里统计 invalid 数量：`self.invalid_dropped`。
+
+还有 `start(reset=True)` 要重置这些。
+
+另外 `_refresh_sensor` 的 steps：`self._sensor['steps']`。
+
+现在开始编辑。分块：
+
+**块 A**：`__init__` 里在 `self._sensor` 后追加新字段。
+**块 B**：`set_polygon` → 新增 `set_fence`。
+**块 C**：`tick` 里 dist_m 累加改为 _geom_m。
+**块 D**：`_sample_if_due` 整体替换 + 新增 `_commit_point` / `_in_fence` / `_fence_*` / `_h0_accept`。
+**块 E**：`start` 重置新字段。
+**块 F**：`state()` / `summary()` 加统计。
+
+我已经有行的 HASH 锚点（从上面 read）。但 read 的窗口是 1-130、131-300、300-419、419-448——覆盖全文。锚点可用。
+
+不过 edit 有「一次一个文件、原子」的特性，可以 batch 多个 edits。但要求锚点不重叠且都来自已 serve 的行。我的 read 覆盖全文，所以都可以用。风险：如果某个 edit 失败整批回滚。我先做最关键的 D 块（最大），再 A/B/C/E/F。
+
+我将分 2 次 edit 调用（每次一批），以减少失败面。
+
+先确认 `_steps()` 助手不存在；我用 `int(self._sensor.get("steps") or 0)`。
+
+现在，检查 `distance_to_polygon_edge` 的 použití：当点在多边形外时也返回距离（正值？）。原版 `offFenceDisM` 来自 v2 的计算（离开围栏总距离），而 v2 返回 -1 时 W1 传 -1 → RunLatLng.offFenceDisM = -1？不对，W1 传的 outFenceDisM 是 v2 的返回值，构造 RunLatLng 时 offFenceDisM = offFenceDis，所以可能是 -1。而 DAO 里存的是 Integer。
+
+我们的实现里，距离扣减用的是 `_fence_pending_dis`，不再用 off_fence_dis_m 去扣。off_fence_dis_m 保持现有语义（到围栏边的距离，负数表示在内？看 distance_to_polygon_edge 定义）。
+
+让我看 protocol.distance_to_polygon_edge 是否区分内外。
+
+我需要读它。
+
+另外 `point_in_polygon` 存在，可直接用。
+
+好，先读 protocol.py:50-110。
+
+然后开始编辑。
+
+还有一个关键点：**tick 里 dist_m 不再每 tick 累加，会影响 `target_distance_m` 判定和 graph 显示**。原版没有目标距离功能，这是我们的调试扩展。用 dist_m（原版口径）判定更一致。
+
+另外 `_direction_to_next_waypoint` 用 WAYPOINT_REACH_M 判定，与 dist_m 无关。OK。
+
+还有 `_speed_now()` 与 WalkState.speed_mps 用 target_speed*mag，不受影响。
+
+最后：`samples` 的 append 位置。原实现 `self.samples.append((self.dist_m, self.move_sec))` 在采样时。我保留，但放在落点之后更合理？保持原样（采样前的距离），因为 summary 只用 len(samples)，而 walk.py 不用 samples 的值。为一致我放到最后。
+
+开始。先读 protocol 的 polygon 助手。
+
+[assistant • read]
+{"limit": 60, "offset": 50, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/protocol.py"}
+
+[tool • read]
+sPR│def point_in_polygon(lat: float, lng: float, polygon: Sequence[Sequence[float]]) -> bool:
+uL4│    """射线法判断点是否在多边形内（polygon 为 [[lat,lng],...]）"""
+dF4│    if not polygon or len(polygon) < 3:
+o8f│        return True  # 没有围栏几何时不做限制
+aBI│    inside = False
+G8W│    n = len(polygon)
+LNg│    j = n - 1
+z19│    for i in range(n):
+DKb│        yi, xi = float(polygon[i][0]), float(polygon[i][1])
+SSA│        yj, xj = float(polygon[j][0]), float(polygon[j][1])
+RFq│        if ((xi > lng) != (xj > lng)) and \
+SCM│           (lat < (yj - yi) * (lng - xi) / (xj - xi + 1e-12) + yi):
+Cqw│            inside = not inside
+wp0│        j = i
+13b│    return inside
+24c│
+35d│
+GKJ│def polygon_centroid(polygon: Sequence[Sequence[float]]) -> Tuple[float, float]:
+YvA│    """多边形顶点平均值（近似质心）"""
+2q1│    if not polygon:
+2DB│        return 0.0, 0.0
+AZW│    return (sum(float(p[0]) for p in polygon) / len(polygon),
+KHZ│            sum(float(p[1]) for p in polygon) / len(polygon))
+LIa│
+MJb│
+vcI│def distance_to_polygon_edge(lat: float, lng: float,
+Ec7│                             polygon: Sequence[Sequence[float]]) -> float:
+ykR│    """点到围栏边界的最近距离（米）；在围栏内返回 0"""
+zlS│    if not polygon:
+Nwl│        return 0.0
+OZ8│    if point_in_polygon(lat, lng, polygon):
+Pa9│        return 0.0
+NFg│    best = float("inf")
+OGh│    n = len(polygon)
+PHi│    for i in range(n):
+RPK│        a = polygon[i]
+Kni│        b = polygon[(i + 1) % n]
+Ons│        best = min(best, _point_seg_distance(lat, lng, float(a[0]), float(a[1]),
+m2H│                                             float(b[0]), float(b[1])))
+Q6y│    return best
+R7z│
+S80│
+awi│def _point_seg_distance(lat: float, lng: float, alat: float, alng: float,
+tUb│                        blat: float, blng: float) -> float:
+g9S│    """点到线段距离：先投影到局部平面，再算垂足"""
+Z7K│    m_per_deg_lng = EARTH_M_PER_DEG_LAT * math.cos(math.radians(lat))
+E98│    ax, ay = (alng - lng) * m_per_deg_lng, (alat - lat) * EARTH_M_PER_DEG_LAT
+JRS│    bx, by = (blng - lng) * m_per_deg_lng, (blat - lat) * EARTH_M_PER_DEG_LAT
+zQU│    dx, dy = bx - ax, by - ay
+6ku│    seg2 = dx * dx + dy * dy
+Duo│    if seg2 <= 1e-9:
+COP│        return math.hypot(ax, ay)
+eVl│    t = max(0.0, min(1.0, -(ax * dx + ay * dy) / seg2))
+JJJ│    px, py = ax + t * dx, ay + t * dy
+Ylh│    return math.hypot(px, py)
+Zmi│
+anj│
+shh│# ══════════════════ 表 1：run_lat_lng ══════════════════
+dUo│@dataclass
+SVT│class RunLatLng:
+
+[Showing lines 50-109 of 705. Use offset=110 to continue.]
+
+[assistant]
+Let me now plan the walker.py changes concretely. I need to:
+
+1. Add H0-equivalent filter: `_accept_point(point, sub_distance)`.
+2. `tick()` should: compute move; check fence (K1 / 围栏外丢弃); compute outFenceDisM via v2 logic (B1/C1); produce RunLatLng; apply H0; if accepted → append to accepted list + accumulate distance; always → append to _pending (落库，含被拒点，is_valid=False).
+3. Also fix the sampling: original samples every location callback (3s) regardless of whether you moved? Actually W1 is per location callback. Movement can be 0. In our tick, `_sample_if_due` is only called when mag > deadzone. Hmm, original calls W1 on every location callback (~3s), even if stationary (speed could be 0 or negative). Should I sample even when stationary? Original: location callbacks arrive every 3s regardless; W1 is called each time (if in fence). So a stationary runner still records points. That's more faithful. But then dist stays same. Hmm, but the current implementation only samples while moving. For faithfulness: sample on the 3-second cadence regardless of movement, as long as running. But if not moving, speed=0 and points duplicate - original would do that too. Also H0 filter: speed<0 and prev speed<0 → null. Stationary speed=0 → not rejected.
+
+Careful: original `tick` in the desktop walker only advances move_sec when moving (`self.move_sec += dt` only inside `if mag > JOYSTICK_DEADZONE`). That's an important semantic: move_sec = "运动秒" (moving time), used to match pause semantics ("站着不动就不计步"). But original Q0() is elapsed run time including standing still... Actually original timer counts elapsed time while state==normal; standing still while in normal state still counts. Hmm. But changing move_sec semantics is a bigger change affecting steps/pace etc. The user's ask: "这一部分内容请完全依照原app的实现逻辑，只是不记录真实数据，而是记录我们用摇杆模拟出来的数据" — focus on the recording logic (记录环节). The key mapped items: 采样节拍、点过滤 H0、无效点也落库、围栏外丢弃、打卡判定 validDistance=25、步频段按 Q0()%20==0、配速段 tail 延长 + >50m 封口、上传门限。
+
+I'll keep move_sec as the elapsed run time (currently it's moving time). Hmm, but Q0() in original = total elapsed time since run start (currentTime accumulates only while running/normal; pause excludes). Our move_sec only increments while moving. If user stops joystick but doesn't pause, original would keep counting seconds; ours wouldn't. This affects step segment timing (Q0() % 20 == 0 → every 20 real seconds).
+
+For faithfulness of the recording chain I think it's cleaner to introduce the notion of elapsed seconds that always advances while running (like Q0()), separate from distance. But `_refresh_sensor` uses move_sec to derive steps — if we make move_sec always advance, stationary time would accrue steps. Original app: step counter comes from the phone's TYPE_STEP_COUNTER sensor which counts real steps — standing still yields no steps. So steps should come from moving time. Meanwhile Q0() (time) advances regardless.
+
+So: keep `move_sec` = 运动秒 (for steps/pace/sensor), and add `run_sec` = 总运行秒（含站住不动）for segment cutting (Q0). Actually is that right? In original, the timer during `normal` state runs; if you stand still but the run is not paused, time accrues. Yes. So add `self.run_sec` advanced by dt always while running.
+
+But wait — does that break the pace calc? pace = Q0()/distance which would indeed drop with standing still (配速掉下去), which matches the original (配速 = 总时间/距离). Currently walk.py's summary uses `pace_s_per_km` from walker.summary() = move_sec/(dist/1000) — moving time. Original: J0() = Q0()/dist*1000 = elapsed time. Should use run_sec. Yes, that's more faithful. And duration_s = Q0() = run_sec.
+
+Hmm, but careful about scope creep and breaking tests. Let me think about what the tests expect. tests/test_walker.py has 65+ cases. Changing move_sec/duration semantics will break some. But the user explicitly wants原app logic. I'll be measured: 
+
+Decision (faithful to W1/Q0):
+- Add `run_sec` (总运行秒) advanced every tick while running.
+- Keep `move_sec` (运动秒) for sensor/steps.
+- Sampling cadence: every 3 s of run_sec (location callback cadence), matching原版每秒定位回调 3000ms. Original samples regardless of motion. I'll sample based on run_sec.
+- WalkState: add `run_sec` field? Add `elapsed_sec` maybe. Provide `duration_s = run_sec`. Keep `move_sec` too. summary(): duration_s = round(run_sec,2), pace_s_per_km = run_sec/(dist/1000).
+
+Hmm, this could break lots of tests. Let me check what tests exist to gauge. Let me look at tests/test_walker.py quickly for assertions on duration/pace.
+
+Actually, be pragmatic: the highest-value faithful changes are the recording chain. The duration semantics matters for segment cutting times. Let me check tests first.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"move_sec\\|duration_s\\|pace_s_per_km\\|_sample_if_due\\|sample_s\\|seg_step_s\\|seg_pace_m\" tests/test_walker.py | head -60 && echo \"=== count ===\" && grep -c \"\" tests/test_walker.py", "description": "检查 walker 测试对时间语义的依赖"}
+
+[tool • bash]
+60:        self.assertAlmostEqual(w.move_sec, 10.0, places=3)
+119:        w = Walker(sim=FuckRunSim(seed=1), sample_s=1.0)
+345:        self.assertAlmostEqual(s["pace_s_per_km"], 400.0, places=0)
+709:        self.assertGreater(int(run["duration_s"]), 0)
+=== count ===
+763
+
+
+[assistant • read]
+{"limit": 40, "offset": 40, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/tests/test_walker.py"}
+
+[tool • read]
+7UG│        走(w, 10.0)
+GKv│        self.assertGreater(w.lng, LNG0)
+yIU│        self.assertAlmostEqual(w.lat, LAT0, places=6)
+zJV│
+Y9u│    def test_向北推等于纬度增加(self):
+aAv│        w = Walker(sim=FuckRunSim(seed=1))
+bBw│        w.set_target_speed(3.0)
+cCx│        w.start(LAT0, LNG0)
+cRB│        w.set_joystick(0.0, 1.0, 1.0)
+dSC│        走(w, 10.0)
+cLn│        self.assertGreater(w.lat, LAT0)
+M6i│        self.assertAlmostEqual(w.lng, LNG0, places=6)
+N7j│
+Vt5│    def test_距离与时间严格按速度累积(self):
+Wu6│        w = Walker(sim=FuckRunSim(seed=1))
+LSM│        w.set_target_speed(2.0)
+MTN│        w.start(LAT0, LNG0)
+NUO│        w.set_joystick(1.0, 0.0, 1.0)
+OVP│        走(w, 10.0)
+Ntl│        self.assertAlmostEqual(w.dist_m, 20.0, places=3)
+FuP│        self.assertAlmostEqual(w.move_sec, 10.0, places=3)
+GvQ│
+Kk6│    def test_推杆幅度线性缩速度(self):
+CaZ│        a = Walker(sim=FuckRunSim(seed=1))
+sx7│        a.set_target_speed(3.0)
+zHE│        a.start(LAT0, LNG0)
+37r│        a.set_joystick(1.0, 0.0, 1.0)
+4KU│        走(a, 10.0)
+5LV│
+gTD│        b = Walker(sim=FuckRunSim(seed=1))
+lHr│        b.set_target_speed(3.0)
+394│        b.start(LAT0, LNG0)
+8nI│        b.set_joystick(1.0, 0.0, 0.5)
+HOh│        走(b, 10.0)
+IPi│
+y7A│        self.assertAlmostEqual(b.dist_m, a.dist_m / 2, places=3)
+z8B│
+9IX│    def test_死区内不推进但也不报错(self):
+AJY│        w = Walker(sim=FuckRunSim(seed=1))
+BKZ│        w.start(LAT0, LNG0)
+
+[Showing lines 40-79 of 763. Use offset=80 to continue.]
+
+[assistant • read]
+{"path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walk.py", "windows": [{"offset": 1, "limit": 120}, {"offset": 186, "limit": 100}, {"offset": 370, "limit": 160}]}
+
+[tool • read]
+=== Lines 1-120 of 529 ===
+jvB│#!/usr/bin/env python3
+0gW│# -*- coding: utf-8 -*-
+rgZ│"""手动实走会话：把 `Walker` 挂到后台线程上，按真实时间推进并落库
+AuN│
+E8Y│与一键跑的区别（也是它存在的理由）：
+8FK│  · 方向由**外部输入**决定——界面上的虚拟摇杆、键盘方向键、或点击地图画出的路点，
+qNf│    而不是由几何算法一次算完；
+APv│  · 数据是**边跑边落库**的，所以能看到轨迹一节一节长出来，也能在任意时刻叫停；
+ikq│  · 两种模式：
+kMF│      dry   干跑：只推位置、只算数据、**不落库、不开跑、不上传**，纯粹用来调路径；
+CTI│      real  实跑：先 `startSunRun` 拿到 runRecordCode，轨迹实时写进 SQLite，
+pOJ│            叫停后可选择上传与结算（走的是与一键跑完全相同的上传链路）。
+qPK│
+cZz│线程模型：一个 daemon 线程按 `tick_s` 节拍醒来，把「真实流逝时间 × 倍速」喂给
+gKO│`Walker.tick()`，再把新产生的采样点交给 `RecordStore`。界面通过 `status(since)`
+Unk│增量拉取新点与实时状态，不依赖线程安全的事件顺序。
+rdw│"""
+rur│from __future__ import annotations
+svs│
+Yzy│import threading
+E7e│import time
+bDw│from typing import Any, Dict, List, Optional, Sequence
+cEx│
+tr7│from .constants import SPORT_TYPE_SUN, STATE_INIT
+us8│from .protocol import (IntervalPace, IntervalStep, RunLatLng, evaluate_run)
+vt9│from .simulator import FuckRunSim
+wvA│from .store import RecordStore
+4Aq│from .walker import (DEFAULT_SPEED_MPS, SAMPLE_INTERVAL_S, TICK_DEFAULT_S, Walker,
+o6e│                     WalkState, route_from_checkpoints)
+p7f│
+q8g│
+jEt│class WalkSession:
+MXt│    """一次手动实走会话（干跑 / 实跑）"""
+NYu│
+vqN│    def __init__(self, cfg: Optional[Dict[str, Any]] = None, bus=None,
+aRl│                 store: Optional[RecordStore] = None, engine=None):
+OHp│        self.cfg = cfg or {}
+r1z│        self.bus = bus
+2Wo│        self.store = store
+6xp│        self.engine = engine
+7yq│
+wM4│        self.walker: Optional[Walker] = None
+3WB│        self.state: WalkState = WalkState()
+Idb│        self.mode = "dry"                    # dry | real
+6Lb│        self.run_code = ""
+yca│        self.sport_type = SPORT_TYPE_SUN
+mEs│        self.started_at = 0.0
+X4W│        self.stopped_at = 0.0
+lCR│        self.finished_result: Dict[str, Any] = {}
+rnU│        self.error = ""
+Hlv│        self.speed = 1.0                     # 时间倍速（1 = 真实速度）
+9BI│        self.tick_s = TICK_DEFAULT_S
+A9P│        self.pending = 0                     # 尚未落库的点数
+MUs│        self.hits_total = 0                  # 已命中打卡点数（内存口径，与库同步）
+cmk│        self.steps_total = 0                 # 已落库的步频段数
+PNd│        self.paces_total = 0                 # 已落库的配速段数
+TRh│        self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
+USi│        self._pace_buf = self._new_pace_buf(0)
+Wbe│        self._step_buf: List[Dict[str, Any]] = []        # 正在累加的步频段
+GFi│        self._step_segments: List[IntervalStep] = []     # 已切好的步频段（含未落库的）
+T1z│        self._pace_segments: List[IntervalPace] = []     # 已切好的配速段（含未落库的）
+Irj│        self.seg_step_s = 3.0                # 步频段时长（与客户端 stepInterval 3000ms 对齐）
+43I│        self.seg_pace_m = 1000.0             # 配速段距离（与 paceInterval 1000m 对齐）
+54J│
+65K│        self._lock = threading.RLock()
+76L│        self._thread: Optional[threading.Thread] = None
+87M│        self._stop_flag = threading.Event()
+98N│        self._points: List[RunLatLng] = []   # 本次会话产生的全部轨迹点（内存镜像）
+A9O│        self._stored = 0                     # 已落库的点数（= _points 的前缀长度）
+CAP│        self._last_emit = 0.0                # 事件限频
+DBQ│        self._last_emit_m = 0.0
+C4N│
+Bud│    # ══════════════════ 配置读取 ══════════════════
+cPv│    def _wcfg(self, key: str, default: Any) -> Any:
+Cu8│        """会话级配置：优先 walk 段，其次 sim 段（倍速/采样间隔沿用同一套习惯）"""
+KIY│        walk_cfg = self.cfg.get("walk") or {}
+LJZ│        if key in walk_cfg:
+MKa│            return walk_cfg[key]
+Bit│        # 倍速单独处理：绝不能回退到 sim.speed（那里默认 8 倍），
+6vd│        # 否则手动实走会以 8 倍速吞掉时间，体感就是“跑得飞快”
+WQE│        if key == "speed":
+w1Q│            return default
+x2R│        sim_cfg = self.cfg.get("sim") or {}
+y3S│        return sim_cfg.get(key, default)
+AxG│
+11C│    # ══════════════════ 生命周期 ══════════════════
+wSA│    def start(self, mode: str = "dry", *, lat: float, lng: float,
+g2b│              target_m: float = 0.0, speed_mps: Optional[float] = None,
+1hd│              route: Optional[Sequence[Sequence[float]]] = None,
+VSf│              auto_route: bool = False,
+5pT│              targets: Optional[Sequence[Dict[str, Any]]] = None,
+hv7│              polygon: Optional[Sequence[Sequence[flo
+
+[... tool result middle pruned ...]
+
+                    run_code=self.run_code, valid=validity)
+vpM│
+wqN│    # ══════════════════ 内部 ══════════════════
+xrO│    def _emit(self, kind: str, msg: str, **data: Any) -> None:
+ysP│        if self.bus:
+ztQ│            self.bus.emit(kind, msg, **data)
+TSA│
+UTB│
+ms4│def build_walk_targets(checkpoints: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+0Hi│    """把 store 里的打卡点转成 Walker 能吃的桩（保留 radius_m 与序号）"""
+IHE│    out: List[Dict[str, Any]] = []
+ueT│    for cp in checkpoints or []:
+TwY│        if cp.get("lat") is None or cp.get("lng") is None:
+k7o│            continue
+68i│        out.append({
+L2y│            "index": int(cp.get("index", len(out))),
+EgJ│            "lat": float(cp["lat"]), "lng": float(cp["lng"]),
+Z5k│            "radius_m": float(cp.get("radius_m") or 12.0),
+exJ│            "passed": int(cp.get("passed") or 0),
+4Gd│        })
+5He│    return out
+6If│
+7Jg│
+Y0D│__all__ = ["WalkSession", "build_walk_targets", "route_from_checkpoints",
+whY│           "DEFAULT_SPEED_MPS", "SAMPLE_INTERVAL_S"]
+
+[assistant • read]
+{"limit": 110, "offset": 120, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walk.py"}
+
+[tool • read]
+DyS│            w.set_target_points(targets)
+CPL│        if route:
+EcQ│            w.set_route(route)
+DMJ│        w.set_auto_route(bool(auto_route))
+OtH│        w.start(lat=lat, lng=lng, reset=True, start_ms=start_ms)
+PuI│
+FT5│        with self._lock:
+13D│            self.walker = w
+FoS│            self.run_code = str(run_code or "")
+1PP│            self.started_at = time.time()
+2QQ│            self.stopped_at = 0.0
+7zK│            self.finished_result = {}
+80L│            self.error = ""
+7Jq│            self._points = []
+QOe│            self._stored = 0
+RPf│            self.pending = 0
+j0a│            self.hits_total = 0
+Hux│            self.steps_total = 0
+tuY│            self.paces_total = 0
+ECR│            self.started_ms = int(start_ms or time.time() * 1000)
+txt│            # 步频段缓冲用「起点零点」打底：采样点每 3 秒才来一个，
+Yzw│            # 不播种的话第一段永远是空的，0~3 秒的步数会凭空消失
+BIF│            self._step_buf = [{"abs_sec": 0.0, "abs_dist_m": 0.0, "abs_steps": 0,
+Wa1│                               "start_ms": self.started_ms}]
+IGV│            self._pace_buf = self._new_pace_buf(self.started_ms)
+JJ3│            # 倍速只认 walk.speed；传 0 表示“按配置”，而配置默认就是 1.0（真实时间）
+tVZ│            self.speed = max(0.1, float(speed if speed else self._wcfg("speed", 1.0) or 1.0))
+XLB│            self.state = w.state()
+YMC│
+n2F│        self._stop_flag.clear()
+mv3│        self._thread = threading.Thread(target=self._loop, name="walk-session", daemon=True)
+Byz│        self._thread.start()
+oOY│        self._emit("walk_started",
+cMQ│                   f"手动实走开始（{'实跑 · ' + self.run_code if self.mode == 'real' else '干跑调试'}，"
+3LX│                   f"{self.speed:g} 倍速）",
+DDQ│                   run_code=self.run_code, mode=self.mode, speed=self.speed,
+xb3│                   state=self.state.to_dict())
+Ynn│        return {"code": 0, "message": "已开始实走", "data": self.status()}
+Zoo│
+XiD│    def stop(self, emit: bool = True) -> Dict[str, Any]:
+VVC│        self._stop_flag.set()
+5rg│        t = self._thread
+ABq│        if t and t.is_alive() and threading.current_thread() is not t:
+9Eo│            t.join(timeout=1.5)
+s21│        self._thread = None
+fTx│        if self.walker and self.walker.running:
+s9f│            self.state = self.walker.stop()
+yAy│            self.state = self.walker.state()
+EfL│        if self.walker:
+FgM│            self.state = self.walker.state()
+g9Y│        # 最后一步可能还没被循环 drain 到，补一次，否则停止时少一个采样点/少一段
+IxK│        self._drain(self.walker)
+JyL│        self.pending = 0
+89L│        # 尾段口径与一键跑一致：build_steps() 也会把不足 3 秒的尾巴切成最后一段，
+Aia│        # 但不能凭空造段——一点都没动过（step_buf 空）就不切
+ZZJ│        # 尾部只用「已走过的尾巴」补段：缓冲里只剩播种点时不算走过
+JyI│        if len(self._step_buf) > 1:
+KzJ│            self._close_step_segment()
+FDX│        self._flush_pace()
+qDX│        self._persist_run_summary()
+iXP│        if emit and self.started_at:
+AUy│            self._emit("walk_stopped", f"手动实走已停止：{self.state.dist_m:.0f} 米 / "
+9XZ│                                       f"{self.state.steps} 步",
+TB9│                       run_code=self.run_code, state=self.state.to_dict())
+2Vg│        return self.status()
+3Wh│
+ahG│    def _loop(self) -> None:
+fWJ│        """后台推进循环：真实流逝时间 × 倍速 喂给 Walker"""
+sDt│        last = time.time()
+a3U│        try:
+Jdc│            while not self._stop_flag.is_set():
+k33│                time.sleep(min(0.2, self.tick_s))
+DAh│                now = time.time()
+ZIZ│                dt = (now - last) * self.speed
+C4c│                last = now
+AIn│                w = self.walker
+I40│                if w is None:
+kxj│                    break
+QG3│                if not w.running:
+RH4│                    self.state = w.state()
+SI5│                    break
+VwO│                self.state = w.tick(min(5.0, dt))
+QIr│                self._drain(w)
+EA9│                self._maybe_emit(now)
+sFp│        except Exception as e:  # noqa: BLE001
+Biw│            self.error = f"{type(e).__name__}: {e}"
+XRz│            self._emit("log", f"✗ 手动实走异常：{self.error}", level="error")
+XAr│        finally:
+YBs│            if self.walker:
+ZCt│                self.state = self.walker.state()
+brF│            self.stopped_at = self.stopped_at or time.time()
+e2V│            if self.state.arrived:
+PwG│                self._emit("walk_arrived", f"手动实走结束：{self.state.arrived}",
+QxH│                           run_code=self.run_code, state=self.state.to_dict())
+RyI│
+ZB4│    def _drain(self, w: Optional[Walker]) -> None:
+aC5│        """取走新采样点：干跑只留内存，实跑同时落库"""
+bD6│        if w is None:
+cE7│            return
+dF8│        new_pts = w.drain_points()
+rin│        meta = w.drain_meta()
+YF4│        hits = w.drain_hits()
+xgh│        if hits:
+AD1│            self.hits_total += len(hits)
+BE2│            if self.mode == "real" and self.store and self.run_code:
+kyc│                for cp in hits:
+gBk│                    self.store.mark_checkpoint_hit(
+PCU│                        self.run_code, int(cp.get("index") or 0),
+MoN│                        float(cp.get("hit_lat") or w.lat),
+tgi│                        float(cp.get("hit_lng") or w.lng),
+
+[Showing lines 120-229 of 529. Use offset=230 to continue.]
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && echo \"=== run_time 断言 ===\" && grep -rn \"run_time\" tests/ scripts/ web/ | head -20 && echo \"=== dist_m 断言 ===\" && grep -rn \"dist_m\" tests/ | head -30 && echo \"=== summary 断言 ===\" && grep -rn \"summary()\" tests/ scripts/ | head -20 && echo \"=== is_valid ===\" && grep -rn \"is_valid\" tests/ scripts/ sdlab/ | head -20", "description": "检查测试对字段的依赖"}
+
+[tool • bash]
+=== run_time 断言 ===
+tests/test_store.py:19:                     run_time=i * 3000, collect_time=1700000000000 + i * 3000,
+tests/test_protocol.py:23:                     run_time=i * 3000, collect_time=基准 + i * 3000)
+tests/test_protocol.py:64:            self.assertEqual(p.run_time, i * 3000)
+=== dist_m 断言 ===
+tests/test_walker.py:59:        self.assertAlmostEqual(w.dist_m, 20.0, places=3)
+tests/test_walker.py:75:        self.assertAlmostEqual(b.dist_m, a.dist_m / 2, places=3)
+tests/test_walker.py:82:        self.assertEqual(w.dist_m, 0.0)
+tests/test_walker.py:92:        d = w.dist_m
+tests/test_walker.py:95:        self.assertAlmostEqual(w.dist_m, d, places=3)   # 站着不动距离不涨
+tests/test_walker.py:326:        self.assertGreaterEqual(w.dist_m, 50.0)
+=== summary 断言 ===
+tests/test_walker.py:343:        s = w.summary()
+=== is_valid ===
+tests/test_protocol.py:166:        self.assertTrue(res.is_valid)
+tests/test_protocol.py:175:        self.assertFalse(res.is_valid)
+tests/test_protocol.py:180:        self.assertFalse(res.is_valid)
+tests/test_protocol.py:185:        self.assertFalse(res.is_valid)
+tests/test_protocol.py:190:        self.assertFalse(res.is_valid)
+tests/test_protocol.py:195:        self.assertFalse(res.is_valid)
+tests/test_endtoend.py:103:        self.assertTrue(valid.get("isValid", valid.get("is_valid")),
+scripts/selfcheck.py:121:    check(hasattr(verdict, "is_valid"), "有效性判定可执行",
+sdlab/protocol.py:124:    is_valid: bool = True
+sdlab/protocol.py:152:            is_valid=bool(d.get("isValid", True)),
+sdlab/protocol.py:171:    is_valid: bool = True
+sdlab/protocol.py:196:            is_valid=bool(d.get("isValid", True)),
+sdlab/protocol.py:217:    is_valid: bool = True
+sdlab/protocol.py:248:            is_valid=bool(d.get("isValid", True)),
+sdlab/protocol.py:307:    is_valid: bool = True
+sdlab/protocol.py:319:        return 1 if self.is_valid else 0
+sdlab/protocol.py:323:            "isValid": self.is_valid,
+sdlab/protocol.py:455:    res.is_valid = not res.reasons
+sdlab/cli.py:229:        flag = valid.get("isValid", valid.get("is_valid"))
+sdlab/store.py:68:    is_valid     INTEGER DEFAULT 1,      -- 过 H0 闸门才为 1；被拒点也落库但为 0
+[stderr]
+grep: sdlab/__pycache__/store.cpython-314.pyc: 匹配到二进制文件
+grep: sdlab/__pycache__/protocol.cpython-314.pyc: 匹配到二进制文件
+
+
+[assistant • read]
+{"limit": 60, "offset": 200, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py"}
+
+[tool • read]
+i6F│            self._last_sample_at = 0.0
+Cyg│            # 起始 POI 序号与原版一致：随机 150–300，避免多条记录序号都一样
+Bum│            self._poi_index = 150 + self.rng.randint(0, 150)
+ba2│            for cp in self.targets:
+k8d│                cp["passed"] = 0
+MW4│                cp.pop("hit_lat", None)
+0b5│                cp.pop("hit_lng", None)
+a3D│                cp.pop("hit_ms", None)
+7m5│            self.sim.start(start_ms=start_ms, base_steps=0)
+cOl│        self.start_ms = int(start_ms if start_ms is not None else time.time() * 1000)
+3uZ│        self.running = True
+Kl8│        return self.state()
+Lm9│
+pnN│    def stop(self) -> WalkState:
+qoO│        self.running = False
+5CP│        self.sim.stop()
+6DQ│        return self.state()
+7ER│
+CpN│    # ══════════════════ 单帧推进 ══════════════════
+3qk│    def tick(self, dt: float) -> WalkState:
+E0w│        """推进 dt 秒（虚拟时间）；返回推进后的状态
+F1x│
+548│        步行方向优先取路径（auto_route），否则取摇杆；速度为 0 时只走时间不走路，
+DM2│        这样"站着不动"也能被界面区分出来（距离不变、配速掉下去）。
+EN3│        """
+Cbc│        if dt <= 0:
+Dcd│            return self.state()
+CFw│        dx, dy, mag = self.dir_x, self.dir_y, self.mag
+4tU│        if self.auto_route:
+v1s│            nxt = self._direction_to_next_waypoint()
+ER4│            if nxt is None:
+mmm│                self.arrived = "路径已走完"
+nnn│                self.running = False
+ooo│                self.sim.stop()
+ppp│                return self.state()
+ayA│            dx, dy, mag = nxt[0], nxt[1], 1.0
+bzB│
+A2h│        speed = 0.0
+ZAv│        if mag > JOYSTICK_DEADZONE:
+Peb│            speed = self.target_speed_mps * mag
+TKW│            move = speed * dt
+mIB│            self.lat += (dy * move) / EARTH_M_PER_DEG_LAT
+fXb│            self.lng += (dx * move) / (EARTH_M_PER_DEG_LAT *
+q8A│                                       max(1e-6, math.cos(math.radians(self.lat))))
+zsO│            self.dist_m += move
+bLY│            self.move_sec += dt
+iLb│            # 采样与打卡都读 _sensor（步数/步频），所以必须先把它推到当前帧，
+nKc│            # 否则分段步数会整体滞后一帧、与总步数对不上
+O0q│            self._refresh_sensor()
+P1r│            self._check_targets()
+Q2s│            self._sample_if_due(speed)
+EcC│
+cMZ│        # 步数用「真实运动时长」而不是时间轴：站着不动就不计步，与暂停语义一致
+dNa│        self._refresh_sensor()
+rVv│        if self.target_distance_m > 0 and self.dist_m >= self.target_distance_m:
+NlU│            self.arrived = f"已达目标距离 {int(self.target_distance_m)} 米"
+OmV│            self.running = False
+PnW│            self.sim.stop()
+QoX│        return self.state()
+RpY│
+
+[Showing lines 200-259 of 448. Use offset=260 to continue.]

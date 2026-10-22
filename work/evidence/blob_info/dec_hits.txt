@@ -1,0 +1,189 @@
+════ 候选函数体积 ════
+  00042d54    4788 字节
+  00044254     752 字节
+  000457b4    1012 字节
+  000421a0     544 字节
+  0004187c     292 字节
+  00025154     964 字节
+  00023118    1148 字节
+  00029fe0     100 字节
+  00029f94      76 字节
+  00040f20      28 字节
+  00040f44      16 字节
+  0004147c      16 字节
+
+════ 00042d54 (4788 字节, 908 行) ════
+
+  ── 函数开头 40 行 ──
+  
+  /* WARNING: Type propagation algorithm not settling */
+  /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+  
+  undefined8
+  FUN_00042d54(undefined8 param_1,long *param_2,long *param_3,long param_4,int param_5,
+              undefined4 *param_6)
+  
+  {
+    byte bVar1;
+    byte bVar2;
+    char cVar3;
+    undefined8 *puVar4;
+    byte *pbVar5;
+    char *pcVar6;
+    undefined8 uVar7;
+    char *pcVar8;
+    undefined4 uVar9;
+    byte *pbVar10;
+    ulong uVar11;
+    uint uVar12;
+    ulong uVar13;
+    undefined4 *puVar14;
+    int iVar15;
+    ulong uVar16;
+    long lVar17;
+    long lVar18;
+    ulong uVar19;
+    ulong uVar20;
+    ulong uVar21;
+    byte *pbVar22;
+    ulong uVar23;
+    byte *pbVar24;
+    byte *pbVar25;
+    long *plVar26;
+    undefined8 *puVar27;
+    undefined8 *puVar28;
+    undefined1 auStack_6f0 [8];
+    byte **local_6e8;
+    undefined8 *local_6e0;
+
+════ 00023118 (1148 字节, 229 行) ════
+
+  ── 函数开头 40 行 ──
+  
+  ulong * FUN_00023118(undefined8 param_1,undefined8 param_2,byte *param_3,byte *param_4,byte *param_5
+                      ,long param_6,long param_7,undefined8 param_8)
+  
+  {
+    int *piVar1;
+    long lVar2;
+    ulong *puVar3;
+    ulong *puVar4;
+    ulong *puVar5;
+    long lVar6;
+    ulong uVar7;
+    byte *pbVar8;
+    long extraout_x8;
+    byte *pbVar9;
+    long lVar10;
+    byte *pbVar11;
+    byte *pbVar12;
+    byte *pbVar13;
+    byte *pbVar14;
+    ulong uVar15;
+    undefined1 auVar16 [16];
+    
+    if ((*param_3 & 1) == 0) {
+      pbVar8 = (byte *)(ulong)(*param_3 >> 1);
+      if (param_4 <= pbVar8) {
+        param_3 = param_3 + 1;
+  LAB_0002314c:
+        pbVar11 = pbVar8 + -(long)param_4;
+        if (param_5 <= pbVar8 + -(long)param_4) {
+          pbVar11 = param_5;
+        }
+        puVar3 = (ulong *)FUN_00045ef0(param_1,param_2,param_3 + (long)param_4,pbVar11);
+        return puVar3;
+      }
+    }
+    else {
+      pbVar8 = *(byte **)(param_3 + 8);
+      if (param_4 <= pbVar8) {
+        param_3 = *(byte **)(param_3 + 0x10);
+
+════ 000457b4 (1012 字节, 258 行) ════
+
+  ── 函数开头 40 行 ──
+  
+  /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+  
+  char * FUN_000457b4(undefined8 param_1,uint *param_2,undefined8 *param_3)
+  
+  {
+    byte *pbVar1;
+    byte bVar2;
+    uint uVar3;
+    undefined8 uVar4;
+    char *pcVar5;
+    char *pcVar6;
+    uint *puVar7;
+    byte *pbVar8;
+    byte *pbVar9;
+    ulong uVar10;
+    long lVar11;
+    byte *pbVar12;
+    long lVar13;
+    uint uVar14;
+    ulong uVar15;
+    ulong uVar16;
+    ulong uVar17;
+    byte *pbVar18;
+    byte *local_38;
+    
+    *(undefined1 *)((long)param_3 + 0x33) = 0;
+    param_3[4] = 0;
+    param_3[5] = 0;
+    *(undefined2 *)(param_3 + 6) = 0;
+    *param_3 = param_2;
+    *(undefined4 *)(param_3 + 3) = 0xff00;
+    puVar7 = param_2 + 1;
+    uVar10 = (ulong)*param_2;
+    if (*param_2 == 0xffffffff) {
+      uVar10 = *(ulong *)(param_2 + 1);
+      puVar7 = param_2 + 3;
+      pbVar1 = (byte *)(uVar10 + (long)puVar7);
+    }
+    else {
+
+════ 00025154 (964 字节, 184 行) ════
+
+  ── 函数开头 40 行 ──
+  
+  /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+  
+  ulong FUN_00025154(undefined8 param_1,undefined8 param_2,byte *param_3,ulong param_4,ulong param_5)
+  
+  {
+    int iVar1;
+    int iVar2;
+    byte bVar3;
+    byte bVar4;
+    ulong uVar5;
+    ulong uVar6;
+    undefined8 uVar7;
+    int *piVar8;
+    long *plVar9;
+    long lVar10;
+    ulong uVar11;
+    ulong *extraout_x8;
+    byte *pbVar12;
+    byte *pbVar13;
+    ulong uVar14;
+    undefined1 auVar15 [16];
+    byte local_e0 [16];
+    undefined8 local_d0;
+    long local_c8;
+    undefined1 auStack_c0 [24];
+    long local_a8;
+    undefined1 *local_a0;
+    undefined8 uStack_98;
+    undefined1 *local_60;
+    undefined8 uStack_58;
+    
+    if ((*param_3 & 1) == 0) {
+      uVar11 = (ulong)(*param_3 >> 1);
+      if (param_4 <= uVar11) {
+        param_3 = param_3 + 4;
+  LAB_00025188:
+        uVar5 = uVar11 - param_4;
+        if (param_5 <= uVar11 - param_4) {
+          uVar5 = param_5;

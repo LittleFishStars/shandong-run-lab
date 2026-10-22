@@ -1,0 +1,27 @@
+════ APK Sig Block 42 @ 00016244 ════
+   引用来自 0009ced4  函数=FUN_0009be9c  type=PARAM
+
+════ signatureAlgorithm @ 00013eaa ════
+   引用来自 0007ccb0  函数=FUN_0007c9f8  type=PARAM
+
+════ signerInfos @ 0001440a ════
+   引用来自 0007cd50  函数=FUN_0007c9f8  type=PARAM
+
+════ encryptedDigest @ 00015162 ════
+   (无引用)
+
+════ tbsCertificate @ 00015a5b ════
+   引用来自 0007cb90  函数=FUN_0007c9f8  type=PARAM
+
+════ TracerPid @ 00013797 ════
+   引用来自 0008e0d8  函数=FUN_0008e094  type=PARAM
+
+════ magisk @ 00013b91 ════
+   引用来自 000c7728  函数=FUN_000c7670  type=PARAM
+   引用来自 000c798c  函数=FUN_000c7670  type=PARAM
+
+════ libnoxspeedup @ 00012f9c ════
+   引用来自 000b3f98  函数=FUN_000b3ee0  type=PARAM
+
+════ /proc/self/fd/%s @ 000130ba ════
+   引用来自 000923a4  函数=FUN_0009221c  type=PARAM

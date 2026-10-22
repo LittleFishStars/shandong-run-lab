@@ -1,0 +1,62 @@
+package com.huachenjie.run.databinding;
+
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.coroutines.Bindable;
+import androidx.coroutines.DataBindingUtil;
+import androidx.coroutines.ViewDataBinding;
+import com.huachenjie.run.R;
+import com.huachenjie.run.page.activities_run.ActivityRunListFragmentVM;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_01_2010cls.dex */
+public abstract class RunFragmentActivityRunListBinding extends ViewDataBinding {
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    @Bindable
+    public ActivityRunListFragmentVM f35567a;
+
+    public RunFragmentActivityRunListBinding(Object _bindingComponent, View _root, int _localFieldCount) {
+        super(_bindingComponent, _root, _localFieldCount);
+    }
+
+    public static RunFragmentActivityRunListBinding c(@NonNull View view) {
+        return d(view, DataBindingUtil.getDefaultComponent());
+    }
+
+    @Deprecated
+    public static RunFragmentActivityRunListBinding d(@NonNull View view, @Nullable Object component) {
+        return (RunFragmentActivityRunListBinding) ViewDataBinding.bind(component, view, R.layout.run_fragment_activity_run_list);
+    }
+
+    @NonNull
+    public static RunFragmentActivityRunListBinding g(@NonNull LayoutInflater inflater) {
+        return j(inflater, DataBindingUtil.getDefaultComponent());
+    }
+
+    @NonNull
+    public static RunFragmentActivityRunListBinding h(@NonNull LayoutInflater inflater, @Nullable ViewGroup root, boolean attachToRoot) {
+        return i(inflater, root, attachToRoot, DataBindingUtil.getDefaultComponent());
+    }
+
+    @NonNull
+    @Deprecated
+    public static RunFragmentActivityRunListBinding i(@NonNull LayoutInflater inflater, @Nullable ViewGroup root, boolean attachToRoot, @Nullable Object component) {
+        return (RunFragmentActivityRunListBinding) ViewDataBinding.inflateInternal(inflater, R.layout.run_fragment_activity_run_list, root, attachToRoot, component);
+    }
+
+    @NonNull
+    @Deprecated
+    public static RunFragmentActivityRunListBinding j(@NonNull LayoutInflater inflater, @Nullable Object component) {
+        return (RunFragmentActivityRunListBinding) ViewDataBinding.inflateInternal(inflater, R.layout.run_fragment_activity_run_list, null, false, component);
+    }
+
+    @Nullable
+    public ActivityRunListFragmentVM f() {
+        return this.f35567a;
+    }
+
+    public abstract void k(@Nullable ActivityRunListFragmentVM vm);
+}

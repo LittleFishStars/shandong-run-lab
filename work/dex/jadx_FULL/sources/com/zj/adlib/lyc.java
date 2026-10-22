@@ -1,0 +1,50 @@
+package com.zj.adlib;
+
+import com.facebook.imagepipeline.producers.DecodeProducer;
+import com.google.android.gms.internal.mlkit_common.d;
+import com.google.firebase.encoders.FieldDescriptor;
+import com.google.firebase.encoders.ObjectEncoder;
+import com.google.firebase.encoders.ObjectEncoderContext;
+import java.io.IOException;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_08_10593cls.dex */
+public final class lyc implements ObjectEncoder {
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    public static final FieldDescriptor f43185a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public static final lyc f18107a = new lyc();
+    public static final FieldDescriptor b;
+    public static final FieldDescriptor c;
+    public static final FieldDescriptor d;
+    public static final FieldDescriptor e;
+
+    static {
+        FieldDescriptor.Builder builder = FieldDescriptor.builder("inferenceCommonLogEvent");
+        d dVar = new d();
+        dVar.a(1);
+        f43185a = builder.withProperty(dVar.b()).build();
+        FieldDescriptor.Builder builder2 = FieldDescriptor.builder("imageInfo");
+        d dVar2 = new d();
+        dVar2.a(2);
+        b = builder2.withProperty(dVar2.b()).build();
+        FieldDescriptor.Builder builder3 = FieldDescriptor.builder("captionCount");
+        d dVar3 = new d();
+        dVar3.a(4);
+        c = builder3.withProperty(dVar3.b()).build();
+        FieldDescriptor.Builder builder4 = FieldDescriptor.builder("highestScore");
+        d dVar4 = new d();
+        dVar4.a(5);
+        d = builder4.withProperty(dVar4.b()).build();
+        FieldDescriptor.Builder builder5 = FieldDescriptor.builder(DecodeProducer.d);
+        d dVar5 = new d();
+        dVar5.a(6);
+        e = builder5.withProperty(dVar5.b()).build();
+    }
+
+    @Override // com.google.firebase.encoders.ObjectEncoder, com.google.firebase.encoders.Encoder
+    public final /* bridge */ /* synthetic */ void encode(Object obj, ObjectEncoderContext objectEncoderContext) throws IOException {
+        throw null;
+    }
+}

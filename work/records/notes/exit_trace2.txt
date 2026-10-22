@@ -1,0 +1,55 @@
+[*] spawned pid=21819
+[js] [+] hooked native exit
+[js] [+] hooked native _exit
+[js] [+] hooked native abort
+[js] [*] hook_exit2.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] 已拦截 System.exit
+[js] [+] 已拦截 Runtime.exit
+[js] [+] 已拦截 Runtime.halt
+[js] [+] 已拦截 Process.killProcess
+[js] [+] 已挂 com.netease.nis.wrapper.MyApplication.attachBaseContext
+[js] [+] 已挂 com.netease.nis.wrapper.MyApplication.onCreate
+[js] [LIFE] com.netease.nis.wrapper.MyApplication.attachBaseContext 进入
+[js] [SIG] 外壳取到签名 len=761
+  sha256 需另算，DER 前 64 字节: 308202f5308201dda003020102020838b5a912eee867f1300d06092a864886f70d01010c05003028310b300906035504061302434e310a3008060355040a1301
+[js] [!!] 阻断 System.exit 参数=[0]  (第 1 次)
+  Java 栈:
+java.lang.Throwable
+	at java.lang.System.exit(Native Method)
+
+  native 栈:
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+[js] [LIFE] com.netease.nis.wrapper.MyApplication.attachBaseContext 返回
+[js] [LIFE] com.netease.nis.wrapper.MyApplication.onCreate 进入
+[js] [LIFE] com.netease.nis.wrapper.MyApplication.onCreate 返回
+[js] [!!] 阻断 System.exit 参数=[0]  (第 2 次)
+  Java 栈:
+java.lang.Throwable
+	at java.lang.System.exit(Native Method)
+
+  native 栈:
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+      ?!? + 0
+[js] [SIG] 外壳取到签名 len=761
+  sha256 需另算，DER 前 64 字节: 308202f5308201dda003020102020838b5a912eee867f1300d06092a864886f70d01010c05003028310b300906035504061302434e310a3008060355040a1301
+[*] 等待结束
+[*] 已 kill pid=21819

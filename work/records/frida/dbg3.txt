@@ -1,0 +1,9 @@
+[send] {'type': 'log', 'message': "Java 尚未就绪（spawn 早期），将在 resume 后重试: ReferenceError: 'Java' is not defined"}
+[send] {'type': 'log', 'message': '已 attach native exit'}
+[send] {'type': 'log', 'message': '已 attach native _exit'}
+[send] {'type': 'log', 'message': '已 attach native _Exit'}
+[send] {'type': 'log', 'message': '已 attach native abort'}
+[send] {'type': 'log', 'message': '已 attach native quick_exit'}
+[send] {'type': 'log', 'message': '已 attach syscall'}
+[send] {'type': 'log', 'message': '已 attach native kill'}
+[send] {'type': 'log', 'message': 'anti-exit 脚本已加载'}

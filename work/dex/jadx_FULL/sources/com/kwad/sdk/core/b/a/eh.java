@@ -1,0 +1,54 @@
+package com.kwad.sdk.core.b.a;
+
+import com.kwad.sdk.core.response.model.AdMatrixInfo;
+import org.json.JSONObject;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_09_10084cls.dex */
+public final class eh implements com.kwad.sdk.core.d<AdMatrixInfo.DownloadTexts> {
+    @Override // com.kwad.sdk.core.d
+    public final /* bridge */ /* synthetic */ void a(com.kwad.sdk.core.b bVar, JSONObject jSONObject) {
+        a((AdMatrixInfo.DownloadTexts) bVar, jSONObject);
+    }
+
+    @Override // com.kwad.sdk.core.d
+    public final /* bridge */ /* synthetic */ JSONObject b(com.kwad.sdk.core.b bVar, JSONObject jSONObject) {
+        return b((AdMatrixInfo.DownloadTexts) bVar, jSONObject);
+    }
+
+    private static void a(AdMatrixInfo.DownloadTexts downloadTexts, JSONObject jSONObject) {
+        if (jSONObject == null) {
+            return;
+        }
+        downloadTexts.adActionDescription = jSONObject.optString("adActionDescription");
+        if (JSONObject.NULL.toString().equals(downloadTexts.adActionDescription)) {
+            downloadTexts.adActionDescription = "";
+        }
+        downloadTexts.installAppLabel = jSONObject.optString("installAppLabel");
+        if (JSONObject.NULL.toString().equals(downloadTexts.installAppLabel)) {
+            downloadTexts.installAppLabel = "";
+        }
+        downloadTexts.openAppLabel = jSONObject.optString("openAppLabel");
+        if (JSONObject.NULL.toString().equals(downloadTexts.openAppLabel)) {
+            downloadTexts.openAppLabel = "";
+        }
+    }
+
+    private static JSONObject b(AdMatrixInfo.DownloadTexts downloadTexts, JSONObject jSONObject) {
+        if (jSONObject == null) {
+            jSONObject = new JSONObject();
+        }
+        String str = downloadTexts.adActionDescription;
+        if (str != null && !str.equals("")) {
+            com.kwad.sdk.utils.ac.putValue(jSONObject, "adActionDescription", downloadTexts.adActionDescription);
+        }
+        String str2 = downloadTexts.installAppLabel;
+        if (str2 != null && !str2.equals("")) {
+            com.kwad.sdk.utils.ac.putValue(jSONObject, "installAppLabel", downloadTexts.installAppLabel);
+        }
+        String str3 = downloadTexts.openAppLabel;
+        if (str3 != null && !str3.equals("")) {
+            com.kwad.sdk.utils.ac.putValue(jSONObject, "openAppLabel", downloadTexts.openAppLabel);
+        }
+        return jSONObject;
+    }
+}

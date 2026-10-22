@@ -1,0 +1,358 @@
+════ FUN_0007ed08 的调用者 ════
+  000971f0 (2712 字节)
+
+════ 二级调用者 ════
+  000d41c0 ← 000971f0 (24 字节)
+
+════ 0007ed08 (80 字节) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_0007ed08(long param_1)
+
+{
+  code *pcVar1;
+  
+  if (((param_1 != 0) &&
+      (pcVar1 = (code *)FUN_000d8cc0(param_1,s_JNI_OnLoad_00014574), pcVar1 != Reset)) &&
+     ((DAT_000e8415 & 1) == 0)) {
+    (*pcVar1)(_DAT_000e8a68,0);
+    DAT_000e8415 = 1;
+  }
+  return;
+}
+
+
+
+════ 000971f0 (2712 字节) ════
+
+void FUN_000971f0(undefined1 param_1 [16],undefined1 param_2 [16],undefined8 param_3,
+                 undefined8 param_4,undefined8 *param_5,undefined8 param_6,uint param_7,
+                 undefined4 param_8)
+
+{
+  byte *pbVar1;
+  int iVar2;
+  undefined1 in_ZR;
+  bool bVar3;
+  bool bVar4;
+  undefined1 uVar5;
+  int iVar6;
+  uint uVar7;
+  uint uVar8;
+  int iVar9;
+  undefined8 uVar10;
+  long *plVar11;
+  undefined8 *puVar12;
+  long lVar13;
+  undefined4 *puVar14;
+  undefined8 uVar15;
+  undefined8 *puVar16;
+  code *pcVar17;
+  undefined8 extraout_x1;
+  undefined8 extraout_x1_00;
+  long extraout_x1_01;
+  undefined4 extraout_w8;
+  undefined4 extraout_w8_00;
+  long extraout_x8;
+  ulong extraout_x8_00;
+  long extraout_x8_01;
+  ulong extraout_x8_02;
+  long lVar18;
+  ulong extraout_x8_03;
+  undefined4 *puVar19;
+  ulong extraout_x8_04;
+  ulong extraout_x8_05;
+  int extraout_w9;
+  undefined8 extraout_x9;
+  undefined8 extraout_x9_00;
+  ulong extraout_x9_01;
+  ulong extraout_x9_02;
+  int *piVar20;
+  ulong uVar21;
+  ulong extraout_x9_03;
+  ulong uVar22;
+  ulong extraout_x9_04;
+  undefined8 extraout_x10;
+  undefined8 extraout_x10_00;
+  int extraout_w11;
+  ulong extraout_x11;
+  ulong extraout_x11_00;
+  int extraout_w12;
+  ulong extraout_x12;
+  ulong extraout_x12_00;
+  ulong uVar23;
+  long lVar24;
+  undefined4 *puVar25;
+  long lVar26;
+  undefined4 *puVar27;
+  ulong uVar28;
+  long unaff_x27;
+  undefined1 auVar29 [16];
+  undefined8 uVar30;
+  undefined1 auStack_308 [24];
+  undefined1 local_2f0 [24];
+  undefined1 local_2d8 [24];
+  undefined1 auStack_2c0 [24];
+  undefined1 auStack_2a8 [24];
+  undefined1 local_290 [28];
+  undefined1 auStack_274 [260];
+  uint local_170 [2];
+  int local_168;
+  int local_164;
+  ulong local_148;
+  long local_68;
+  
+  uVar30 = param_2._8_8_;
+  uVar15 = param_2._0_8_;
+  FUN_000cff2c();
+  FUN_000d1d30();
+  local_68 = extraout_x8;
+  FUN_000971b8(auStack_2c0,&DAT_0001cc43);
+  FUN_000d6adc(local_2d8);
+  FUN_000af6e0();
+  FUN_000d0270(auStack_274,extraout_x1,0x104);
+  FUN_000971b8(local_170,&DAT_0001cc60);
+  FUN_000d7aa0((undefined1)local_170[0]);
+  uVar23 = (ulong)local_2d8 | 1;
+  uVar10 = extraout_x10;
+  if (!(bool)in_ZR) {
+    uVar10 = extraout_x9;
+  }
+  if ((extraout_x11 & 1) != 0) {
+    uVar23 = extraout_x12;
+  }
+  FUN_000afa60(auStack_274,0x104,uVar10,uVar23);
+  uVar10 = FUN_000d4680();
+  if (param_7 == 5) {
+    puVar12 = (undefined8 *)FUN_0004d9e0(0x58);
+    uVar10 = DAT_00016840;
+    uVar15 = *param_5;
+    *puVar12 = 0xe0f48;
+    puVar12[1] = param_5;
+    *(undefined4 *)(puVar12 + 7) = param_8;
+    puVar12[3] = param_6;
+    puVar12[4] = 0;
+    puV
+
+════ 000971f0 (2712 字节) ════
+
+void FUN_000971f0(undefined1 param_1 [16],undefined1 param_2 [16],undefined8 param_3,
+                 undefined8 param_4,undefined8 *param_5,undefined8 param_6,uint param_7,
+                 undefined4 param_8)
+
+{
+  byte *pbVar1;
+  int iVar2;
+  undefined1 in_ZR;
+  bool bVar3;
+  bool bVar4;
+  undefined1 uVar5;
+  int iVar6;
+  uint uVar7;
+  uint uVar8;
+  int iVar9;
+  undefined8 uVar10;
+  long *plVar11;
+  undefined8 *puVar12;
+  long lVar13;
+  undefined4 *puVar14;
+  undefined8 uVar15;
+  undefined8 *puVar16;
+  code *pcVar17;
+  undefined8 extraout_x1;
+  undefined8 extraout_x1_00;
+  long extraout_x1_01;
+  undefined4 extraout_w8;
+  undefined4 extraout_w8_00;
+  long extraout_x8;
+  ulong extraout_x8_00;
+  long extraout_x8_01;
+  ulong extraout_x8_02;
+  long lVar18;
+  ulong extraout_x8_03;
+  undefined4 *puVar19;
+  ulong extraout_x8_04;
+  ulong extraout_x8_05;
+  int extraout_w9;
+  undefined8 extraout_x9;
+  undefined8 extraout_x9_00;
+  ulong extraout_x9_01;
+  ulong extraout_x9_02;
+  int *piVar20;
+  ulong uVar21;
+  ulong extraout_x9_03;
+  ulong uVar22;
+  ulong extraout_x9_04;
+  undefined8 extraout_x10;
+  undefined8 extraout_x10_00;
+  int extraout_w11;
+  ulong extraout_x11;
+  ulong extraout_x11_00;
+  int extraout_w12;
+  ulong extraout_x12;
+  ulong extraout_x12_00;
+  ulong uVar23;
+  long lVar24;
+  undefined4 *puVar25;
+  long lVar26;
+  undefined4 *puVar27;
+  ulong uVar28;
+  long unaff_x27;
+  undefined1 auVar29 [16];
+  undefined8 uVar30;
+  undefined1 auStack_308 [24];
+  undefined1 local_2f0 [24];
+  undefined1 local_2d8 [24];
+  undefined1 auStack_2c0 [24];
+  undefined1 auStack_2a8 [24];
+  undefined1 local_290 [28];
+  undefined1 auStack_274 [260];
+  uint local_170 [2];
+  int local_168;
+  int local_164;
+  ulong local_148;
+  long local_68;
+  
+  uVar30 = param_2._8_8_;
+  uVar15 = param_2._0_8_;
+  FUN_000cff2c();
+  FUN_000d1d30();
+  local_68 = extraout_x8;
+  FUN_000971b8(auStack_2c0,&DAT_0001cc43);
+  FUN_000d6adc(local_2d8);
+  FUN_000af6e0();
+  FUN_000d0270(auStack_274,extraout_x1,0x104);
+  FUN_000971b8(local_170,&DAT_0001cc60);
+  FUN_000d7aa0((undefined1)local_170[0]);
+  uVar23 = (ulong)local_2d8 | 1;
+  uVar10 = extraout_x10;
+  if (!(bool)in_ZR) {
+    uVar10 = extraout_x9;
+  }
+  if ((extraout_x11 & 1) != 0) {
+    uVar23 = extraout_x12;
+  }
+  FUN_000afa60(auStack_274,0x104,uVar10,uVar23);
+  uVar10 = FUN_000d4680();
+  if (param_7 == 5) {
+    puVar12 = (undefined8 *)FUN_0004d9e0(0x58);
+    uVar10 = DAT_00016840;
+    uVar15 = *param_5;
+    *puVar12 = 0xe0f48;
+    puVar12[1] = param_5;
+    *(undefined4 *)(puVar12 + 7) = param_8;
+    puVar12[3] = param_6;
+    puVar12[4] = 0;
+    puV
+
+════ 000971f0 (2712 字节) ════
+
+void FUN_000971f0(undefined1 param_1 [16],undefined1 param_2 [16],undefined8 param_3,
+                 undefined8 param_4,undefined8 *param_5,undefined8 param_6,uint param_7,
+                 undefined4 param_8)
+
+{
+  byte *pbVar1;
+  int iVar2;
+  undefined1 in_ZR;
+  bool bVar3;
+  bool bVar4;
+  undefined1 uVar5;
+  int iVar6;
+  uint uVar7;
+  uint uVar8;
+  int iVar9;
+  undefined8 uVar10;
+  long *plVar11;
+  undefined8 *puVar12;
+  long lVar13;
+  undefined4 *puVar14;
+  undefined8 uVar15;
+  undefined8 *puVar16;
+  code *pcVar17;
+  undefined8 extraout_x1;
+  undefined8 extraout_x1_00;
+  long extraout_x1_01;
+  undefined4 extraout_w8;
+  undefined4 extraout_w8_00;
+  long extraout_x8;
+  ulong extraout_x8_00;
+  long extraout_x8_01;
+  ulong extraout_x8_02;
+  long lVar18;
+  ulong extraout_x8_03;
+  undefined4 *puVar19;
+  ulong extraout_x8_04;
+  ulong extraout_x8_05;
+  int extraout_w9;
+  undefined8 extraout_x9;
+  undefined8 extraout_x9_00;
+  ulong extraout_x9_01;
+  ulong extraout_x9_02;
+  int *piVar20;
+  ulong uVar21;
+  ulong extraout_x9_03;
+  ulong uVar22;
+  ulong extraout_x9_04;
+  undefined8 extraout_x10;
+  undefined8 extraout_x10_00;
+  int extraout_w11;
+  ulong extraout_x11;
+  ulong extraout_x11_00;
+  int extraout_w12;
+  ulong extraout_x12;
+  ulong extraout_x12_00;
+  ulong uVar23;
+  long lVar24;
+  undefined4 *puVar25;
+  long lVar26;
+  undefined4 *puVar27;
+  ulong uVar28;
+  long unaff_x27;
+  undefined1 auVar29 [16];
+  undefined8 uVar30;
+  undefined1 auStack_308 [24];
+  undefined1 local_2f0 [24];
+  undefined1 local_2d8 [24];
+  undefined1 auStack_2c0 [24];
+  undefined1 auStack_2a8 [24];
+  undefined1 local_290 [28];
+  undefined1 auStack_274 [260];
+  uint local_170 [2];
+  int local_168;
+  int local_164;
+  ulong local_148;
+  long local_68;
+  
+  uVar30 = param_2._8_8_;
+  uVar15 = param_2._0_8_;
+  FUN_000cff2c();
+  FUN_000d1d30();
+  local_68 = extraout_x8;
+  FUN_000971b8(auStack_2c0,&DAT_0001cc43);
+  FUN_000d6adc(local_2d8);
+  FUN_000af6e0();
+  FUN_000d0270(auStack_274,extraout_x1,0x104);
+  FUN_000971b8(local_170,&DAT_0001cc60);
+  FUN_000d7aa0((undefined1)local_170[0]);
+  uVar23 = (ulong)local_2d8 | 1;
+  uVar10 = extraout_x10;
+  if (!(bool)in_ZR) {
+    uVar10 = extraout_x9;
+  }
+  if ((extraout_x11 & 1) != 0) {
+    uVar23 = extraout_x12;
+  }
+  FUN_000afa60(auStack_274,0x104,uVar10,uVar23);
+  uVar10 = FUN_000d4680();
+  if (param_7 == 5) {
+    puVar12 = (undefined8 *)FUN_0004d9e0(0x58);
+    uVar10 = DAT_00016840;
+    uVar15 = *param_5;
+    *puVar12 = 0xe0f48;
+    puVar12[1] = param_5;
+    *(undefined4 *)(puVar12 + 7) = param_8;
+    puVar12[3] = param_6;
+    puVar12[4] = 0;
+    puV

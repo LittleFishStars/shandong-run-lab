@@ -1,0 +1,29 @@
+[*] spawned pid=26192
+[js] [+] libc 已挂: open, openat, fopen, access, faccessat, stat, lstat, stat64, opendir, readlink, execve, system, popen, kill, __system_property_get
+[js] [*] detect_env.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] 已挂 File.exists
+[js] [+] 已挂 File.canRead/isFile/isDirectory
+[js] [+] 已挂 Runtime.exec
+[js] [+] 已挂 ProcessBuilder.start
+[js] [+] 已挂 System.getProperty
+[js] [ENV] access("/system/bin/su")  ← libnesec.so+631532
+[js] [ENV] faccessat("/system/bin/su")  ← 0x7d5bbb9910
+[js] [ENV] lstat("/system/bin/su")  ← libnesec.so+631552
+[js] [ENV] lstat("/bin/su")  ← libnesec.so+631572
+[js] [ENV] access("/system/xbin/su")  ← libnesec.so+631532
+[js] [ENV] faccessat("/system/xbin/su")  ← 0x7d5bbb9910
+[js] [ENV] lstat("/system/xbin/su")  ← libnesec.so+631552
+[js] [ENV] lstat("/xbin/su")  ← libnesec.so+631572
+[js] [ENV] access("/system/sbin/su")  ← libnesec.so+631532
+[js] [ENV] faccessat("/system/sbin/su")  ← 0x7d5bbb9910
+[js] [ENV] lstat("/system/sbin/su")  ← libnesec.so+631552
+[js] [ENV] lstat("/sbin/su")  ← libnesec.so+631572
+[js] [EXIT] java.lang.System.exit 被调 —— 记录后阻断
+[js] [EXIT] java.lang.System.exit 被调 —— 记录后阻断
+[js] [ENV] __system_property_get("ro.kernel.qemu")  ← libcutils.so+47272
+[js] [ENV] __system_property_get("ro.kernel.qemu")  ← libcutils.so+47272
+[js] [ENV] __system_property_get("ro.kernel.qemu")  ← libcutils.so+47272
+[*] 等待结束
+[*] 已 kill pid=26192

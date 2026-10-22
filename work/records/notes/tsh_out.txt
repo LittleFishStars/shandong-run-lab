@@ -1,0 +1,12 @@
+[*] spawned pid=12674
+[*] script loaded
+[js] ns_trace_shell 就绪
+[js] Process 探针已装
+[js] libc 自杀探针已装
+[js] ── com.netease.nis.wrapper.MyApplication 已加载 ──
+[js] ── com.netease.nis.wrapper.MyJni 已加载 ──
+[js] ── com.huachenjie.shandong_school.ShandongApplication 已加载 ──
+[js] 三类都已挂钩，停止轮询
+[js] MyJni.load(com.netease.nis.wrapper.MyApplication@6695e48, com.huachenjie.shandong_school)  进入  |  （全系统帧）
+[!] 进程已退出
+[*] 等待结束

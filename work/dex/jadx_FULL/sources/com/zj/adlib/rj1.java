@@ -1,0 +1,13 @@
+package com.zj.adlib;
+
+import androidx.arch.core.util.Function;
+import com.fl.saas.common.util.Check;
+import java.util.List;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_08_10593cls.dex */
+public final /* synthetic */ class rj1 implements Function {
+    @Override // androidx.arch.core.util.Function
+    public final Object apply(Object obj) {
+        return Check.findFirstNonNull((List) obj);
+    }
+}

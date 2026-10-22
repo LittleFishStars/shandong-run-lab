@@ -1,0 +1,9 @@
+[send] {'type': 'log', 'message': '已替换 native exit'}
+[send] {'type': 'log', 'message': '已替换 native _exit'}
+[send] {'type': 'log', 'message': '已 attach native _Exit'}
+[send] {'type': 'log', 'message': '已替换 native abort'}
+[send] {'type': 'log', 'message': '已替换 native quick_exit'}
+[send] {'type': 'log', 'message': '已 attach native kill'}
+[send] {'type': 'log', 'message': 'anti-exit 脚本已加载'}
+[send] {'type': 'log', 'message': '拦截终止调用: native _Exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:144)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native _exit(0)\nError\n    at blockAndLog (/script1.js:25)\n    at <anonymous> (/script1.js:136)'}

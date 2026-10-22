@@ -1,0 +1,278 @@
+════ MD5 (000b6a04) 的调用链 ════
+          ← FUN_000b6950 @000b6950 (180 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+          ← FUN_000b6950 @000b6950 (180 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+        ← FUN_000b748c @000b748c (204 字节)
+      ← FUN_000af33c @000af33c (932 字节)
+    ← FUN_0008b26c @0008b26c (332 字节)
+    ← FUN_000a7eb4 @000a7eb4 (4684 字节)
+    ← FUN_000d7e4c @000d7e4c (12 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+  ← FUN_0009fb70 @0009fb70 (6104 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000af134 @000af134 (520 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009fb70 @0009fb70 (6104 字节)
+
+════ PKCS7 解析 (0007c9f8) 的调用链 ════
+        ← FUN_000af134 @000af134 (520 字节)
+      ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_0009fb70 @0009fb70 (6104 字节)
+
+════ CityHash (000c1fd8) 的调用链 ════
+        ← FUN_000d5768 @000d5768 (20 字节)
+      ← FUN_000c9880 @000c9880 (176 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_000d700c @000d700c (12 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000c24e4 @000c24e4 (176 字节)
+    ← FUN_000c1a24 @000c1a24 (452 字节)
+  ← FUN_000d05a0 @000d05a0 (28 字节)
+        ← FUN_000d6e2c @000d6e2c (16 字节)
+      ← FUN_000c9494 @000c9494 (516 字节)
+    ← FUN_000c9838 @000c9838 (72 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+    ← FUN_000d8678 @000d8678 (12 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+  ← FUN_0009be9c @0009be9c (8984 字节)
+      ← FUN_000c1dd4 @000c1dd4 (516 字节)
+    ← FUN_000c1a24 @000c1a24 (452 字节)
+  ← FUN_000d05a0 @000d05a0 (28 字节)
+    ← FUN_000c1d08 @000c1d08 (204 字节)
+  ← FUN_000c1a24 @000c1a24 (452 字节)
+  ← FUN_000c1a24 @000c1a24 (452 字节)
+        ← FUN_000c26b0 @000c26b0 (644 字节)
+
+════ 反编译 000b6950 (180 字节) ════
+
+void FUN_000b6950(undefined8 param_1,undefined8 param_2,int param_3)
+
+{
+  int *piVar1;
+  int *piVar2;
+  ulong uVar3;
+  long extraout_x8;
+  int extraout_w9;
+  int iVar4;
+  ulong extraout_x10;
+  int extraout_w11;
+  uint unaff_w19;
+  long unaff_x20;
+  uint uVar5;
+  
+  piVar1 = (int *)FUN_000d7074();
+  uVar3 = extraout_x10 >> 3 & 0x3f;
+  uVar5 = extraout_w11 - (int)uVar3;
+  *piVar1 = (uint)extraout_x10 + param_3 * 8;
+  iVar4 = extraout_w9;
+  if (CARRY4((uint)extraout_x10,param_3 * 8)) {
+    iVar4 = extraout_w9 + 1;
+    piVar1[1] = iVar4;
+  }
+  piVar1[1] = iVar4 + (unaff_w19 >> 0x1d);
+  if (unaff_w19 < uVar5) {
+    uVar5 = 0;
+    piVar2 = piVar1;
+  }
+  else {
+    FUN_000d31f4((long)(piVar1 + 6) + uVar3);
+    piVar2 = (int *)FUN_000b6a04(piVar1 + 2,piVar1 + 6);
+    while (uVar5 + 0x40 <= unaff_w19) {
+      piVar2 = (int *)FUN_000b6a04(piVar1 + 2,unaff_x20 + (ulong)uVar5);
+      uVar5 = uVar5 + 0x40;
+    }
+    uVar3 = 0;
+  }
+  FUN_000d00a0((long)piVar1 + uVar3,piVar2,unaff_x20 + (ulong)uVar5,unaff_w19 - uVar5);
+  FUN_000d8760(extraout_x8 + 0x18);
+  return;
+}
+
+
+
+════ 反编译 000b748c (204 字节) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_000b748c(undefined8 param_1,undefined4 param_2)
+
+{
+  uint uVar1;
+  long lVar2;
+  undefined1 uVar3;
+  int iVar4;
+  undefined1 auVar5 [16];
+  undefined8 local_a0;
+  undefined8 uStack_98;
+  undefined8 local_90;
+  undefined1 auStack_40 [8];
+  undefined8 local_38;
+  
+  lVar2 = tpidr_el0;
+  local_38 = *(undefined8 *)(lVar2 + 0x28);
+  uStack_98 = uRam0000000000016478;
+  local_a0 = _DAT_00016470;
+  local_90 = DAT_000167f0;
+  FUN_000b6950(&local_a0,param_1,param_2);
+  uVar1 = (uint)local_a0 >> 3 & 0x3f;
+  uVar3 = uVar1 == 0x38;
+  iVar4 = 0x38;
+  if (0x37 < uVar1) {
+    iVar4 = 0x78;
+  }
+  FUN_000b7438(auStack_40,&local_a0,8);
+  FUN_000b6950(&local_a0,0xe6b1b,iVar4 - uVar1);
+  auVar5 = FUN_000b6950(&local_a0,auStack_40,8);
+  FUN_000d0e34(auVar5._0_8_,auVar5._8_8_,0x10);
+  FUN_000b7438();
+  FUN_000d1754(*(undefined8 *)(lVar2 + 0x28));
+  if ((bool)uVar3) {
+    FUN_000d4444();
+    return;
+  }
+                    /* WARNING: Subroutine does not return */
+  FUN_000d8770();
+}
+
+
+
+════ 反编译 000af134 (520 字节) ════
+
+void FUN_000af134(void)
+
+{
+  int iVar1;
+  byte bVar2;
+  byte bVar3;
+  undefined4 *puVar4;
+  int iVar5;
+  byte bVar6;
+  uint uVar7;
+  char *pcVar8;
+  long lVar9;
+  undefined1 uVar10;
+  long lVar11;
+  long lVar12;
+  long lVar13;
+  undefined8 uVar14;
+  byte *extraout_x1;
+  undefined1 *puVar15;
+  int iVar16;
+  byte *pbVar17;
+  long unaff_x23;
+  undefined4 *puVar18;
+  long local_f0;
+  undefined8 local_e4;
+  undefined8 local_dc;
+  undefined4 local_d4;
+  undefined4 uStack_d0;
+  undefined4 local_cc;
+  undefined8 local_c0;
+  undefined8 local_b0;
+  undefined8 uStack_a8;
+  long local_a0;
+  undefined1 auStack_98 [64];
+  byte local_58 [24];
+  
+  FUN_000d27e4();
+  pbVar17 = *(byte **)(extraout_x1 + 0x10);
+  if ((*extraout_x1 & 1) == 0) {
+    pbVar17 = extraout_x1 + 1;
+  }
+  lVar11 = FUN_000b88e4(pbVar17,0,0);
+  puVar18 = *(undefined4 **)(lVar11 + 0x60);
+  puVar4 = *(undefined4 **)(lVar11 + 0x68);
+  uVar10 = false;
+  lVar12 = lVar11;
+  if ((long)puVar4 - (long)puVar18 == 4) {
+    for (; uVar10 = puVar4 == puVar18, !(bool)uVar10; puVar18 = puVar18 + 1) {
+      lVar12 = FUN_000b8bd0(lVar11,*puVar18,auStack_98);
+      uVar10 = (int)lVar12 == -1;
+      if (!(bool)uVar10) {
+        local_a0 = 0;
+        lVar13 = FUN_000b8c34(lVar11,auStack_98,&local_a0);
+        lVar9 = local_a0;
+        lVar12 = 0;
+        if (lVar13 != 0) {
+          FUN_000d6de4();
+          FUN_000d8780();
+          local_f0 = FUN_000d48b4();
+          FUN_000d8760();
+          local_e4 = 0;
+          local_d4 = 0;
+          uStack_d0 = 0;
+          local_dc = 0;
+          local_cc = 0;
+          local_b0 = 0;
+          uStack_a8 = 0;
+          local_c0 = 0;
+          uVar14 = FUN_0007c9f8(&local_f0);
+          pcVar8 = (char *)CONCAT44(local_cc,uStack_d0);
+          if (pcVar8 == (char *)0x0) goto LAB_000af300;
+          iVar16 = 1;
+          iVar5 = *(int *)(pcVar8 + 0x44);
+          for (iVar1 = iVar5; iVar1 != 0; iVar1 = iVar1 >> 8) {
+            iVar16 = iVar16 + 1;
+          }
+          uVar7 = (uint)(1 < iVar16 - 1U || 0x7f < iVar5 && iVar16 == 2);
+          uVar10 = *(char *)(local_f0 + (int)((*(int *)(pcVar8 + 0x40) - uVar7) - iVar16)) ==
+                   *pcVar8;
+          if ((bool)uVar10) {
+     

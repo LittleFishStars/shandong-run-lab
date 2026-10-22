@@ -1,0 +1,54 @@
+package com.bykv.vk.component.ttvideo.player;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_11_8719cls.dex */
+public class TTPlayerError {
+    protected static final int AUDIO_DECODER_WRITE_ERROR = -499978;
+    protected static final int BUFFERING_TIMEOUT = -499982;
+    protected static final int CRASHED_ERROR = -2139062143;
+    protected static final int DECRYPTION_KEY_IS_NULL_ERROR = -499973;
+    protected static final int DRM_DECRYPT_FAILED = -499698;
+    protected static final int DRM_OPEN_FAILED = -499699;
+    protected static final int END_OF_FILE = -499984;
+    protected static final int ERROR_START_CODE = -500000;
+    protected static final int HIJACK_MEDIA_TYPE_ERROR = -499970;
+    protected static final int HIJACK_VID_ERROR = -499972;
+    protected static final int HTTP_BAD_REQUEST = -499899;
+    protected static final int HTTP_CONTENT_TYPE_IS_NOT_VALID = -499891;
+    protected static final int HTTP_DEFAULT_ERROR = -499889;
+    protected static final int HTTP_FORBIDEN = -499897;
+    protected static final int HTTP_NOT_FOUND = -499896;
+    protected static final int HTTP_OTHER_4xx = -499894;
+    protected static final int HTTP_REDIRECT = -499890;
+    protected static final int HTTP_REDIRECT_COUNT_OUT = -499888;
+    protected static final int HTTP_SERVER_ERROR = -499893;
+    protected static final int HTTP_TIME_OUT = -499895;
+    protected static final int HTTP_UNAUTHORIZED = -499898;
+    protected static final int HTTP_USER_INTERRUPT = -499892;
+    protected static final int INVALID_INPUT_DATA = -499985;
+    protected static final int NONE_ERROR = 0;
+    protected static final int NOT_STREAM = -499983;
+    protected static final int NO_STREAM_INFO = -499971;
+    protected static final int OPEN_DECODER_ERROR = -499996;
+    protected static final int OPEN_DEVICE_ERROR = -499989;
+    protected static final int OPEN_OUTER_ERROR = -499993;
+    protected static final int OPEN_OUTLET_ERROR = -499992;
+    protected static final int SETTING_CODEC_ERROR = -499998;
+    protected static final int SETTING_IS_NULL_ERROR = -499999;
+    protected static final int SETTING_OUTER_ERROR = -499995;
+    protected static final int SETTING_OUTLET_ERROR = -499994;
+    protected static final int SETTING_URI_IS_ERROR = -499987;
+    protected static final int SETTING_URI_IS_NULL_ERROR = -499988;
+    protected static final int START_DECODER_ERROR = -499997;
+    protected static final int START_OUTLET_ERROR = -499990;
+    protected static final int START_OUTPUTER_ERROR = -499991;
+    protected static final int TCP_CONNECT_FAILED = -499796;
+    protected static final int TCP_FAILED_TO_RESOLVE_HOSTNAME = -499799;
+    protected static final int TCP_FAILED_TO_RESOLVE_HOSTNAME_TIMEOUT = -499798;
+    protected static final int TCP_FAILED_TO_SETUP_SOCKET = -499797;
+    protected static final int TCP_READ_NETWORK_TIMEOUT = -499793;
+    protected static final int TCP_RECEIVE_DATA_FAILED = -499794;
+    protected static final int TCP_SEND_DATA_FAILED = -499795;
+    protected static final int TCP_WRITE_NETWORK_TIMEOUT = -499792;
+    protected static final int URL_IS_NOT_MP4 = -499986;
+    protected static final int VIDEO_DECODER_WRITE_ERROR = -499977;
+}

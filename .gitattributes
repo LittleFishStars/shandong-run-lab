@@ -1,0 +1,20 @@
+# 大二进制交给 Git LFS（GitHub 单文件 100 MB 限制）
+*.apk   filter=lfs diff=lfs merge=lfs -text
+*.dex   filter=lfs diff=lfs merge=lfs -text
+*.so    filter=lfs diff=lfs merge=lfs -text
+*.bin   filter=lfs diff=lfs merge=lfs -text
+*.jar   filter=lfs diff=lfs merge=lfs -text
+*.a     filter=lfs diff=lfs merge=lfs -text
+*.xz    filter=lfs diff=lfs merge=lfs -text
+*.zip   filter=lfs diff=lfs merge=lfs -text
+*.png   filter=lfs diff=lfs merge=lfs -text
+
+# 文本统一 LF，避免 Windows runner 改行尾造成假改动
+*.py   text eol=lf
+*.md   text eol=lf
+*.js   text eol=lf
+*.yml  text eol=lf
+*.sh   text eol=lf
+
+# frida-server 没有扩展名，单独指定
+work/toolchain/frida-server-* filter=lfs diff=lfs merge=lfs -text

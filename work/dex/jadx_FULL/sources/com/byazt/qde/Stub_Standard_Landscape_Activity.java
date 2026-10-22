@@ -1,0 +1,14 @@
+package com.byazt.qde;
+
+import com.byazt.zqa.c;
+import com.bytedance.pangle.activity.GenerateProxyActivity;
+import com.hzchengdun.securityguard.SecExceptionCode;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_11_8719cls.dex */
+@c(c = {0, 1, 923, SecExceptionCode.SEC_ERROR_SECURITYBODY_SIGNATURE_ERROR})
+public class Stub_Standard_Landscape_Activity extends GenerateProxyActivity {
+    @Override // com.bytedance.pangle.activity.GenerateProxyActivity, com.byazt.euv.tt
+    public String getPluginPkgName() {
+        return "com.byted.pangle";
+    }
+}

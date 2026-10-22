@@ -1,0 +1,19 @@
+[send] {'type': 'log', 'message': '已 replace native exit'}
+[send] {'type': 'log', 'message': '已 replace native _exit'}
+[send] {'type': 'log', 'message': '已 attach native _Exit（this.ret 跳过原实现）'}
+[send] {'type': 'log', 'message': '已 replace native abort'}
+[send] {'type': 'log', 'message': '已 replace native quick_exit'}
+[send] {'type': 'log', 'message': '已 attach native pthread_exit（this.ret 跳过原实现）'}
+[send] {'type': 'log', 'message': '已 attach syscall'}
+[send] {'type': 'log', 'message': '已 attach native kill'}
+[send] {'type': 'log', 'message': 'anti-exit 脚本已加载'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native _Exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native _exit(0) —— replace 已阻止\nError\n    at blockAndLog (/script1.js:25)\n    at <anonymous> (/script1.js:160)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}
+[send] {'type': 'log', 'message': '拦截终止调用: native pthread_exit 被调用\nError\n    at blockAndLog (/script1.js:25)\n    at onEnter (/script1.js:169)'}

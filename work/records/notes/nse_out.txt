@@ -1,0 +1,6 @@
+[*] spawned pid=5539
+[*] script loaded
+[js] Java.perform 就绪
+[js] CallObjectMethod 钩子已装，table=0x7cd87d7390
+[!] 进程已退出
+[*] 等待结束

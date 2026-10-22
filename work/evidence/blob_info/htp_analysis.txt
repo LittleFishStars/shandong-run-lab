@@ -1,0 +1,117 @@
+映像基址: 00100000
+函数数: 7282
+内存块:
+   segment_0.1            00100000 - 001001ff        512  -
+   .note.gnu.build-id     00100200 - 00100223         36  -
+   .hash                  00100228 - 00100aef       2248  -
+   .dynsym                00100af0 - 001026c7       7128  -
+   .dynstr                001026c8 - 001032f2       3115  -
+   .gnu.version           001032f4 - 00103545        594  -
+   .gnu.version_r         00103548 - 001035a7         96  -
+   .rela.dyn              001035a8 - 0011a1f7      93264  -
+   .rela.plt              0011a1f8 - 0011b9af       6072  -
+   .plt                   0011b9b0 - 0011c99f       4080  X
+   .text                  0011c9a0 - 004925b7    3628056  X
+   .rodata                004925c0 - 004b165f     127136  -
+   .eh_frame_hdr          004b1660 - 004be133      51924  -
+   .eh_frame              004be138 - 004f7a3f     235784  -
+   .gcc_except_table      004f7a40 - 0056715b     456476  -
+   .note.android.ident    0056715c - 005671f3        152  -
+   .init_array            0056ddb8 - 0056de8f        216  -
+   .fini_array            0056de90 - 0056de9f         16  -
+   .data.rel.ro           0056dea0 - 00576b47      36008  -
+   .dynamic               00576b48 - 00576d87        576  -
+   .got                   00576d88 - 00577fff       4728  -
+   .data                  00578000 - 0057c687      18056  -
+   .bss                   0057c690 - 005dc237     392104  -
+   EXTERNAL               005dd000 - 005dd867       2152  -
+   .comment               .comment::00000000 - .comment::000001f7        504  -
+   .shstrtab              .shstrtab::00000000 - .shstrtab::000000f6        247  -
+   _elfSectionHeaders     _elfSectionHeaders::00000000 - _elfSectionHeaders::0000063f       1600  -
+
+════ signRequest#1  运行时偏移 0x24926c → 0034926c ════
+  函数: FUN_0034926c @0034926c  大小 292 字节
+
+undefined8 FUN_0034926c(long *param_1,undefined8 param_2,long param_3,undefined4 param_4)
+
+{
+  ulong uVar1;
+  long lVar2;
+  int iVar3;
+  undefined8 uVar4;
+  byte local_60 [16];
+  ulong local_50;
+  long local_48;
+  
+  lVar2 = tpidr_el0;
+  local_48 = *(long *)(lVar2 + 0x28);
+  if (param_3 == 0) {
+    uVar4 = (**(code **)(*param_1 + 0x538))(param_1,&DAT_004abd98);
+    if (*(long *)(lVar2 + 0x28) != local_48) goto LAB_0034938c;
+  }
+  else {
+    uVar4 = (**(code **)(*param_1 + 0x548))(param_1,param_3,0);
+    iVar3 = (**(code **)(*param_1 + 0x540))(param_1,param_3);
+    FUN_0034b820(local_60,uVar4,(long)iVar3,param_4);
+    (**(code **)(*param_1 + 0x550))(param_1,param_3,uVar4);
+    uVar1 = (ulong)local_60 | 1;
+    if ((local_60[0] & 1) != 0) {
+      uVar1 = local_50;
+    }
+    uVar4 = (**(code **)(*param_1 + 0x538))(param_1,uVar1);
+    if ((local_60[0] & 1) != 0) {
+      FUN_00478110(local_50);
+    }
+    if (*(long *)(lVar2 + 0x28) != local_48) {
+LAB_0034938c:
+                    /* WARNING: Subroutine does not return */
+      __stack_chk_fail();
+    }
+  }
+  return uVar4;
+}
+
+
+
+════ signRequest#2  运行时偏移 0x2493ac → 003493ac ════
+  函数: FUN_003493ac @003493ac  大小 292 字节
+
+undefined8 FUN_003493ac(long *param_1,undefined8 param_2,long param_3,undefined4 param_4)
+
+{
+  ulong uVar1;
+  long lVar2;
+  int iVar3;
+  undefined8 uVar4;
+  byte local_60 [16];
+  ulong local_50;
+  long local_48;
+  
+  lVar2 = tpidr_el0;
+  local_48 = *(long *)(lVar2 + 0x28);
+  if (param_3 == 0) {
+    uVar4 = (**(code **)(*param_1 + 0x538))(param_1,&DAT_004abd98);
+    if (*(long *)(lVar2 + 0x28) != local_48) goto LAB_003494cc;
+  }
+  else {
+    uVar4 = (**(code **)(*param_1 + 0x548))(param_1,param_3,0);
+    iVar3 = (**(code **)(*param_1 + 0x540))(param_1,param_3);
+    FUN_0034ba98(local_60,uVar4,(long)iVar3,param_4);
+    (**(code **)(*param_1 + 0x550))(param_1,param_3,uVar4);
+    uVar1 = (ulong)local_60 | 1;
+    if ((local_60[0] & 1) != 0) {
+      uVar1 = local_50;
+    }
+    uVar4 = (**(code **)(*param_1 + 0x538))(param_1,uVar1);
+    if ((local_60[0] & 1) != 0) {
+      FUN_00478110(local_50);
+    }
+    if (*(long *)(lVar2 + 0x28) != local_48) {
+LAB_003494cc:
+                    /* WARNING: Subroutine does not return */
+      __stack_chk_fail();
+    }
+  }
+  return uVar4;
+}
+

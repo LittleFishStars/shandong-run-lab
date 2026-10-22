@@ -1,0 +1,2503 @@
+[assistant]
+Let me check the current state — the context is now compressed. Let me see what remains visible and continue the task. I need to look at the recent messages m03048, m03051, m03054, m03057, m03058, m03061 which are protected (recent). Let me read the current state of the task.
+
+I should check where I am. The summary says: deviations A–D to report to user, then fix. Let me look at what the recent messages show — actually I don't have them visible in my context after compression? The compression just happened. Let me check acp_status or just continue.
+
+Actually let me be careful: I've been working on comparing run-lab with original APK run chain. The summary b28 says I found deviations A–D and next step is to write the conclusion for the user and fix.
+
+Let me verify the current state of the repo and the specific deviations. Let me re-verify the key facts by reading files rather than relying purely on summary.
+
+Let me check the four deviations mentioned in b28 tails: `run_time` unit, `collect_time`, `offFenceDisM` deduction, 结算报文类型/键.
+
+Let me read the protocol.py to_upload_dict for RunLatLng.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"run_time\\|collect_time\\|offFenceDisM\\|off_fence\" sdlab/protocol.py | head -40", "description": "检查 RunLatLng 上传字段"}
+
+[tool • bash]
+204:    run_time: int = 0                 # @JSONField("runTime")   跑步内相对 ms
+205:    collect_time: int = 0             # @JSONField("collectTime") 采集绝对 ms
+207:    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+226:            "runTime": self.run_time,
+227:            "collectTime": self.collect_time,
+230:            "offFenceDisM": self.off_fence_dis_m,
+241:            run_time=int(d.get("runTime", 0)),
+242:            collect_time=int(d.get("collectTime", 0)),
+244:            off_fence_dis_m=int(d.get("offFenceDisM", 0)),
+434:                        "passStatus": bool(p.is_valid), "clockTime": p.collect_time,
+610:      · 起点/终点都在围栏内，全程 offFenceDisM = 0
+688:                run_time=int(i * self.sample_s * 1000),
+689:                collect_time=collect,
+691:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+781:                run_time=int(i * self.sample_s * 1000),
+782:                collect_time=t0 + int(i * self.sample_s * 1000),
+784:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+
+
+[assistant]
+Now let me look at what the conclusions were. I have compressed a big block (b28). Let me check key facts. The final task: give conclusions to user about consistency of running features vs original app. Let me search context for the deviations A-D.
+
+[assistant • search_context]
+{"query": "偏差 run_time 单位 collect_time offFenceDisM 扣减 结算报文"}
+
+[tool • search_context]
+Found 5 block(s) for "偏差 run_time 单位 collect_time offFenceDisM 扣减 结算报文":
+
+b28 (T1) "原版跑步链路逐项取证（DataComponent/ApiDataComponent/LocationComponent/StopRunUtils）" [m02905–m02909, m02911–m03047, m03049–m03050, m03052–m03053, m03055–m03056 …+6 more · 154 msgs]
+  ... ；`Q0() = (currentTime + saveCurrentTime) / 1000`（**整数秒**）。
+
+## 三、轨迹点落库（lab 有**三处【偏差】**）
+### 原版
+- `DataComponent.java:715-760` `W1(HCJAddressInfo currentAddressInfo, long outFenceDisM, boolean firstBack2 ...
+
+b20 (T1) "原版跑步链路取证（本任务证据基础）" [m02333–m02461 · 129 msgs]
+  ... eckpoints` 只发 `passStatus` 为真、`finish_run` 报文与 `t1()` 对齐、`resume_run`）。
+★ 待核实/疑似【偏差】（下一步要用具体行号对比）：① `walker._sample_if_due` 用 `elapsed_sec` 作 `runTime`，原版 `W1()` 传 `(int) Q0()`（整数秒）——需确认 `run_time` 单位（r ...
+
+b22 (T1) "对照取证的读文件输出（已完成）" [m02718–m02725, m02727–m02728, m02730–m02731, m02733–m02742, m02744–m02755 …+28 more · 62 msgs]
+  ... de += 1; return`；`off = int(distance_to_polygon_edge(lat, lng, self.polygon))`；`【run_time】=int(self.elapsed_sec * 1000)`、`collect_time=ts`（`ts = self.start_ms + int(self.elapsed_sec * 1000)`）；`accuracy= ...
+
+b25 (T1) "原版跑步链路口径取证（DataComponent 关键实现）" [m02804–m02883 · 80 msgs]
+  ... offFenceDis, long timestamp)`（:199，W1 用）。字段：`@JSONField(name="index") long id`、`【offFenceDisM】`、`runTime`、`state`、`collectTime`；`isValid`/`isUploaded`/`speed`/`accuracy` 均 `@JSONField(serialize=false)`  ...
+
+b21 (T1) "配速修复收尾 + 对照取证工具输出（已完成 / 进行中）" [m02463–m02716 · 254 msgs]
+  ... RVAL_S = 3.0`。若原版确实 2 秒，则 run-lab 的 3 秒采样与原版不一致（但 3 秒这个数字在项目里被反复声明为「与原版一致」）。
+- `【collect_time】`（`collectTime`）口径：原版取定位回调的 `HCJAddressInfo.getTime()`，run-lab 取 `start_ms + elapsed_sec*1000`（推算值）。
+- `run_ ...
+
+[truncated: showing 5 of 6 candidates by relevance — pass limit:6 to see the rest]
+
+[assistant]
+Let me get the exact b28 summary content for the偏差 list.
+
+[assistant • decompress]
+{"blockId": "b28", "toFile": ".run/b28.txt"}
+
+[tool • decompress]
+[Block b28 content — 154 item(s)]
+Content (190282 chars) written to: /home/ylxc/.run/b28.txt
+Use the read tool to access it.
+
+[assistant]
+Let me read the deviations section from b28.
+
+[assistant • bash]
+{"command": "cd /home/ylxc && grep -n \"偏差\" .run/b28.txt | head -40", "description": "定位偏差清单行号"}
+
+[tool • bash]
+646:这很重要：如果 accuracy/speed/satellites 不上传，那么 run-lab 的 `to_upload_dict()` 多发这些字段（`accuracy`、`satellites`）就是偏差——但多发字段一般无害。不过 `createTime` 呢？
+1458:1. **`runTime` 单位**：原版 `W1()` 构造 `new RunLatLng(E(), (int) Q0(), ...)`，`Q0() = (currentTime + saveCurrentTime)/1000` = **整数秒**。lab 用 `run_time=int(self.elapsed_sec * 1000)` = **毫秒**。差 1000 倍！这是真偏差。
+1466:   实际上服务端可能就用它做时间轴。既然原版明确是秒（(int) Q0()），lab 是毫秒，这是偏差。
+1500:时间考虑：已经查了很多。让我聚焦，把最确定的偏差（runTime 单位）核实清楚再动手。
+1978:3. `subDistance -= outFenceDisM`：原版在 `W1()` 里扣减。但注意 run-lab 在围栏外直接 return（和 `D()` 里 `if (!K1) return` 一致），所以 `outFenceDisM` 一般是 -1（`B1()` 为假时）或 `v2()` 的值（刚回围栏时）。`v2()` 返回的是「进出围栏两点直线距离」，当 `this.e <= 20` 时加上 `this.e`。所以只有在「刚回围栏那一刻」才扣减。这是很窄的边界情况。run-lab 没有这个 —— 属于次要偏差。
+1994:现在我该把核对结果做成一份文档 + 修掉真正的偏差。最关键的偏差是 `run_time` 单位（毫秒 vs 秒）。让我先确认一下服务端是否校验 —— 无法确认，但「与原版一致」是目标，就按原版改成秒。
+2000:所以 run-lab 的 `run_time = int(elapsed_sec * 1000)` 是毫秒，**偏差 1000 倍**。要改成 `int(self.elapsed_sec)`。
+2020:我也要考虑：这个任务（核对原版一致性）用户要的是「确认」，最终交付应该是一份核对结论 + 修掉真实偏差 + 全链路验证 + 提交。
+
+
+[assistant]
+Let me read the section around 1440-1520 to get exact evidence for runTime.
+
+[assistant • bash]
+{"command": "cd /home/ylxc && sed -n '1440,1520p' .run/b28.txt", "description": "读偏差分析段"}
+
+[tool • bash]
+        }
+        if (z) {
+            ((BaseRunService) this).f12580a.R0().a(BaseRunService.DataChangeCallBack.DataType.FaceRecognitionTip, ((BaseRunService) this).f12580a);
+        }
+    }
+
+    public final void E(HCJAddressInfo addressInfo) {
+        if (addressInfo == null || addressInfo.getLat() == AudioStats.AUDIO_AMPLITUDE_NONE) {
+            return;
+
+
+[assistant]
+Now let me consolidate my findings. Let me check the remaining items: m0 (轨迹上传节流), 打卡点 H1/h1 counting, 有效距离 validDistance, 异常原因 invalidReasons.
+
+Let me check m0 and the lab's equivalent.
+
+Actually I've done a lot of investigation. Let me now write up the comparison, then fix the actual discrepancies found. Key discrepancies so far:
+
+1. **`runTime` 单位**：原版 `W1()` 构造 `new RunLatLng(E(), (int) Q0(), ...)`，`Q0() = (currentTime + saveCurrentTime)/1000` = **整数秒**。lab 用 `run_time=int(self.elapsed_sec * 1000)` = **毫秒**。差 1000 倍！这是真偏差。
+
+   但要小心：原版 `h2(currentTime)` 里 elapsedTime 来自 TimeComponent，K=1000ms tick，`f33890a += K` → elapsedTime 单位是 ms。然后 `h2()` 存 `currentTime` = ms。`Q0()` 再 /1000 → 秒。所以 `runTime` = 秒。
+
+   lab: run_time = elapsed_sec*1000 = 毫秒。需要改成秒？但要看 report 里怎么说。report/07:455 写 `@JSONField(name="runTime") int runTimestamp; // 跑步内相对时间`，没写单位。
+
+   数据库列名 `runTimestamp`。嗯，让我再确认一次——是否有其他地方对 runTime 做 /1000 处理或 *1000？
+
+   实际上服务端可能就用它做时间轴。既然原版明确是秒（(int) Q0()），lab 是毫秒，这是偏差。
+
+   但等等——需要谨慎。`collectTime` = `currentAddressInfo.getTime()` 是绝对毫秒。`runTime` = 秒。这样服务端能算 offset。合理。
+
+   我倾向修改 lab 为秒。但这是"协议对齐"的敏感改动…… 让我先看 tests 有没有钉死。
+
+2. **`subDistance -= outFenceDisM`**：原版 W1 里当 `outFenceDisM >= 0` 时扣减。而 `D()` 传的 `jV2` 是 `B1()` 为真时 `v2(...)` 的结果，否则 -1。所以大多数情况是 -1 不扣减。只有刚出围栏又回来那一次才扣。lab 没有这个逻辑——但 lab 也是围栏外直接丢弃，所以基本等价。这个可以标记为「已知差异，影响可忽略」或者实现它。
+
+   `v2(...)` 在 DataComponent:1238-1260，`this.e <= 20` 时加 `this.e`。
+
+3. **`collectTime`**：原版取定位回调 `HCJAddressInfo.getTime()`；lab 取 `start_ms + elapsed*1000`。语义可接受（模拟器没有真实定位时间）。
+
+4. **`createTime`**：原版 `System.currentTimeMillis()`。lab `to_upload_dict` 里带 create_time，需要看 lab 是否赋了值。
+
+5. **采样间隔 3s vs 2000ms**：`LocationService.j(long)` 默认 2000；但 `StartLocationEvent` 无 Java 构造点。lab 用 3.0。这个要核实——如果原版真是 2s，lab 就慢了。
+
+让我查一下 report 里关于采样间隔的说法，以及 lab 的 3.0 从哪来。
+
+6. **暂停（pauseCount/pauseTimes）**：原版 `pauseCount` 取真实值，`pauseTimes = (savePauseTime + pauseTime)/1000`。lab 硬编码 0。lab 没有暂停功能，所以 0 是"没暂停过"的正确表示——但原版若用户暂停过就有值。这属于「功能缺失」而非「口径错误」。
+
+7. **`alignType`**：原版 `getAmapGPSLevel()`；lab `common_cfg.get("amapGPSLevel") or 3`。一致。
+
+8. **`stepInterval`**：原版 `commonConfig.getStepInterval()`；lab 一致。默认 20。✓
+   `paceInterval` 默认 50 ✓
+   `strideStatisticsInterval` 默认 100（CommonConfig）但 walker.py:161 注释写"服务端实测 200"——lab 用 STRIDE_STATISTICS_M=100。需要核实。
+
+9. **`validDistance` 25 / `sensitiveDistance` 45**：lab VALID_DISTANCE_M=25 ✓ SENSITIVE_DISTANCE_M=45 ✓
+
+10. **`runFilterAccuracy` 默认 50.0**：lab RUN_FILTER_ACCURACY=50.0，但 walker.py:164 注释"服务端实测 30"。这是配置覆盖，OK。
+
+11. **`poiInterval` 默认 15 秒**：lab 的 m0 等价物？需要查。
+
+让我查几个关键点：采样间隔来源、poi interval、create_time。
+
+时间考虑：已经查了很多。让我聚焦，把最确定的偏差（runTime 单位）核实清楚再动手。
+
+先看 report 与 lab 的 m0/节流。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -n \"def m0\" -A 25 work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java | head -35", "description": "读原版轨迹上传节流 m0"}
+
+[tool • bash]
+(no output)
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -n \"public void m0\\|void m0(\" -A 25 work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java | head -40", "description": "读 m0 节流实现"}
+
+[tool • bash]
+(no output)
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"m0(\" work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java | head", "description": "搜 m0 方法定义"}
+
+[tool • bash]
+(no output)
+
+
+[assistant]
+Let me read the conclusion portion of b28 to get the full deviation list.
+
+[assistant • bash]
+{"command": "cd /home/ylxc && sed -n '1960,2030p' .run/b28.txt", "description": "读结论清单"}
+
+[tool • bash]
+
+
+[assistant]
+**决定性证据**：`LocationComponent.m(int amapGPSLevel)` 里 `lj0.m(this.f8849a, 3000L, ...)` —— 跑步期间的定位采样间隔就是 **3000ms**，与 run-lab 的 `SAMPLE_INTERVAL_S = 3.0` 完全一致。之前那个 2000ms 是 `LocationService.j(long interval)` 在 `interval==0` 时的兜底，是另一条路（LocationService 是常驻服务，不是跑步采样路径）。
+
+现在让我核对几件事：
+1. `run_time` 单位：原版 `W1()` 里 `new RunLatLng(E(), (int) Q0(), ...)`，`Q0() = (getCurrentTime()+getSaveCurrentTime())/1000`，单位**秒**。run-lab 用 `int(self.elapsed_sec * 1000)` 毫秒 —— **不一致**！
+   
+   但等一下。`h2(long currentTime)` 里 `setCurrentTime(currentTime)`，而 `TimeChangeListener.a(long elapsedTime, ...)` 传的是 `elapsedTime`，而 `elapsedTime` 来自 `TimeComponent` 的 `f33890a += this.K`，`K = 1000`，也就是**每 tick 加 1000**。所以 `getCurrentTime()` 单位是**毫秒**！`Q0() = (currentTime + saveCurrentTime)/1000` → 换算成**秒**。所以 `runTimestamp = (int) Q0()` 是**秒**。
+   
+   run-lab 的 `run_time=int(self.elapsed_sec * 1000)` 是**毫秒** —— 差 1000 倍。这是真实差异。
+
+   但是！服务端是否真的用它？或者说，我该改吗？原版明确是秒。要改成秒。
+
+   不过注意：run-lab 的 `protocol.py:204` 注释写「跑步内相对 ms」。这是错的口径。
+
+2. `collect_time`：原版 `currentAddressInfo.getTime()`，是定位回调带来的时间戳（毫秒 epoch）。run-lab 用 `start_ms + elapsed_sec*1000`。差别：原版是 GPS 原始时间，run-lab 是推算。实际上两者都近似等于当前墙钟毫秒。这个差异影响很小，但严格说原版不等于起点时间+相对时间（因为保存恢复会被 pause 影响）。可以保留，但注释要说明。
+
+3. `subDistance -= outFenceDisM`：原版在 `W1()` 里扣减。但注意 run-lab 在围栏外直接 return（和 `D()` 里 `if (!K1) return` 一致），所以 `outFenceDisM` 一般是 -1（`B1()` 为假时）或 `v2()` 的值（刚回围栏时）。`v2()` 返回的是「进出围栏两点直线距离」，当 `this.e <= 20` 时加上 `this.e`。所以只有在「刚回围栏那一刻」才扣减。这是很窄的边界情况。run-lab 没有这个 —— 属于次要偏差。
+
+4. `pauseCount`/`pauseTimes` 硬编码 0：原版 `pauseCount = getPauseCount()`、`pauseTimes = (getSavePauseTime()+getPauseTime())/1000`。run-lab 硬编码 0 —— 因为没有暂停功能，所以 0 是自洽的。但如果原版默认也有 pauseCount=0，那就一致。
+
+5. `m0()` 节流：`System.currentTimeMillis() - this.f35979a > getPoiInterval()*1000`（默认 15 秒）才上传轨迹。run-lab 是「结束跑步后一次性上传」。这是**真实的链路差异** —— 原版跑步过程中每 15 秒上传一批。但 run-lab 的 `walk_upload` 是手动点「结束跑步」才上传。这属于简化，可以说明。
+
+6. `l0()` 配速上传节流 15000ms，`o0()` 步频上传在 `(Q0()-1)%60==0`。
+
+7. `pois` 报文：原版 `km7.j()` 里 `map.put("pois", pathList)` + `map.put("runRecordCode", ...)` + `SignInterceptor.m(map, ...)` 注入 9 指纹字段 —— run-lab 的 `transport.base_payload` 就是这 9 字段。一致。
+
+8. `L1()` 作弊判定：`cheatLevel ∈ {3,4}` 且 `lastSegmentStepExceptionNum > segmentStrideExceptionNum` 且非白名单且非 `D1()`。run-lab 有 `invalid_reasons`。
+
+9. `X1(long distance)` → `h0(Q0(), distance, L0())` + `distance < 50000` 才 `l0(paceInterval, E())`。run-lab 有 `dist_m < 50000` 才 `_pace_update`。一致。
+
+10. `Y1()`：`Q0() % stepInterval == 0` 切步频段，`(Q0()-1) % 60 == 0` 上传。run-lab 的 `_advance_clock` 一致。
+
+现在我该把核对结果做成一份文档 + 修掉真正的偏差。最关键的偏差是 `run_time` 单位（毫秒 vs 秒）。让我先确认一下服务端是否校验 —— 无法确认，但「与原版一致」是目标，就按原版改成秒。
+
+等等，先仔细再想：`runTimestamp` 是 int。如果单位是毫秒，跑 1 小时 = 3,600,000 ms，int 装得下。如果是秒，则 3600。原版 `Q0()` 除以 1000，明确是秒。
+
+但 `h2(long currentTime)` 传入的 `elapsedTime` 单位是毫秒（`f33890a += K`，K=1000）。所以 `currentTime` 毫秒，`Q0()` 秒。`W1` 用 `(int) Q0()` → 秒。确认。
+
+所以 run-lab 的 `run_time = int(elapsed_sec * 1000)` 是毫秒，**偏差 1000 倍**。要改成 `int(self.elapsed_sec)`。
+
+但同时注意 `protocol.py` 里 `passStatus` 的 `clockTime` 用 `p.collect_time`（毫秒）—— 那是另一回事。
+
+让我再确认 run-lab 里 `run_time` 的其他用处，避免改坏。还有 sim 里的 `run_time=int(i * self.sample_s * 1000)`（模拟器，两处），那是 `simulator.py` 里的，属于一键跑仿真路径，也应该一起改。
+
+嗯，但等等 —— 一键跑用的是 simulator，实走用 walker。两者都要与「原版一致」。
+
+不过 `simulator.py` 里那些点是构造出来的，run_time 语义同样应该是秒。
+
+让我先查 run_time 在工程内的所有使用点。
+
+我需要谨慎：改 `run_time` 单位会影响现有测试（可能有断言 3000ms 之类）。先查。
+
+另外还有一个发现值得记录：`LocationComponent.m()` 里 `lj0.m(context, 3000L, ...)` 确证 3 秒采样 —— 这解答了 b32 里「3 秒只有 docstring 声明」的疑问。
+
+让我继续。先查 run_time 使用点，然后查 tests。
+
+考虑到 token 预算，我应该高效些。直接 grep。
+
+我也要考虑：这个任务（核对原版一致性）用户要的是「确认」，最终交付应该是一份核对结论 + 修掉真实偏差 + 全链路验证 + 提交。
+
+先查 run_time。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"run_time\" --include=*.py . | grep -v \"\\.venv\" | head -30", "description": "查 run_time 全部使用点"}
+
+[tool • bash]
+./sdlab/walker.py:429:            run_time=int(self.elapsed_sec * 1000), collect_time=ts,
+./sdlab/store.py:62:    run_time     INTEGER DEFAULT 0,
+./sdlab/store.py:297:        rows = [(run_code, p.lat_lng_index, p.lat, p.lng, p.run_time, p.collect_time,
+
+
+[user]
+<acp tokens="63" type="text">m03088</acp>
+Time sampled while preparing turn 12, step 175: 2026-10-18T04:35:22+08:00[Asia/Shanghai]
+Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.
+Elapsed since the preceding step context: 10m 39s.
+
+[assistant]
+Let me continue. I need to check where run_time is used, and then fix the deviations.
+
+Let me look at the current state of the code and decide what to fix.
+
+Key deviations found:
+1. `run_time` unit: original = seconds `(int) Q0()`, lab = milliseconds. Real deviation.
+2. `collect_time`: original = `HCJAddressInfo.getTime()`, lab = `start_ms + elapsed_sec*1000`. Acceptable (simulator).
+3. `subDistance -= outFenceDisM`: narrow edge case, lab doesn't do it.
+4. Per-15s trail upload during run (m0 throttle): lab uploads only at end. Simplification.
+5. pauseCount/pauseTimes hardcoded 0 — no pause feature.
+
+Let me check run_time usage more thoroughly and then fix.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"run_time\\|runTime\" --include=*.py sdlab/ tests/ scripts/ | grep -v \"run_time     INTEGER\" | head -40", "description": "查 run_time 全部使用点"}
+
+[tool • bash]
+sdlab/walker.py:402:          · 造 RunLatLng（runTime = 跑步内相对毫秒、collectTime = 绝对毫秒）
+sdlab/walker.py:429:            run_time=int(self.elapsed_sec * 1000), collect_time=ts,
+sdlab/store.py:297:        rows = [(run_code, p.lat_lng_index, p.lat, p.lng, p.run_time, p.collect_time,
+sdlab/store.py:303:                """INSERT INTO points(run_code,idx,lat,lng,run_time,collect_time,state,
+sdlab/store.py:308:                     lat=excluded.lat, lng=excluded.lng, run_time=excluded.run_time,
+sdlab/store.py:653:        run_time=int(row["run_time"]), collect_time=int(row["collect_time"]),
+sdlab/protocol.py:204:    run_time: int = 0                 # @JSONField("runTime")   跑步内相对 ms
+sdlab/protocol.py:226:            "runTime": self.run_time,
+sdlab/protocol.py:241:            run_time=int(d.get("runTime", 0)),
+sdlab/protocol.py:688:                run_time=int(i * self.sample_s * 1000),
+sdlab/protocol.py:781:                run_time=int(i * self.sample_s * 1000),
+tests/test_store.py:19:                     run_time=i * 3000, collect_time=1700000000000 + i * 3000,
+tests/test_protocol.py:24:                     run_time=i * 3000, collect_time=基准 + i * 3000)
+tests/test_protocol.py:96:            self.assertEqual(p.run_time, i * 3000)
+tests/test_protocol.py:139:        for 字段 in ("index", "lat", "lng", "runTime", "collectTime", "state"):
+
+
+[assistant]
+Now let me verify the key claim: original `runTime` is seconds. Let me re-check `DataComponent.W1` and `Q0()` directly to be sure.
+
+Let me read the actual source lines.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '590,600p;710,770p' work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java", "description": "复核 Q0 与 W1"}
+
+[tool • bash]
+        if (this.f12586a.getSchoolRule() == null || D1() || e1() == 0 || g1() == 0) {
+            return true;
+        }
+        return pace >= e1() && pace <= g1();
+    }
+
+    public long Q0() {
+        return (this.f12586a.getCurrentTime() + this.f12586a.getSaveCurrentTime()) / 1000;
+    }
+
+    public boolean Q1() {
+        }
+        return arrayList;
+    }
+
+    /* JADX WARN: Code duplicated, block: B:9:0x007f  */
+    public void W1(HCJAddressInfo currentAddressInfo, long outFenceDisM, boolean firstBack2Stop) {
+        long jLongValue;
+        RunLatLng runLatLng = new RunLatLng(E(), (int) Q0(), currentAddressInfo, outFenceDisM, currentAddressInfo.getTime());
+        if (CollectionUtils.t(this.f12593a)) {
+            List<RunLatLng> list = this.f12593a;
+            RunLatLng runLatLng2 = list.get(list.size() - 1);
+            HCJLatLng hCJLatLng = new HCJLatLng(runLatLng2.getLat(), runLatLng2.getLng());
+            jLongValue = BigDecimal.valueOf(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(hCJLatLng.lat, hCJLatLng.lng), new HCJLatLng(currentAddressInfo.getLat(), currentAddressInfo.getLng()))).setScale(0, RoundingMode.HALF_UP).longValue();
+            if (outFenceDisM >= 0) {
+                jLongValue -= outFenceDisM;
+                i4a.b(this.g, "离开围栏的距离已删减~~~~");
+            }
+            if (jLongValue <= 0) {
+                jLongValue = 0;
+            }
+        } else {
+            jLongValue = 0;
+        }
+        RunLatLng runLatLngH0 = H0(runLatLng, jLongValue);
+        if (runLatLngH0 != null) {
+            this.b = runLatLngH0;
+            this.f12593a.add(runLatLngH0);
+            if (jLongValue > 0 && !firstBack2Stop) {
+                long distance = this.f12586a.getRunData().getDistance();
+                long j2 = jLongValue + distance;
+                this.f12586a.getRunData().setDistance(j2);
+                int i2 = (int) (j2 / 1000);
+                if (i2 > distance / 1000 && i2 <= 10) {
+                    int identifier = this.f35997a.getResources().getIdentifier("run_run_distance_" + i2, "raw", this.f35997a.getPackageName());
+                    if (identifier != 0) {
+                        V1(identifier);
+                    }
+                }
+            }
+            if (this.f12586a.getRunData() != null && this.f12586a.getRunData().getDistance() >= f1()) {
+                this.f12586a.getRunData().setStartCheckPace(true);
+            }
+            if (S0() >= this.f12586a.getProtectDistance() && !this.f12586a.getHasProtect()) {
+                this.f12586a.setHasProtect(true);
+                HTProtectUtil.b(E());
+            }
+        }
+        i0(runLatLng);
+        y2(S0());
+    }
+
+    public long X0() {
+        return this.c;
+    }
+
+    public final void X1(long distance) {
+        h0(Q0(), distance, L0());
+        if (this.f12586a.getRunData().getDistance() < 50000) {
+            l0(this.f12586a.getCommonConfig().getPaceInterval(), E());
+        }
+    }
+
+
+[assistant]
+Confirmed: `new RunLatLng(E(), (int) Q0(), ...)` where `Q0()` = `(currentTime + saveCurrentTime)/1000` → seconds.
+
+So run-lab's `run_time = int(elapsed_sec * 1000)` is milliseconds — a 1000x deviation.
+
+But wait — I should be careful: is `runTime` used by the server as seconds? The field name in DB is `runTimestamp`, an int. Original is definitely seconds. Let me check what `report/07` says. Also check if there's a reference implementation in `reference/crypto_*.py` — no, those are crypto.
+
+Let me check the lab's protocol comment and whether upload dict sends runTime. Yes protocol.py:226 `"runTime": self.run_time`.
+
+Let me look at the mock server: does it validate runTime? Probably not, but the real server might use it for pace chart.
+
+Let me also verify: is `(int) Q0()` really seconds? `getCurrentTime()` — in `TimeComponent`, K=1000 per tick. Yes ms. Divided by 1000 → seconds.
+
+Hmm, but actually let me double-check `getCurrentTime()` in BaseRunService / RunData. Let me grep.
+
+Actually from b25 summary: `DataComponent.Q0()` (:596-598) `(getCurrentTime() + getSaveCurrentTime()) / 1000`. And `h2(currentTime)` sets it. And TimeComponent ticks `f33890a += this.K` where K=1000 (ms). So Q0() is seconds. Confirmed.
+
+So the fix: `run_time=int(self.elapsed_sec)` in walker.py:429, and in protocol.py simulator paths `int(i * self.sample_s)`.
+
+Wait, but protocol.py:688 and 781 — those are in `protocol.py`? Let me check what those functions are. They're likely in a demo/self-check generator. Let me read.
+
+Also `sdlab/simulator.py` has similar. Let me grep for `* 1000)` near run_time across the repo.
+
+Actually the grep showed only protocol.py:688 and 781. Let me read those.
+
+Also I should check: does the mock server parse runTime and compute anything? Let's grep in sdlab/mock.py.
+
+Also important: the tests assert `run_time=i * 3000` — those are constructing RunLatLng directly with arbitrary values, so they don't break.
+
+Let me now check protocol.py 680-700 and 775-790.
+
+Also — one more thing to verify: `collectTime`. Original: `currentAddressInfo.getTime()` = the location callback's timestamp (absolute ms). run-lab: `start_ms + elapsed_sec*1000`. Fine.
+
+And `subDistance -= outFenceDisM`: narrow edge case. Should I implement? Let me think about what lab does: it drops points outside the fence entirely (`return` before creating the point). So `offFenceDisM` is only computed for in-fence points via `distance_to_polygon_edge`. In the original, `W1` is called with `outFenceDisM = jV2` where jV2 comes from `v2()` only when `B1()` (just left fence and waiting to return). So the deduction only happens on the re-entry point. Lab: since points outside fence are dropped, the first point back inside would have distance from last valid point which might span the outside excursion — so lab's `sub_distance` could include distance traveled outside the fence. Implementing the deduction would be more faithful.
+
+Hmm, but is it worth it? The user asked "确认一下其他跑步相关的功能是否与原版一致". So the deliverable is a report of consistency + fixing real deviations. Let me be pragmatic: fix the clear-cut one (run_time unit), document the rest.
+
+Actually, let me reconsider `run_time` more carefully. Is there any chance the server expects ms? The server is the same for the real app. The real app sends seconds. So seconds it is.
+
+But wait — one more consideration. The mock server in lab may compute pace from runTime? Let me check mock.py.
+
+Let me also check `report/07` for runTime unit claims to make sure I'm not contradicting an earlier established fact.
+
+Let me do these greps.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && sed -n '670,700p;770,795p' sdlab/protocol.py && echo \"=== mock 里怎么用 runTime ===\" && grep -n \"runTime\\|run_time\" sdlab/mock.py | head -20", "description": "读 protocol 里两处生成点"}
+
+[tool • bash]
+        limit = self.radius * 0.9 if self.radius else 1e9
+        laps = max(1, int(math.ceil(self.distance / (2 * math.pi * max(1.0, limit)))))
+        a = self.distance / (2 * math.pi * laps)
+        b = a * 0.92
+        total = self._ellipse_perimeter(a, b) * laps
+
+        pts: List[RunLatLng] = []
+        for i in range(n + 1):
+            # 按弧长比例分配参数角：实测周长回到目标距离（椭圆用 Ramanujan 周长）
+            theta = 2 * math.pi * laps * (self.distance / max(1e-6, total)) * i / n
+            # 形状抖动必须随角度**平滑**变化：每点独立的缩放会把弦长累加成虚假距离
+            jitter = 1.0 + self.wobble * math.sin(3 * theta)
+            x = a * math.cos(theta) * jitter + self.rng.uniform(-0.5, 0.5)
+            y = b * math.sin(theta) * jitter + self.rng.uniform(-0.5, 0.5)
+            lat, lng = self._offset(x, y)
+            collect = t0 + int(i * self.sample_s * 1000)
+            pts.append(RunLatLng(
+                lat=lat, lng=lng, lat_lng_index=i,
+                run_time=int(i * self.sample_s * 1000),
+                collect_time=collect,
+                state=STATE_INIT,
+                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+                accuracy=self.rng.uniform(3.0, 8.0),
+                speed=round(m_per_s, 2),
+                satellites=self.rng.randint(8, 14),
+            ))
+        return pts
+
+    # ── 途经必经点的轨迹（阳光跑打卡语义）──
+    @staticmethod
+    def route_length(center_lat: float, center_lng: float,
+                j += 1
+            span = max(1e-6, cum[j + 1] - cum[j])
+            f = min(1.0, max(0.0, (s - cum[j]) / span))
+            x0, y0 = self._to_xy(loop[j])
+            x1, y1 = self._to_xy(loop[j + 1])
+            # 亚米级横向抖动：像真实 GPS 漂移，但不影响 12 米打卡判定
+            x = x0 + (x1 - x0) * f + self.rng.uniform(-0.8, 0.8)
+            y = y0 + (y1 - y0) * f + self.rng.uniform(-0.8, 0.8)
+            lat, lng = self._offset(x, y)
+            pts.append(RunLatLng(
+                lat=lat, lng=lng, lat_lng_index=i,
+                run_time=int(i * self.sample_s * 1000),
+                collect_time=t0 + int(i * self.sample_s * 1000),
+                state=STATE_INIT,
+                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+                accuracy=self.rng.uniform(3.0, 8.0),
+                speed=round(m_per_s, 2),
+                satellites=self.rng.randint(8, 14),
+            ))
+        return pts
+
+    # ── 步频段（由仿真器产生的步数时间线切段）──
+    def build_steps(self, step_timeline: Sequence[Tuple[int, int]],
+                    start_ms: Optional[int] = None) -> List[IntervalStep]:
+        """把 (相对毫秒, 累计步数) 时间线切成固定时长段
+
+=== mock 里怎么用 runTime ===
+
+
+[assistant]
+Now let me think about whether run_time should be seconds or milliseconds. Original: `new RunLatLng(E(), (int) Q0(), ...)` where Q0() = (currentTime + saveCurrentTime)/1000 — so seconds.
+
+But wait: `runTime` field name in RunLatLng is `runTimestamp` int. Let me double check RunLatLng's constructor: `RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp)`. And Q0() returns long → cast to int. Q0() = (currentTime + saveCurrentTime)/1000 → seconds. So runTime is in seconds.
+
+Hmm, but is `getCurrentTime()` really ms? Let me verify TimeComponent. In b28 summary it says `f33890a += K`, K=1000, so currentTime accumulates ms. Then /1000 → seconds. Yes runTime in seconds.
+
+So the lab's run_time in ms is a real deviation. But careful: does anything in lab (e.g., resume_run, uploads, mock) depend on run_time being ms? Store column, mock probably doesn't validate. Also `offFenceDisM`.
+
+Let me check the mock server's validation of points to see if it uses runTime.
+
+Also check simulator.py usage — there are simulator paths. grep showed only protocol.py generates. Let me check `sdlab/simulator.py` for run_time... it wasn't in the grep, so it uses protocol builders.
+
+Plan of deviation fixes:
+1. `run_time` → seconds (int(elapsed_sec)), update docstrings/comments, tests (test_protocol 96 expects i*3000 → change to i*3?), and protocol builders.
+2. `collect_time` → keep (documented simulation).
+3. `subDistance -= outFenceDisM` — implement? The lab drops outside-fence points entirely, so outFenceDisM≥0 only when just re-entered. Lab computes off = distance_to_polygon_edge which is 0 inside... Actually in lab, points are inside the polygon so off=0. Original computes offFenceDisM from v2() (distance between the exit and re-entry points), not distance-to-edge. So lab's off_fence_dis_m semantic differs from original! Original `offFenceDisM` = distance traveled outside the fence when returning, else -1. Lab uses distance_to_polygon_edge → always 0 for inside points (or >=0 for inside? distance to edge is positive inside). Hmm — that's another deviation: lab sends positive distance-to-edge, original sends -1 or the outside distance. Let me verify what the original sends for normal inside points: `D()` in SunshineRunService: `long jV2 = B1() ? v2(...) : -1L;` then `W1(info, jV2, v())`. So for normal points offFenceDisM = -1. Lab sends distance_to_polygon_edge(lat,lng,polygon) which is a positive number (distance to nearest edge, inside). That's a real semantic deviation — server may use it to discount distance. Actually the W1 logic: `if (outFenceDisM >= 0) jLongValue -= outFenceDisM;` So if lab sends positive distance-to-edge for every point, the server would subtract the distance-to-edge from every point's segment distance! That would corrupt distance. BUT server doesn't recompute distance from points for display... it might. Hmm, but lab was accepted in real uploads earlier? The user's uploads succeeded? Not sure.
+
+Wait — does lab actually send offFenceDisM? Let me check protocol to_upload_dict: it includes "offFenceDisM": self.off_fence_dis_m. Yes. And RunLatLng has @JSONField(name="offFenceDisM") — not serialize=false. So original does upload offFenceDisM.
+
+Hmm, so two deviations: value should be -1 for normal points, and it's used for distance discounting.
+
+But careful: is it truly -1? Let me re-read SunshineRunService.D(). I should verify in the source directly.
+
+4. `pauseCount`/`pauseTimes` hardcoded 0 — no pause feature, acceptable but could compute from actual pauses (none). Fine, document.
+
+5. Real-time upload every 15s (poiInterval) — lab uploads at end. Actually lab has "实跑中轨迹已实时写库" — writes to local DB, uploads only at end via upload_points. Original uploads every 15s during run. This is a real link difference. Should I implement incremental upload during real run? That's risky (partial uploads, state machine). Maybe document as known difference, or implement since user asked "confirm consistency". Hmm. Let me check what lab's walk does: `_pending` points, `walk_upload` on finish. Original: m0() throttled upload every poiInterval sec via uploadPoints.
+
+Given the user asked to "confirm other run features are consistent with original", best deliverable: a comparison doc + fix the unambiguous deviations (run_time unit, offFenceDisM semantics), document the accepted simplifications. Implementing incremental real-time upload is a bigger change; but it's arguably important for resume/robustness. Consider effort. The lab already stores points locally in real time and supports resume_run. I could add periodic incremental upload (every poiInterval seconds) during real run, marking uploaded state — lab has state machine (STATE_UPLOADING/SUCC). Let me check walker/engine for pending upload of points during run.
+
+Let me look at how walk points get into store and whether `STATE_UPLOADING` used.
+
+Let me check first the remaining verification of `D()` in SunshineRunService.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '280,325p' work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java", "description": "复核 D() 定位回调"}
+
+[tool • bash]
+    public final void C() {
+        TargetPoints targetPointsN0;
+        DataComponent dataComponent = ((BaseRunService) this).f12580a;
+        if (dataComponent == null || dataComponent.H1() || (targetPointsN0 = ((BaseRunService) this).f12580a.N0()) == null || !targetPointsN0.getNfcEnable()) {
+            return;
+        }
+        I();
+    }
+
+    public final void D(HCJAddressInfo addressInfo) {
+        long jV2;
+        boolean z = false;
+        if (((BaseRunService) this).f12574a == RunStateChangeListener.State.normal) {
+            if (!((BaseRunService) this).f12580a.K1(addressInfo)) {
+                return;
+            }
+            if (((BaseRunService) this).f12580a.B1()) {
+                jV2 = ((BaseRunService) this).f12580a.v2(null, addressInfo, 0L);
+                i4a.b(this.f, "您已进入围栏");
+            } else {
+                jV2 = -1;
+            }
+            ((BaseRunService) this).f12580a.W1(addressInfo, jV2, v());
+            DataComponent dataComponent = ((BaseRunService) this).f12580a;
+            dataComponent.m0(dataComponent.E());
+            SunshineRunNotificationHelper.d().j((int) ((BaseRunService) this).f12580a.S0(), (int) ((BaseRunService) this).f12580a.f1());
+            SunshineRunNotificationHelper.d().h(((BaseRunService) this).f12580a.J0());
+            if (((BaseRunService) this).f12580a.G1()) {
+                t(0);
+            }
+            ((BaseRunService) this).f12580a.E0(new ValueCallBack() { // from class: com.zj.adlib.fw8
+                @Override // com.huachenjie.run.callback.ValueCallBack
+                public final void a(Object obj) {
+                    this.f41772a.y(obj);
+                }
+            });
+            if (((BaseRunService) this).f12580a.C0()) {
+                z = true;
+            }
+        }
+        if (((BaseRunService) this).f12580a.R0() != null) {
+            ((BaseRunService) this).f12580a.R0().a(BaseRunService.DataChangeCallBack.DataType.LocationChange, ((BaseRunService) this).f12580a);
+        }
+        if (z) {
+            ((BaseRunService) this).f12580a.R0().a(BaseRunService.DataChangeCallBack.DataType.FaceRecognitionTip, ((BaseRunService) this).f12580a);
+        }
+
+
+[assistant]
+Now I have confirmed the key facts. Let me check `m0` throttling in DataComponent (the trace upload every poiInterval seconds), and check whether lab implements it.
+
+Let me now grep for m0 definition.
+
+Actually from b28 the search for `m0(` in DataComponent returned no output — maybe it's in a different class. Let me search.
+
+Key discrepancies to fix:
+1. `run_time` unit: 原版秒, lab 毫秒 → fix to seconds? Let me be careful. Let me verify what mock server checks. Also let's check the mock's decrypt and whether report says anything.
+
+Actually wait — let me double check `getCurrentTime()`. In `DataComponent.h2(long currentTime)`, `setCurrentTime(currentTime)`. Where is h2 called from? `TimeChangeListener.a(long elapsedTime, ...)`. Let me verify the units of elapsedTime.
+
+Let me check TimeComponent's tick K = 1000.
+
+From b28 summary: "`h2(long currentTime)` 里 `setCurrentTime(currentTime)`，而 `TimeChangeListener.a(long elapsedTime, ...)` 传的是 `elapsedTime`，而 `elapsedTime` 来自 `TimeComponent` 的 `f33890a += this.K`，`K = 1000`，也就是**每 tick 加 1000**。所以 `getCurrentTime()` 单位是**毫秒**！`Q0() = (currentTime + saveCurrentTime)/1000` → 换算成**秒**"
+
+Let me verify this directly in the source to be safe.
+
+Also need to check `W1`'s second usage of `outFenceDisM`: `if (outFenceDisM >= 0) jLongValue -= outFenceDisM`.
+
+And `m0` throttle.
+
+Let me do a couple of greps.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"m0(\" work/jadx_FULL/sources/com/huachenjie/run/service/*.java | head -10; echo \"=== DataComponent 里找 m0 定义 ===\"; grep -n \"void m0\\|m0(\" work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java | head", "description": "找 m0 轨迹上传节流定义"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/huachenjie/run/service/ApiDataComponent.java:767:    public void m0(final String runRecordCode) {
+work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java:304:            dataComponent.m0(dataComponent.E());
+=== DataComponent 里找 m0 定义 ===
+
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '760,800p' work/jadx_FULL/sources/com/huachenjie/run/service/ApiDataComponent.java", "description": "读轨迹上传节流 m0 实现"}
+
+[tool • bash]
+                public final void call(Object obj) {
+                    ApiDataComponent.b0(runRecordCode, (Subscriber) obj);
+                }
+            }).u5(rx.schedulers.Schedulers.io()).G3(d60.c()).p5(new b(runRecordCode, paceInterval));
+        }
+    }
+
+    public void m0(final String runRecordCode) {
+        if (!TextUtils.isEmpty(runRecordCode) && System.currentTimeMillis() - this.f35979a > ((long) C().getPoiInterval()) * 1000) {
+            this.f35979a = System.currentTimeMillis();
+            rx.Observable.h1(new rx.Observable.OnSubscribe() { // from class: com.zj.adlib.o80
+                public final void call(Object obj) {
+                    ApiDataComponent.c0(runRecordCode, (Subscriber) obj);
+                }
+            }).u5(rx.schedulers.Schedulers.io()).G3(d60.c()).p5(new a(runRecordCode));
+        }
+    }
+
+    public void n0(Map<String, Object> strideList, int strideInterval, String runRecordCode, ValueCallBack callBack) {
+        if (TextUtils.isEmpty(runRecordCode)) {
+            return;
+        }
+        n76.e(this, this.f12554a.l(strideList, strideInterval, runRecordCode)).p5(new d(callBack, strideList));
+    }
+
+    public void o0(long stepInterval, final String runRecordCode) {
+        if (TextUtils.isEmpty(runRecordCode) || this.f12556a) {
+            return;
+        }
+        this.f12556a = true;
+        rx.Observable.h1(new rx.Observable.OnSubscribe() { // from class: com.zj.adlib.j80
+            public final void call(Object obj) {
+                this.f42525a.d0(runRecordCode, (Subscriber) obj);
+            }
+        }).u5(rx.schedulers.Schedulers.io()).G3(d60.c()).p5(new c(runRecordCode, stepInterval));
+    }
+
+    @Override // com.huachenjie.common.base.BaseSimpleComponent, com.huachenjie.common.base.ILifecycleCallback
+    public void onCreate() {
+        this.f12554a = new km7();
+        this.f12553a = new gq1();
+
+
+[assistant]
+Now I have a full picture. Let me decide on the fixes.
+
+Key discrepancies to fix in lab:
+1. **`run_time` 单位**：原版秒，lab 毫秒 → 改。位置：`sdlab/walker.py:429`、`sdlab/protocol.py:688,781`；注释 `sdlab/protocol.py:204`、`sdlab/walker.py:402`。测试 `tests/test_protocol.py:24,96`、`tests/test_store.py:19`。
+2. **`offFenceDisM` 扣减**：`sub_distance -= off`（`off >= 0` 时），lab 未做 → 补 `_sample_if_due`。
+3. **轨迹实时上传（poiInterval 15 秒节流）**：原版跑步过程中每 `poiInterval`(=15s) 上传一批轨迹；lab 只在结束一次性上传。这是链路差异。lab 有 `walk_upload`（结束上传）。可以补一个「跑步中按 poiInterval 节流上传待传点」—— 但这是较大改动，需要 client/engine 支持。看 lab 是否有 `upload_points` 可用于增量。
+4. **`pauseCount`/`pauseTimes`**：lab 无暂停功能，硬编码 0 自洽 —— 但原版 `pauseTimes` 是暂停总秒数。lab 没有暂停，0 正确。不算偏差（但应在文档注明）。
+5. **`collect_time`**：原版取 GPS 回调时间；lab 推算。模拟器合理，注明即可。
+
+Let me check lab 是否有增量上传点的能力（`upload_points`），以及 `walker` 里的 `_pending` 消费方。
+
+Actually let me focus. The user asked to "confirm whether other run-related features match the original". Deliverable: a comparison conclusion + fix real deviations + verify + commit.
+
+The most defensible fixes:
+- A: `run_time` 秒（真偏差，协议级）
+- B: `offFenceDisM` 扣减（真偏差，语义级，窄边界）
+- C: 跑步中按 poiInterval 增量上传轨迹（链路级差异）
+
+C is bigger. Let me check lab's structure for it.
+
+Let me look at walker's _pending consumption and app.py's live upload.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"_pending\\|poi_interval\\|POI_INTERVAL\\|upload_points\\|drain\" sdlab/walker.py sdlab/walk.py sdlab/app.py sdlab/client.py | head -30", "description": "查 lab 待传点与增量上传能力"}
+
+[tool • bash]
+sdlab/walker.py:148:        self._pending: List[RunLatLng] = []              # 待调用方取走的轨迹点
+sdlab/walker.py:150:        self._pending_meta: List[Dict[str, Any]] = []    # 每个采样点的分段元数据（步频/配速）
+sdlab/walker.py:251:            self._pending.clear()
+sdlab/walker.py:253:            self._pending_meta.clear()
+sdlab/walker.py:450:        self._pending.append(point)
+sdlab/walker.py:452:        self._pending_meta.append({
+sdlab/walker.py:673:    def drain_stride_segments(self) -> List[StrideSegment]:
+sdlab/walker.py:684:    def drain_step_segments(self) -> List[IntervalStep]:
+sdlab/walker.py:693:    def drain_pace_segments(self) -> List[IntervalPace]:
+sdlab/walker.py:710:    def drain_points(self) -> List[RunLatLng]:
+sdlab/walker.py:712:        out = self._pending
+sdlab/walker.py:713:        self._pending = []
+sdlab/walker.py:716:    def drain_hits(self) -> List[Dict[str, Any]]:
+sdlab/walker.py:722:    def drain_meta(self) -> List[Dict[str, Any]]:
+sdlab/walker.py:724:        out = self._pending_meta
+sdlab/walker.py:725:        self._pending_meta = []
+sdlab/walker.py:730:        return list(self._pending)
+sdlab/walk.py:188:        # 最后一步可能还没被循环 drain 到，补一次，否则停止时少一个采样点/少一段
+sdlab/walk.py:189:        self._drain(self.walker)
+sdlab/walk.py:193:        self._drain_tail_segments()
+sdlab/walk.py:217:                self._drain(w)
+sdlab/walk.py:230:    def _drain(self, w: Optional[Walker]) -> None:
+sdlab/walk.py:234:        new_pts = w.drain_points()
+sdlab/walk.py:235:        meta = w.drain_meta()
+sdlab/walk.py:236:        hits = w.drain_hits()
+sdlab/walk.py:420:        steps = w.drain_step_segments()
+sdlab/walk.py:434:        paces = w.drain_pace_segments()
+sdlab/walk.py:455:        strides = w.drain_stride_segments()
+sdlab/walk.py:470:    def _drain_tail_segments(self) -> None:
+sdlab/app.py:77:        self._pending_route: List[List[float]] = []
+
+
+[assistant]
+Let me look at walk.py _drain to see whether points are uploaded incrementally (m0 throttled) or only at end.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && sed -n '225,300p' sdlab/walk.py", "description": "读 _drain 是否增量上传"}
+
+[tool • bash]
+            self.stopped_at = self.stopped_at or time.time()
+            if self.state.arrived:
+                self._emit("walk_arrived", f"手动实走结束：{self.state.arrived}",
+                           run_code=self.run_code, state=self.state.to_dict())
+
+    def _drain(self, w: Optional[Walker]) -> None:
+        """取走新采样点：干跑只留内存，实跑同时落库"""
+        if w is None:
+            return
+        new_pts = w.drain_points()
+        meta = w.drain_meta()
+        hits = w.drain_hits()
+        if hits:
+            self.hits_total += len(hits)
+            if self.mode == "real" and self.store and self.run_code:
+                for cp in hits:
+                    self.store.mark_checkpoint_hit(
+                        self.run_code, int(cp.get("index") or 0),
+                        float(cp.get("hit_lat") or w.lat),
+                        float(cp.get("hit_lng") or w.lng),
+                        int(cp.get("hit_ms") or 0))
+            self._emit("checkpoint",
+                       f"✓ 已打卡 {self.hits_total}/{w.state().targets}",
+                       run_code=self.run_code, hits=self.hits_total,
+                       points=[{"index": int(c.get("index") or 0),
+                                "lat": round(float(c.get("hit_lat") or 0), 6),
+                                "lng": round(float(c.get("hit_lng") or 0), 6)} for c in hits])
+        if not new_pts and not meta:
+            return
+        with self._lock:
+            for p in new_pts:
+                p.run_code = self.run_code if self.mode == "real" else ""
+                self._points.append(p)
+            if self.mode == "real" and self.store and self.run_code:
+                batch = self._points[self._stored:]
+                if batch and self.store.add_points(self.run_code, batch) > 0:
+                    self._stored = len(self._points)
+                self.pending = len(self._points) - self._stored
+            else:
+                self.pending = len(self._points)
+        self._store_segments(w)
+
+    def _maybe_emit(self, now: float) -> None:
+        """限频发事件：每 1 秒或每 50 米一次，避免把事件流刷爆"""
+        if now - self._last_emit < 1.0 and (self.state.dist_m - self._last_emit_m) < 50.0:
+            return
+        self._last_emit = now
+        self._last_emit_m = self.state.dist_m
+        self._emit("walk", f"实走中：{self.state.dist_m:.0f} 米 / {self.state.steps} 步 / "
+                           f"{self.state.passed}/{self.state.targets} 打卡",
+                   run_code=self.run_code, state=self.state.to_dict(),
+                   percent=self.progress_percent())
+
+    # ══════════════════ 输入 ══════════════════
+    def joystick(self, dx: float, dy: float, mag: float) -> Dict[str, Any]:
+        if not self.walker:
+            return {"code": -1, "message": "尚未开始实走"}
+        self.walker.set_joystick(dx, dy, mag)
+        # 手动推杆时自动关掉路径跟随，否则两者会互相覆盖方向
+        if mag > 0.02:
+            self.walker.set_auto_route(False)
+        return {"code": 0, "data": {"dx": dx, "dy": dy, "mag": mag}}
+
+    def set_route(self, route: Sequence[Sequence[float]], auto: bool = True
+                  ) -> Dict[str, Any]:
+        if not self.walker:
+            return {"code": -1, "message": "尚未开始实走"}
+        self.walker.set_route(route)
+        self.walker.set_auto_route(bool(auto))
+        self._emit("state", f"已设置 {len(route or [])} 个路点，"
+                            f"{'自动沿路径走' if auto else '仍然由摇杆控制'}")
+        return {"code": 0, "data": {"route": [list(p) for p in (route or [])], "auto": auto}}
+
+    def set_auto(self, auto: bool = True) -> Dict[str, Any]:
+        """开跑后随时切换「自动沿路线走 / 手动摇杆控制」。"""
+        if not self.walker:
+
+
+[assistant]
+现在我有足够的证据了。让我总结偏差并决定修哪些。
+
+关键确认：
+1. **采样间隔 3000ms 已验证一致**：`LocationComponent.m(int amapGPSLevel)` → `lj0.m(context, 3000L, ...)`。所以 `SAMPLE_INTERVAL_S = 3.0` 正确。✓
+
+2. **`runTime` 单位偏差**：原版 `(int) Q0()` = 秒（因为 currentTime 是 ms，/1000 得秒）。lab 用 `elapsed_sec*1000` = 毫秒。**偏差 1000 倍**。要改为秒。
+
+   等等，需要小心。让我再想一次。`Q0()` = `(getCurrentTime() + getSaveCurrentTime()) / 1000`。这是整数除法，单位秒。
+
+   `RunLatLng(E(), (int) Q0(), ...)` → 第二个参数是 `runTime`。看 RunLatLng 构造签名：`RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp)`。所以 runTime = (int) Q0() = 秒。
+
+   而 `@JSONField(name="runTime") int runTimestamp`。所以上传的 runTime 是秒。
+
+   lab 的 `run_time=int(self.elapsed_sec * 1000)` 是毫秒。确实偏差。
+
+   但是——等等！这需要非常确定，因为改它会动到上传协议。让我看看服务端怎么用。无法确认服务端。但「与原版一致」是目标。
+
+   不过还有一个考虑：如果服务端用 runTime 来算配速/时间轴，那么单位错了会导致服务端认为跑了 1000 倍时间。但实测上传成功了（结算成功），说明服务端可能不严格校验，或者根本没用到。但既然后台结算成功，说明 mock 服务端也不校验。
+
+   稳妥做法：改成秒，与 原版一致。但要注意 `collectTime` 仍是毫秒（绝对时间戳），这是对的。
+
+   同时 `_last_valid.collect_time` 用于 dt 计算（毫秒），不受影响。
+
+   还有 `protocol.py:688/781` simulator 里的两处也要改。
+
+   以及 `walker.py:402` 的 docstring 注释。
+
+   测试 `tests/test_protocol.py:96` `self.assertEqual(p.run_time, i * 3000)` —— 这是构造 RunLatLng 时的显式值，不受 protocol 生成影响。但如果我改 simulator 生成逻辑，可能有其他断言。让我查 test 里对 simulator 的断言。
+
+3. **`collectTime`**：原版 `currentAddressInfo.getTime()`（定位时间，绝对毫秒）；lab `start_ms + elapsed*1000`（推算绝对毫秒）。语义等价，保留但注释说明。
+
+4. **`offFenceDisM` 扣减**：原版只在「刚回围栏」(B1() 为真) 时 `subDistance -= outFenceDisM`。lab 围栏外直接丢点。这是很窄的边界，可选实现。
+
+5. **`m0()` 轨迹增量上传**：原版每 poiInterval(15s) 增量上传 `c0()`。lab 结束才传。这是链路简化。
+
+6. **`pauseCount`/`pauseTimes` 硬编码 0**：原版取真实值。lab 无暂停功能。
+
+现在，用户问的是「确认其他跑步相关功能是否与原版一致」。所以我应该：
+- 给出一份核对结论（一致项 + 偏差项）
+- 修掉真正的偏差（runTime 单位是最明确的）
+
+让我先确认测试对 simulator 的 run_time 依赖，然后动手改。
+
+实际上，我要非常谨慎地评估 `runTime` 改成秒是否会破坏什么。`store.py` 存 run_time 列，`store.py:653` 读回。前端可能显示？
+
+让我 grep 前端和 selfcheck。
+
+先看测试。
+
+考虑到上下文和时间，我应该高效：先 grep 依赖点，再一次性改，再跑验证。
+
+另外还有一件事：用户要求「再确认一下其他跑步相关的功能是否与原版一致」——这是核对任务。我应该先完成核对，输出结论，然后修偏差。
+
+但按用户一贯风格（自跑自验证、一次做完），我应该直接修 + 验证 + 报告。
+
+让我先查测试依赖。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"run_time\\|runTime\" --include=*.js --include=*.json web/ 2>/dev/null | head; echo \"=== 测试里 simulator 相关 ===\"; grep -rn \"build_points\\|build_route_points\\|Simulation\\|simulator\" tests/*.py | head -20", "description": "查前端与测试对 run_time 的依赖"}
+
+[tool • bash]
+=== 测试里 simulator 相关 ===
+tests/test_simulator.py:14:from sdlab.simulator import (DEFAULT_HZ, GRAVITY, FuckRunSim, build_device_fingerprint,
+tests/test_walker.py:22:from sdlab.simulator import FuckRunSim
+
+
+[assistant]
+前端不依赖 run_time。测试 test_store.py / test_protocol.py 里有 run_time=i*3000（这是测试自己造的，不是断言原版口径）。test_protocol.py:96 `self.assertEqual(p.run_time, i * 3000)` — 这是断言序列化往返，不是断言语义。
+
+现在关键：我要决定改不改 run_time。
+
+原版 `W1()`：`new RunLatLng(E(), (int) Q0(), ...)`，Q0() 是整数秒。所以 runTime 单位是**秒**。
+
+但等等 —— 我需要再确认 `RunLatLng` 构造函数第一个参数。`RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp)`。所以 `(int) Q0()` 是 runTime 参数 = 秒。
+
+那 `@JSONField(name="runTime") int runTimestamp` 就是秒。
+
+run-lab 是毫秒 → 偏差 1000 倍。要修。
+
+不过要小心：改 store 的已有数据兼容性。这是实验工具，历史记录无价吗？改了单位后旧记录（毫秒）与新记录（秒）混在一起。但 store 里 run_time 只用于协议回放/上传，且未上传的旧记录可能受影响。可以接受，因为是本地实验台。
+
+另外还有一个考虑：`collectTime` 原版 = `addressInfo.getTime()` 绝对毫秒；lab = start_ms + elapsed*1000 也是绝对毫秒。一致（可接受）。
+
+第三：`subDistance -= outFenceDisM`。原版只在「刚回围栏那一刻」（B1() 为真）才扣。lab 围栏外点直接丢弃，所以基本等价。但我可以补上：lab 有 off = distance_to_polygon_edge，若刚回到围栏内，扣减。
+
+先聚焦：改 run_time 单位为秒是明确的、最有价值的一致性修复。其他（m0 增量上传、pauseCount）属于设计简化，应写入文档而非硬改（改成每 15 秒增量上传会大幅改动架构）。
+
+让我确认 run_time 改秒后 mock 服务端是否校验。mock.py 没有 runTime 引用 → 不校验。真实的服务器呢？既然原版发秒，改成秒更安全。
+
+现在决定：修 run_time 单位为秒（walker.py + protocol.py 两处 simulator + 注释）；同时把 `subDistance -= outFenceDisM` 补上（窄边界，但要一致）。然后文档写一份核对清单，加测试守卫，全链路验证，提交。
+
+先读 walker.py 相关段落的精确内容以便编辑。让我读 390-460。
+
+[assistant • read]
+{"path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py", "offset": 392, "limit": 70}
+
+[tool • read]
+CxA│                cp["hit_lng"] = self.lng
+DyB│                cp["hit_ms"] = now
+xSp│                # 命中的桩必须立刻交给调用方：实跑时要落库（mark_checkpoint_hit），
+Fwk│                # 否则本地库 checkpoints.passed 恒为 0，上传时等于一个都没打
+FFu│                self._hits.append(dict(cp))
+JqV│
+MFg│    def _sample_if_due(self, speed: float) -> None:
+gkR│        """每 sample_s 秒走一次原版 DataComponent.W1() 的落点流程
+hlS│
+CdT│        与原版一一对应：
+H3H│          · 造 RunLatLng（runTime = 跑步内相对毫秒、collectTime = 绝对毫秒）
+CV2│          · 与上一个**有效点**算球面直线距离（取整到米）→ subDistance
+BfU│          · H0() 闸门：精度 / 速度符号 / 点间等效速度三项超限即判为无效点
+91J│          · 有效点才进 valid_points(f12593a) 并累加 runData.distance
+EWi│          · **被拒的点同样落库**（is_valid=0）——原版 i0() 传的是未过滤的那个点
+oAN│          · 最后推进配速段（原版 y2() → X1() → h0()）
+pBO│
+FwK│        围栏同理：原版 `SunshineRunService.D()` 里 `if (!K1(info)) return;`，
+2Q2│        围栏外的点连 W1 都不进 —— 这里也不落库。
+3R3│        """
+AxI│        if self.elapsed_sec - self._last_sample_at < self.sample_s - 1e-9:
+ByJ│            return
+2yD│        self._last_sample_at = self.elapsed_sec
+3zE│        lat = _round6(self.lat)
+40F│        lng = _round6(self.lng)
+51G│
+c4w│        if self.polygon and not point_in_polygon(lat, lng, self.polygon):
+vCW│            self.dropped_outside += 1
+wDX│            return
+xEY│
+yFZ│        off = 0
+zGa│        if self.polygon:
+0Hb│            off = int(distance_to_polygon_edge(lat, lng, self.polygon))
+1Ic│
+yqm│        ts = self.start_ms + int(self.elapsed_sec * 1000)
+GNb│        point = RunLatLng(
+Dd0│            lat=lat, lng=lng, lat_lng_index=self._poi_index,
+Tid│            run_time=int(self.elapsed_sec * 1000), collect_time=ts,
+la1│            state=STATE_INIT, off_fence_dis_m=off,
+j9O│            accuracy=round(self.rng.uniform(5.0, 12.0), 1),
+wQd│            speed=round(speed, 2),
+v7J│            satellites=self.rng.randint(8, 13),
+w8K│        )
+x9L│
+3cE│        # 点间隔距离：原版 calculateLineDistance(prev, cur) 取整到米（HALF_UP）
+rKD│        sub_distance = 0
+1ht│        if self._last_valid is not None:
+P2q│            sub_distance = max(0, int(round(haversine(
+mye│                self._last_valid.lat, self._last_valid.lng, lat, lng))))
+nzf│
+Y9Y│        accepted = self._filter_point(point, sub_distance, ts)
+75w│        if accepted is not None:
+a1q│            self._last_valid = accepted
+Epq│            self.valid_points.append(accepted)
+Hwe│            self.dist_m += sub_distance
+d6k│            self._check_km_marks()
+e7l│
+hdb│        # ★ 原版 i0(runLatLng)：传未过滤的点，被拒点也照样入库
+RzD│        self._pending.append(point)
+LE5│        self.samples.append((self.dist_m, self.elapsed_sec))
+MF6│        self._pending_meta.append({
+NG7│            "index": self._poi_index,
+3zR│            "seg_dist_m": sub_distance,
+T2L│            "seg_sec": self.elapsed_sec - self._last_sample_at_prev_sec,
+MtD│            "seg_steps": int(self.total_steps) - self._last_sample_steps,
+NuE│            "abs_dist_m": self.dist_m,
+Eiw│            "abs_sec": self.elapsed_sec,
+klL│            "abs_steps": int(self.total_steps),
+lmM│            "cadence": float(self._sensor.get("cadence") or 0.0),
+SQ7│            "valid": bool(accepted is not None),
+
+[Showing lines 392-461 of 793. Use offset=462 to continue.]
+
+[assistant]
+现在我有了确凿证据。让我确认偏差清单，然后动手修。
+
+关键发现汇总：
+
+1. **`run_time` 单位偏差（真）**：原版 `W1()` → `new RunLatLng(E(), (int) Q0(), ...)`，`Q0() = (currentTime + saveCurrentTime)/1000` = **整数秒**。lab 用 `int(self.elapsed_sec * 1000)` = **毫秒**，差 1000 倍。出现在 `walker.py:429`、`protocol.py:688`、`protocol.py:781`。
+
+2. **`subDistance -= outFenceDisM` 未实现（真，窄）**：原版 `W1()` 里 `if (outFenceDisM >= 0) jLongValue -= outFenceDisM;`，且 `jLongValue <= 0 → 0`。只在「刚从围栏外出回来那一次」（`B1()` 为真）触发。lab 没有。
+
+3. **轨迹上传节流（真，链路差异）**：原版 `ApiDataComponent.m0()` 每 `poiInterval`（默认 15 秒）增量上传一批轨迹点（`c0()`，size<=3 不发）。lab 只在结束跑步时一次性上传。这是**真实的链路差异**。
+
+4. **`collectTime` 口径（可接受）**：原版取 `HCJAddressInfo.getTime()`；lab 取 `start_ms + elapsed_sec*1000`。
+
+5. **采样间隔 3000ms（一致，已确证）**：`LocationComponent.m(int amapGPSLevel)` 里 `lj0.m(context, 3000L, ...)`。
+
+6. **结算字段 pauseCount/pauseTimes 硬编码 0（自洽）**：lab 无暂停功能。
+
+现在需要判断：哪些该修？
+
+用户的诉求是「确认其他跑步功能是否与原版一致」。最该修的是：
+- `run_time` 单位 → 改成秒（1000 倍偏差，是明确的错）
+- `subDistance -= outFenceDisM` → 实现
+- 轨迹增量上传（15 秒节流）→ 这是个较大的链路改动，但可以让「实跑中轨迹已实时写库」变成「实时上传」
+
+但要注意：增量上传需要谨慎，因为如果上传失败会影响结算。而且这涉及真实网络请求。我认为应该实现——因为原版就是这样，而且 lab 已有 `upload_points` 和 `_stored`/`pending` 机制。
+
+先做最重要的两件（run_time 单位 + offFenceDisM 扣减），再考虑增量上传。
+
+实际上让我先看 `upload_points` 和 `pending` 的现有实现，再决定增量上传怎么做。
+
+先修 run_time。需要改：
+- `walker.py:429` `run_time=int(self.elapsed_sec * 1000)` → `run_time=int(self.elapsed_sec)`
+- `walker.py:402` docstring
+- `protocol.py:204` 注释
+- `protocol.py:688`、`781` → `int(i * self.sample_s)`
+- `tests/test_protocol.py:24,96` 期望改
+- `tests/test_store.py:19` 也改（那是测试数据构造，可改可不改，但为了一致性改）
+
+等一下！要小心。`protocol.py:688`/`781` 是 `int(i * self.sample_s * 1000)`。如果 sample_s = 3.0，i * 3.0 * 1000 = 毫秒。改成 `int(i * self.sample_s)` 就是秒。
+
+但 store 里 `run_time INTEGER`，存秒没问题。
+
+关键：`mock.py` 里有没有校验 runTime？grep 显示没有。
+
+`tests/test_protocol.py:96` `self.assertEqual(p.run_time, i * 3000)` — 这是测试自己构造的点，`run_time=i * 3000`，从 to_upload_dict 往返。改不改都行，它测的是序列化往返。但为了表达正确，改成 `i * 3`。
+
+好，动手。先读 protocol.py 204 附近和 tests。
+
+[assistant • read]
+{"limit": 55, "offset": 195, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/protocol.py"}
+
+[tool • read]
+anj│
+shh│# ══════════════════ 表 1：run_lat_lng ══════════════════
+dUo│@dataclass
+SVT│class RunLatLng:
+zII│    """轨迹点 —— 对应 @Entity(tableName="run_lat_lng")"""
+0JJ│
+D9A│    lat: float
+QMc│    lng: float
+vII│    lat_lng_index: int = 0            # @JSONField("index")
+Dft│    run_time: int = 0                 # @JSONField("runTime")   跑步内相对 ms
+O1z│    collect_time: int = 0             # @JSONField("collectTime") 采集绝对 ms
+Nep│    state: int = STATE_INIT           # @JSONField("state")
+OcX│    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+Vj3│    create_time: int = 0              # 建表时 System.currentTimeMillis()（会上传）
+Wk4│
+N3D│    # 会上传的物理量（原版无 serialize=false）
+P5F│    accuracy: float = 6.0
+Q6G│    satellites: int = 10
+R7H│
+S8I│    # 仅本地（serialize=false）
+T9J│    speed: float = 0.0
+VAK│    is_valid: bool = True
+WBL│    is_uploaded: bool = False
+XCM│    run_code: str = ""
+YDN│
+crA│
+fKc│    def to_upload_dict(self) -> Dict[str, Any]:
+A0g│        return {
+LFc│            "index": self.lat_lng_index,
+MGd│            "lat": round(self.lat, 6),
+NHe│            "lng": round(self.lng, 6),
+OIf│            "runTime": self.run_time,
+PJg│            "collectTime": self.collect_time,
+SUE│            "createTime": self.create_time,
+TVF│            "state": self.state,
+UWG│            "offFenceDisM": self.off_fence_dis_m,
+Z0l│            "accuracy": round(self.accuracy, 2),
+Ozz│            "satellites": self.satellites,
+P00│        }
+BV7│
+QWs│    @classmethod
+Di8│    def from_dict(cls, d: Dict[str, Any], run_code: str = "") -> "RunLatLng":
+pB2│        return cls(
+9kg│            lat=float(d.get("lat", 0.0)),
+a1W│            lng=float(d.get("lng", 0.0)),
+msC│            lat_lng_index=int(d.get("index", 0)),
+U69│            run_time=int(d.get("runTime", 0)),
+uAc│            collect_time=int(d.get("collectTime", 0)),
+ufb│            state=int(d.get("state", STATE_INIT)),
+B1h│            off_fence_dis_m=int(d.get("offFenceDisM", 0)),
+FkQ│            create_time=int(d.get("createTime", 0)),
+n2o│            accuracy=float(d.get("accuracy", 6.0)),
+kFJ│            speed=float(d.get("speed", 0.0)),
+Tgw│            satellites=int(d.get("satellites", 10)),
+xBX│            is_valid=bool(d.get("isValid", True)),
+
+[Showing lines 195-249 of 908. Use offset=250 to continue.]
+
+[user]
+<acp tokens="63" type="text">m03121</acp>
+Time sampled while preparing turn 12, step 186: 2026-10-18T04:45:52+08:00[Asia/Shanghai]
+Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.
+Elapsed since the preceding step context: 10m 29s.
+
+[assistant]
+Let me now check the mock server's handling of runTime to see if it validates, and check whether the server might care. Key question: is `run_time` in seconds or ms in the original? `W1` passes `(int) Q0()` where `Q0() = (currentTime + saveCurrentTime)/1000` → seconds. But wait — let me double check `getCurrentTime()`. Earlier note said `h2(currentTime)` sets currentTime from `elapsedTime` in ms (`f33890a += K`, K=1000). So Q0() = ms/1000 = seconds. So runTime seconds. Lab uses ms → 1000× off.
+
+But hold on: `RunLatLng` constructor signature `RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp)`. Field `@JSONField(name="runTime") int runTimestamp`. In original code, is `runTime` maybe used as seconds elsewhere? Let me check usage of getRunTimestamp in the obfuscated code to confirm semantics — e.g., pace calc or upload. Actually a strong check: `RunLatLng.getRunTimestamp()` used anywhere? Let's grep.
+
+Also I should check the API upload data format from report or mock. Actually the server response may echo. Best evidence: check `RunLatLng.getRunTimestamp` usage in jadx.
+
+Let me also verify `collectTime` semantics. Let me grep.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"getRunTimestamp()\" --include=*.java work/ | head -20; echo \"=== 字段声明 ===\"; grep -n \"runTimestamp\\|collectTime\\|createTime\" work/jadx_FULL/sources/com/huachenjie/common/bean/RunLatLng.java | head -20", "description": "查 runTimestamp 的使用语义"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/huachenjie/common/bean/RunLatLng.java:99:    public int getRunTimestamp() {
+work/jadx_FULL/sources/com/zj/adlib/aw4.java:53:            supportSQLiteStatement.bindLong(8, runLatLng.getRunTimestamp());
+work/jadx_FULL/sources/com/zj/adlib/aw4.java:87:            supportSQLiteStatement.bindLong(8, runLatLng.getRunTimestamp());
+=== 字段声明 ===
+18:    private long createTime;
+40:    private int runTimestamp;
+49:    @JSONField(name = "collectTime")
+52:    public RunLatLng(double lat, double lng, long id, String runCode, float accuracy, float speed, long timestamp, int runTimestamp, int satellites, boolean isValid, boolean isUploaded) {
+53:        this.createTime = 0L;
+63:        this.runTimestamp = runTimestamp;
+67:        this.createTime = System.currentTimeMillis();
+76:        return this.createTime;
+100:        return this.runTimestamp;
+143:    public void setCreateTime(long createTime) {
+144:        this.createTime = createTime;
+167:    public void setRunTimestamp(int runTimestamp) {
+168:        this.runTimestamp = runTimestamp;
+196:        return "{\"lat\":" + this.lat + ", \"lng\":" + this.lng + ", \"id\":" + this.id + ", \"runCode\":\"" + this.runCode + "\", \"accuracy\"" + this.accuracy + ", \"speed\":" + this.speed + ", \"timestamp\":" + this.timestamp + ", \"runTimestamp\":" + this.runTimestamp + ", \"satellites\":" + this.satellites + ", \"isValid\":" + this.isValid + ", \"isUploaded\":" + this.isUploaded + ", \"createTime\":" + this.createTime + ", \"state\":" + this.state + '}';
+201:        this.createTime = 0L;
+211:        this.runTimestamp = runTime;
+212:        this.createTime = System.currentTimeMillis();
+
+
+[assistant]
+Let me look at the DB column: `runTimestamp` bound as long. And the JSON field name. Let's check field annotations around lines 40-60.
+
+Let me read that file region.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '30,60p;190,220p' work/jadx_FULL/sources/com/huachenjie/common/bean/RunLatLng.java", "description": "读 RunLatLng 字段注解"}
+
+[tool • bash]
+    public double lat;
+    public double lng;
+
+    @JSONField(name = "offFenceDisM")
+    public long offFenceDisM;
+
+    @JSONField(serialize = false)
+    private String runCode;
+
+    @JSONField(name = "runTime")
+    private int runTimestamp;
+    private int satellites;
+
+    @JSONField(serialize = false)
+    private float speed;
+
+    @JSONField(name = "state")
+    public int state;
+
+    @JSONField(name = "collectTime")
+    private long timestamp;
+
+    public RunLatLng(double lat, double lng, long id, String runCode, float accuracy, float speed, long timestamp, int runTimestamp, int satellites, boolean isValid, boolean isUploaded) {
+        this.createTime = 0L;
+        this.state = 1;
+        this.offFenceDisM = 0L;
+        this.lat = lat;
+        this.lng = lng;
+        this.id = id;
+        this.runCode = runCode;
+        this.accuracy = accuracy;
+
+    public void setValid(boolean valid) {
+        this.isValid = valid;
+    }
+
+    public String toString() {
+        return "{\"lat\":" + this.lat + ", \"lng\":" + this.lng + ", \"id\":" + this.id + ", \"runCode\":\"" + this.runCode + "\", \"accuracy\"" + this.accuracy + ", \"speed\":" + this.speed + ", \"timestamp\":" + this.timestamp + ", \"runTimestamp\":" + this.runTimestamp + ", \"satellites\":" + this.satellites + ", \"isValid\":" + this.isValid + ", \"isUploaded\":" + this.isUploaded + ", \"createTime\":" + this.createTime + ", \"state\":" + this.state + '}';
+    }
+
+    public RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp) {
+        this.isUploaded = false;
+        this.createTime = 0L;
+        this.state = 1;
+        this.offFenceDisM = 0L;
+        this.runCode = runCode;
+        this.lat = addressInfo.getLat();
+        this.lng = addressInfo.getLng();
+        this.accuracy = addressInfo.getAccuracy();
+        this.speed = addressInfo.getSpeed();
+        this.satellites = addressInfo.getSatellites();
+        this.timestamp = timestamp;
+        this.runTimestamp = runTime;
+        this.createTime = System.currentTimeMillis();
+        this.state = 1;
+        this.offFenceDisM = offFenceDis;
+    }
+}
+
+
+[assistant]
+Confirmed: `runTimestamp` = `(int) Q0()` = integer seconds. run-lab uses ms → 1000× deviation.
+
+Let me now also check `create_time` — original sets `System.currentTimeMillis()`; run-lab's walker doesn't set create_time (defaults 0). That's another deviation. Let me check.
+
+protocol.py line: `create_time: int = 0  # 建表时 System.currentTimeMillis()（会上传）`. In walker `RunLatLng(...)` doesn't pass create_time → 0. In simulator too. So createTime=0 uploaded whereas original uploads actual wall-clock ms at creation.
+
+Wait — is `createTime` serialized? `private long createTime;` no annotation → serialized by fastjson as "createTime". Yes, original uploads the real creation timestamp. run-lab sends 0. That's a deviation worth fixing.
+
+Let me verify run-lab sends createTime: yes `to_upload_dict` includes `"createTime": self.create_time`.
+
+So deviations to fix:
+1. `run_time` unit: ms → seconds (walker.py:429, protocol.py:688, 781). Update comment at protocol.py:204 and walker.py:402 docstring.
+2. `create_time`: set to wall-clock ms at creation (walker + simulator builders).
+3. `offFenceDisM` subtraction: `subDistance -= outFenceDisM` when returning into fence. Narrow edge case; lab drops outside points entirely. Since lab's polygon check rejects points outside... Actually original: `D()` rejects outside points (`!K1` → return), so `W1` only ever gets points inside the fence. Then `B1()` true means "just came back from outside" and `v2()` computes distance between the exit point and re-entry point. So `outFenceDisM` is the straight-line distance from where you left the fence to where you re-entered, subtracted so the outside loop doesn't count as distance.
+
+lab does NOT drop all outside points? Let me re-check: walker._sample_if_due: `if self.polygon and not point_in_polygon(lat,lng,self.polygon): dropped_outside += 1; return` → yes, drops. But lab doesn't track "just re-entered" to subtract distance. So if the user walks out of the fence and comes back, lab's `sub_distance` = distance from last valid point (pre-exit) to re-entry point → over-counts the outside segment. Original subtracts the straight-line out→in distance. This is a real (if narrow) deviation. Worth implementing: track last outside point, on re-entry subtract straight-line distance between the last outside point and current entry point.
+
+Hmm, but "last outside point" — original `v2(null, addressInfo, 0L)` with `firstBack2Stop`? Let me check `v2` and `B1` semantics precisely from b28. Let me search b28 for v2/B1 details.
+
+Actually let me read the actual java.
+
+Given token budget, let me be efficient: read DataComponent.v2 and B1.
+
+Also key question: should the whole thing be fixed? User asked "再确认一下其他跑步相关的功能是否与原版一致" — a confirmation request. Best deliverable: a comparison report + fix genuine deviations + verify + commit. That's what I planned.
+
+Also check `pauseCount/pauseTimes` (lab hardcodes 0 — no pause feature; original takes real values). Could add real pause support? That's a feature, maybe out of scope but "一致性" — worth noting. Actually implementing run pause would be a bigger feature. The user asked to confirm consistency; I can report it as "lab 无暂停功能，结算恒为 0；原版有" and implement pause? Hmm. Let me consider scope. Earlier user constraints: complete in one go, don't ask. I think the right scope: fix protocol-level deviations (run_time unit, create_time, offFenceDisM subtraction), plus real-time incremental upload (poiInterval 15s) maybe? That's a behavior diff: original uploads points every 15s during run; lab uploads at end. That's significant for "实跑" fidelity. But implementing incremental upload during walk is moderately complex — walk.py already has pending tracking; client.upload_points exists. Could add a 15s throttle loop in walk.py that calls client.upload_points with stored-but-unnot-uploaded points.
+
+Hmm, that would change a lot and risk breaking gui_probe. Let me evaluate: app.walk_upload uploads at end. Incremental upload requires the walk thread to hold a client reference. Let me check walk.py WalkEngine constructor & whether it has client.
+
+Let me look at walk.py structure quickly.
+
+Given the effort, maybe I should: (a) fix the 3 protocol deviations + document; (b) add incremental poi upload if feasible cleanly; (c) write 一致性核对文档 docs/原版一致性核对.md; (d) add selfcheck/tests; (e) run full verification; (f) commit.
+
+Let me check walk.py for client access.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '1230,1265p' work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java; echo \"=== B1 ===\"; sed -n '248,262p' work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java", "description": "读 v2 与 B1"}
+
+[tool • bash]
+
+    public long v1() {
+        if (p1() == null) {
+            return 0L;
+        }
+        return p1().getSuspendTime();
+    }
+
+    public long v2(HCJAddressInfo offFirstP, HCJAddressInfo enterFirstP, long firstPoint2LastDis) {
+        if (this.f12595a == null) {
+            this.f12595a = new HCJAddressInfo[2];
+        }
+        HCJAddressInfo[] hCJAddressInfoArr = this.f12595a;
+        if (hCJAddressInfoArr[0] == null && offFirstP != null) {
+            hCJAddressInfoArr[0] = offFirstP;
+            this.e = firstPoint2LastDis;
+        }
+        if (hCJAddressInfoArr[1] == null && enterFirstP != null) {
+            hCJAddressInfoArr[1] = enterFirstP;
+        }
+        if (hCJAddressInfoArr[0] == null || hCJAddressInfoArr[1] == null || enterFirstP == null) {
+            return -1L;
+        }
+        i4a.b(this.g, "开始计算进出围栏的总距离");
+        long jLongValue = BigDecimal.valueOf(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(this.f12595a[0].getLat(), this.f12595a[0].getLng()), new HCJLatLng(this.f12595a[1].getLat(), this.f12595a[1].getLng()))).setScale(0, RoundingMode.HALF_UP).longValue();
+        long j2 = this.e;
+        if (j2 <= 20) {
+            jLongValue += j2;
+        }
+        i4a.b(this.g, "离开围栏的总距离：mOffFenceDisM=" + jLongValue);
+        HCJAddressInfo[] hCJAddressInfoArr2 = this.f12595a;
+        hCJAddressInfoArr2[0] = null;
+        hCJAddressInfoArr2[1] = null;
+        this.e = 0L;
+        return jLongValue;
+    }
+=== B1 ===
+            return !this.f12600g && this.f12586a.getFaceCheckData().getCurrentFaceCheckIndex() == (size = this.f12586a.getFaceCheckData().getFaceCheckRecordList().size() - 1) && this.f12586a.getFaceCheckData().getFaceCheckRecordList().get(size).getHasChecked();
+        }
+        return true;
+    }
+
+    public boolean B1() {
+        HCJAddressInfo[] hCJAddressInfoArr = this.f12595a;
+        return hCJAddressInfoArr != null && hCJAddressInfoArr.length == 2 && hCJAddressInfoArr[1] == null && hCJAddressInfoArr[0] != null;
+    }
+
+    @Override // com.huachenjie.run.service.ApiDataComponent
+    public CommonConfig C() {
+        SunshineRunServiceData sunshineRunServiceData = this.f12586a;
+        if (sunshineRunServiceData == null) {
+            return null;
+
+
+[assistant]
+Now I have enough evidence. Let me decide which deviations to fix.
+
+Confirmed findings:
+1. `runTime` unit: original = integer seconds `(int) Q0()`; lab = milliseconds. **Real deviation, 1000×.** Fix: `run_time=int(self.elapsed_sec)` in walker.py:429; protocol.py:688, 781 `run_time=int(i * self.sample_s)`; comment update; tests update.
+
+2. `offFenceDisM`: original RunLatLng constructor sets `offFenceDisM = offFenceDis` where offFenceDis comes from `v2()` = 进出围栏距离 (only when just came back into fence, B1()), else -1. And in W1, `if (outFenceDisM >= 0) jLongValue -= outFenceDisM`. So field is only set at the return-to-fence moment. lab sets it to `distance_to_polygon_edge(...)` for every point — that's a deviation in semantics: original's field means "distance traveled outside the fence that should be deducted", not "distance to fence edge". Fix: lab should set 0 normally, and implement the out-of-fence deduction. Hmm — but lab drops out-of-fence points entirely (same as original D() `if(!K1) return`). The original's offFence tracking: K1() is containsLocation; points outside are dropped, so how does the original record the "离开围栏" points? Via `v2(offFirstP, ...)` — some other call path with offFirstP. Let me not over-engineer. 
+
+The task: user asks "确认一下其他跑步相关的功能是否与原版一致". The deliverable: a comparison report + fix real deviations. Given token budget concerns and the many turns already, I should:
+- Fix run_time unit (clear-cut).
+- Fix offFenceDisM semantics: lab should report 0 by default (original default value in constructor path is `offFenceDis` = -1 when B1() false... actually `jV2 = -1` → RunLatLng iff `outFenceDisM >= 0` deduct; `this.offFenceDisM = offFenceDis` = -1). So original normally stores **-1**, not distance-to-edge! That's a clear deviation. lab stores distance to edge (positive number). Fix: store 0 or -1? Original stores -1 normally. Hmm, but storing -1 might confuse. To be faithful: normally -1, and only when returning to fence it's the deducted distance.
+
+Let me check if lab's UI/mock uses off_fence_dis_m. grep.
+
+Let me be efficient: grep off_fence in sdlab + web.
+
+3. `createTime`: original = `System.currentTimeMillis()` (epoch ms). lab default 0 unless set. Check where lab sets create_time — probably 0 → uploads 0. Deviation. Fix: set create_time = collect_time (wall clock) or start_ms+elapsed. Actually original createTime = now at construction, which equals roughly collect time. Set create_time=ts.
+
+4. `pauseCount`/`pauseTimes` hardcoded 0 — lab has no pause; consistent enough. Note as known gap.
+
+5. Incremental upload during run: original uploads points every poiInterval (15s) during the run; lab uploads only on 结束跑步. That's a behavior difference (real but arguably a simplification). Could implement incremental upload: in `_drain`, when real mode, every 15s call client.upload_points. That's a bigger change. Given "确认是否一致", I should report it. But user's style is "fix everything". Hmm. Implementing incremental upload is feasible: WalkEngine has self.client? Let me check.
+
+Let me be pragmatic and prioritize:
+- Fix run_time (units) — must.
+- Fix off_fence_dis_m semantics — must (clear deviation).
+- Fix create_time — must (cheap).
+- Incremental 15s upload — implement if walk.py has client access; else note.
+
+Let me check walk.py for client and poi interval constant.
+
+Let me grep.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"off_fence\\|offFenceDisM\" --include=*.py --include=*.js sdlab/ web/ tests/ scripts/ | grep -v \"\\.venv\" | head -20; echo \"=== POI/上传节拍常量 ===\"; grep -rn \"poi_interval\\|POI_INTERVAL\\|15.0\\|upload_points\" sdlab/walk.py sdlab/walker.py sdlab/client.py sdlab/constants.py | head -20", "description": "查 off_fence 使用与上传节拍"}
+
+[tool • bash]
+sdlab/mock.py:440:    # 轨迹是否越出围栏（用真实几何判定，而不是信任客户端上报的 offFenceDisM）
+sdlab/walker.py:143:        # 围栏多边形（算 offFenceDisM 用）
+sdlab/walker.py:430:            state=STATE_INIT, off_fence_dis_m=off,
+sdlab/store.py:65:    off_fence_dis_m INTEGER DEFAULT 0,
+sdlab/store.py:298:                 p.state, p.off_fence_dis_m, p.accuracy, p.speed, p.satellites,
+sdlab/store.py:304:                                      off_fence_dis_m,accuracy,speed,satellites,
+sdlab/store.py:310:                     off_fence_dis_m=excluded.off_fence_dis_m, accuracy=excluded.accuracy,
+sdlab/store.py:654:        state=int(row["state"]), off_fence_dis_m=int(row["off_fence_dis_m"]),
+sdlab/protocol.py:207:    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+sdlab/protocol.py:230:            "offFenceDisM": self.off_fence_dis_m,
+sdlab/protocol.py:244:            off_fence_dis_m=int(d.get("offFenceDisM", 0)),
+sdlab/protocol.py:610:      · 起点/终点都在围栏内，全程 offFenceDisM = 0
+sdlab/protocol.py:691:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+sdlab/protocol.py:784:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+tests/test_walker.py:180:            self.assertEqual(p.off_fence_dis_m, 0)
+tests/test_protocol.py:142:        for 字段 in ("accuracy", "satellites", "createTime", "offFenceDisM"):
+scripts/selfcheck.py:107:    check(all(p.off_fence_dis_m >= 0 for p in track), "所有轨迹点都在围栏内/围栏上")
+=== POI/上传节拍常量 ===
+sdlab/client.py:386:    def upload_points(self, run_code: str, batch: int = DEFAULT_UPLOAD_BATCH,
+sdlab/client.py:630:        out["points"] = self.upload_points(run_code)
+sdlab/constants.py:123:POI_INTERVAL_S = 15           # 轨迹点上传节流间隔（秒）
+sdlab/constants.py:127:GPS_STALE_MS = 15_000         # LocationService 定位失效阈值
+
+
+[assistant]
+Interesting: `sdlab/constants.py:123 POI_INTERVAL_S = 15` exists. Let me check where it's used.
+
+Let me check whether walk.py/app.py does incremental upload every POI_INTERVAL_S. Earlier grep showed no `POI_INTERVAL` usage in walk.py. Let me check all usage.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"POI_INTERVAL_S\" --include=*.py . | grep -v .venv; echo \"=== 上传时机 ===\"; grep -rn \"def walk_upload\" -A 30 sdlab/app.py | head -40", "description": "查 POI 节流是否被用"}
+
+[tool • bash]
+./sdlab/constants.py:123:POI_INTERVAL_S = 15           # 轨迹点上传节流间隔（秒）
+=== 上传时机 ===
+478:    def walk_upload(self, do_finish: bool = True) -> Dict[str, Any]:
+479-        """叫停后上传：把实跑落的库走与一键跑完全相同的上传链路并结算"""
+480-        rc = self.walk.run_code
+481-        if not rc:
+482-            return {"code": -1, "message": "没有实跑记录可上传（干跑模式不落库）", "data": None}
+483-        if not self.client.logged_in:
+484-            return {"code": -1, "message": "请先登录", "data": None}
+485-
+486-        def _work() -> None:
+487-            try:
+488-                out = self.engine.upload(rc)
+489-                if out.get("points", {}).get("code") != 0:
+490-                    self.bus.emit("log", "✗ 轨迹上传中断，可稍后断点续传", level="error")
+491-                if do_finish:
+492-                    self.engine.finish(rc, sun=True)
+493-                    self.store.finish_run(rc, source="walk")
+494-                summary = self.engine.last
+495-                self._last_result = {**(summary or {}), "run_code": rc, "source": "walk"}
+496-                self._progress = {**self._progress, "percent": 100, "running": False}
+497-            except Exception as e:  # noqa: BLE001
+498-                self.bus.emit("log", f"✗ 实跑上传失败：{e}", level="error")
+499-                self._progress = {**self._progress, "running": False}
+500-
+501-        if self._thread and self._thread.is_alive():
+502-            return {"code": -1, "message": "已有任务在运行", "data": None}
+503-        self._progress = {**self._progress, "percent": 55, "running": True, "run_code": rc}
+504-        self._thread = threading.Thread(target=_work, name="walk-upload", daemon=True)
+505-        self._thread.start()
+506-        return {"code": 0, "message": f"已开始上传结算：{rc}", "data": {"run_code": rc}}
+507-
+508-    def walk_save(self, name: str = "", polygon: Optional[List[Any]] = None) -> Dict[str, Any]:
+
+
+[assistant]
+So `POI_INTERVAL_S = 15` is defined but never used — lab uploads only at the end. That's a chain difference (原版每 15 秒增量上传轨迹点).
+
+Let me now compile the findings. Let me check remaining items quickly: `run_time` unit, `collect_time`, `offFenceDisM` subtraction, incremental upload, `create_time`, pause.
+
+Let me verify what run-lab `create_time` does — walker sets it? Looking at RunLatLng creation in walker: no `create_time=` so 0. Original sets `System.currentTimeMillis()`. So createTime sent as 0 — deviation. Let me check.
+
+Also check `accuracy`/`satellites` are serialized in original: `@JSONField(serialize=false)` is on speed and runCode only. accuracy and satellites have no annotation → serialized. Good, matches lab.
+
+Let me check whether tests pin run_time = i*3000.
+
+Let me look at protocol.py:96 test.
+
+Now decision: fix deviations:
+1. `run_time` → seconds (`int(self.elapsed_sec)`), and simulator/protocol generator `int(i * self.sample_s)`.
+2. `create_time` → set to wall clock ms in walker + simulator.
+3. `offFenceDisM` subtraction on re-entering fence — narrow edge case; lab drops outside points entirely so outFenceDisM mostly 0. Actually lab computes `off = distance_to_polygon_edge` for inside points, which is >= 0 — wait, what does original send as offFenceDisM normally? `W1(addressInfo, jV2, v())` with jV2 = -1 when not B1(). So original normally sends **-1**, not 0! Only when re-entering fence it sends the computed distance.
+
+That's a real deviation: lab sends distance-to-fence-edge (positive), original sends -1.
+
+Hmm, but run-lab's test asserts `p.off_fence_dis_m == 0` and selfcheck asserts `>= 0`. Original would send -1. Let me verify: `offFenceDisM = 0L` in constructor then `this.offFenceDisM = offFenceDis` at the end → so -1 when jV2=-1.
+
+So original uploads `offFenceDisM: -1` for all points except the re-entry point. That's important for protocol fidelity. But does the server care? Unknown. Hmm.
+
+Wait — but also the mock server at `sdlab/mock.py:440` says "用真实几何判定，而不是信任客户端上报的 offFenceDisM". So mock ignores it.
+
+Let me think about what's the right fix: to be faithful, `off_fence_dis_m` should be -1 normally, and on the sample where the runner re-enters after being outside, it should be the computed exit/enter distance. Lab currently can't even track outside points since it returns early... but `dropped_outside` is incremented. To implement faithfully I'd need to record the first outside point and the first re-enter point, track last point before exit, etc.
+
+That's substantial. Given the task is "确认一致性", I should implement it since user wants parity. Let me look at what lab does now more carefully and decide scope. Actually let me reconsider: is implementing v2/B1 worth it? The chain is: when point is outside fence → dropped (D returns). But B1 requires `this.f12595a[0] != null` — set by `v2(offFirstP, ...)` which is called when... let me check where v2 is called with offFirstP.
+
+Only at `SunshineRunService.D()`: `jV2 = v2(null, addressInfo, 0L)` → offFirstP = null! So `[0]` is set only elsewhere. Let me grep v2 callers.
+
+Let me do that.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"\\.v2(\" --include=*.java work/jadx_FULL/sources/ | head; echo \"=== B1 调用点 ===\"; grep -rn \"\\.B1()\" --include=*.java work/jadx_FULL/sources/ | head", "description": "查 v2/B1 调用点"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/google/android/exoplayer2/b.java:500:            b.this.v2(null);
+work/jadx_FULL/sources/com/google/android/exoplayer2/b.java:547:            b.this.v2(surface);
+work/jadx_FULL/sources/com/google/android/exoplayer2/b.java:552:            b.this.v2(null);
+work/jadx_FULL/sources/com/google/android/exoplayer2/b.java:568:                b.this.v2(surfaceHolder.getSurface());
+work/jadx_FULL/sources/com/google/android/exoplayer2/b.java:575:                b.this.v2(null);
+work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java:297:                jV2 = ((BaseRunService) this).f12580a.v2(null, addressInfo, 0L);
+work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java:356:            ((BaseRunService) this).f12580a.v2(addressInfo, null, jLongValue);
+=== B1 调用点 ===
+work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java:296:            if (((BaseRunService) this).f12580a.B1()) {
+work/jadx_FULL/sources/com/zj/adlib/jo7.java:45:        return Observable.h1(new i97(radioGroup)).B1();
+
+
+[assistant]
+Let me look at SunshineRunService around 340-370 to see the outside-fence path (v2(addressInfo, null, jLongValue)).
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '330,375p' work/jadx_FULL/sources/com/huachenjie/run/service/SunshineRunService.java", "description": "读围栏外分支"}
+
+[tool • bash]
+            return;
+        }
+        if (!((BaseRunService) this).f12580a.D1()) {
+            if (addressInfo.getAccuracy() > r90.g().getRunFilterAccuracy()) {
+                return;
+            }
+            if (vl2.e() && addressInfo.getSatellites() < 4 && ((BaseRunService) this).f12580a.I0() == 2) {
+                return;
+            }
+        }
+        if (((BaseRunService) this).f12574a != RunStateChangeListener.State.preStart || System.currentTimeMillis() - ((BaseRunService) this).f12580a.X0() < 3000) {
+            return;
+        }
+        setRunState(RunStateChangeListener.State.normal, false, null);
+    }
+
+    public final void F(HCJAddressInfo addressInfo) {
+        long jLongValue;
+        if (addressInfo != null && RunStateChangeListener.State.autoPause == ((BaseRunService) this).f12574a && !((BaseRunService) this).f12580a.K1(addressInfo) && (((BaseRunService) this).f12580a.m1() & 1) > 0 && ((BaseRunService) this).f12580a.C1()) {
+            RunLatLng runLatLngO0 = ((BaseRunService) this).f12580a.O0();
+            if (runLatLngO0 != null) {
+                jLongValue = BigDecimal.valueOf(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(runLatLngO0.getLat(), runLatLngO0.getLng()), new HCJLatLng(addressInfo.getLat(), addressInfo.getLng()))).setScale(0, RoundingMode.HALF_UP).longValue();
+                i4a.b(this.f, "firstOffDisM=" + jLongValue);
+            } else {
+                jLongValue = 0;
+            }
+            ((BaseRunService) this).f12580a.v2(addressInfo, null, jLongValue);
+        }
+    }
+
+    public final void G(boolean force) {
+        DataComponent dataComponent = ((BaseRunService) this).f12580a;
+        if (dataComponent == null) {
+            return;
+        }
+        if (dataComponent.H1()) {
+            this.f12603b = false;
+            J();
+        } else if (force || this.f12603b) {
+            this.f12603b = false;
+            ((BaseRunService) this).f12580a.f0(new ValueCallback() { // from class: com.zj.adlib.iw8
+                @Override // com.huachenjie.common.callback.ValueCallback
+                public final void onCallback(Object obj) {
+                    this.f42457a.z((Boolean) obj);
+                }
+            });
+
+
+[assistant]
+Now I have a solid understanding. Let me summarize the deviations found:
+
+**A. `run_time` unit: 原版是秒 (int) Q0(), lab 是毫秒** — real deviation.
+
+Wait, let me be careful. Actually let me reconsider. `W1` → `new RunLatLng(E(), (int) Q0(), ...)` where Q0() = (currentTime + saveCurrentTime)/1000. currentTime is ms, so Q0() is seconds. So runTimestamp = seconds.
+
+Hmm, but let me double-check: `h2(long currentTime)` stores currentTime. Where does it come from? `TimeChangeListener.a(long elapsedTime, ...)`. Let me verify the unit of elapsedTime. In b28 I noted `f33890a += this.K` with K=1000. But is K=1000 ms? Let me verify quickly to be safe — this is a 1000x conclusion.
+
+Let me check TimeComponent.
+
+Actually, this matters a lot. Let me check.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && find work/jadx_FULL/sources -name \"TimeComponent.java\" -o -name \"*TimeComponent*.java\" | head; echo \"---\"; grep -rn \"class TimeComponent\" --include=*.java work/jadx_FULL/sources/ | head", "description": "找 TimeComponent"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/huachenjie/common/run_component/TimeComponent.java
+---
+work/jadx_FULL/sources/com/huachenjie/common/run_component/TimeComponent.java:18:public class TimeComponent extends BaseSimpleComponent implements IRunTimeStateChangeListener {
+
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && cat work/jadx_FULL/sources/com/huachenjie/common/run_component/TimeComponent.java", "description": "读 TimeComponent 时间轴"}
+
+[tool • bash]
+package com.huachenjie.common.run_component;
+
+import android.os.Handler;
+import android.os.Looper;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import com.huachenjie.common.base.BaseSimpleComponent;
+import com.huachenjie.common.run_interface.IRunTimeStateChangeListener;
+import com.huachenjie.common.run_interface.RunStateChangeListener;
+import com.zj.adlib.i4a;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_02_3758cls.dex */
+public class TimeComponent extends BaseSimpleComponent implements IRunTimeStateChangeListener {
+    public int K;
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    public long f33890a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public final Handler f8866a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    @Nullable
+    public PauseTimerType f8867a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public TimeChangeListener f8868a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public Runnable f8869a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public ScheduledExecutorService f8870a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public ThreadFactory f8871a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public boolean f8872a;
+    public final String f;
+
+    public interface TimeChangeListener {
+        void a(long elapsedTime, PauseTimerType type);
+    }
+
+    public static /* synthetic */ class a {
+
+        /* JADX INFO: renamed from: a, reason: collision with root package name */
+        public static final /* synthetic */ int[] f33891a;
+
+        static {
+            int[] iArr = new int[RunStateChangeListener.State.values().length];
+            f33891a = iArr;
+            try {
+                iArr[RunStateChangeListener.State.normal.ordinal()] = 1;
+            } catch (NoSuchFieldError unused) {
+            }
+            try {
+                f33891a[RunStateChangeListener.State.userPause.ordinal()] = 2;
+            } catch (NoSuchFieldError unused2) {
+            }
+            try {
+                f33891a[RunStateChangeListener.State.autoPause.ordinal()] = 3;
+            } catch (NoSuchFieldError unused3) {
+            }
+            try {
+                f33891a[RunStateChangeListener.State.faceRecognition.ordinal()] = 4;
+            } catch (NoSuchFieldError unused4) {
+            }
+            try {
+                f33891a[RunStateChangeListener.State.nfcCheck.ordinal()] = 5;
+            } catch (NoSuchFieldError unused5) {
+            }
+            try {
+                f33891a[RunStateChangeListener.State.finish.ordinal()] = 6;
+            } catch (NoSuchFieldError unused6) {
+            }
+        }
+    }
+
+    public TimeComponent(@NonNull ThreadFactory threadFactory) {
+        this(threadFactory, PauseTimerType.NONE);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void f() {
+        TimeChangeListener timeChangeListener = this.f8868a;
+        if (timeChangeListener != null) {
+            timeChangeListener.a(this.f33890a, this.f8867a);
+        } else {
+            i4a.d(this.f, "mTimeChangeListener IS null, 没法通知外层时间更新");
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void g() {
+        this.f33890a += (long) this.K;
+        this.f8866a.post(new Runnable() { // from class: com.zj.adlib.z69
+            @Override // java.lang.Runnable
+            public final void run() {
+                this.f46197a.f();
+            }
+        });
+    }
+
+    @Override // com.huachenjie.common.run_interface.IRunTimeStateChangeListener
+    public void a(@Nullable PauseTimerType pauseTimerType, @Nullable RunStateChangeListener.State state, @Nullable Map<String, ?> map) {
+        switch (a.f33891a[state.ordinal()]) {
+            case 1:
+                if (pauseTimerType == null || PauseTimerType.NONE == pauseTimerType || PauseTimerType.SPEED_ERROR == pauseTimerType) {
+                    k();
+                } else {
+                    h();
+                }
+                break;
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+                if (pauseTimerType == null || PauseTimerType.NONE == pauseTimerType || PauseTimerType.SPEED_ERROR == pauseTimerType) {
+                    h();
+                } else {
+                    k();
+                }
+                break;
+            case 6:
+                h();
+                i();
+                break;
+        }
+    }
+
+    @Override // com.huachenjie.common.run_interface.RunStateChangeListener
+    public void b(RunStateChangeListener.State state, Map<String, Object> map) {
+        a(PauseTimerType.NONE, state, map);
+    }
+
+    public boolean e() {
+        return this.f8872a;
+    }
+
+    public void h() {
+        if (this.f8872a) {
+            this.f8872a = false;
+            stopExecutor();
+            PauseTimerType pauseTimerType = this.f8867a;
+            if (pauseTimerType == null || pauseTimerType == PauseTimerType.NONE) {
+                return;
+            }
+            i4a.b(this.f, this.f8867a + "|计时器 暂停工作*****");
+        }
+    }
+
+    public void i() {
+        this.f33890a = 0L;
+    }
+
+    public void initData() {
+        i();
+        initExecutor();
+    }
+
+    public void initExecutor() {
+        this.f8869a = new Runnable() { // from class: com.zj.adlib.y69
+            @Override // java.lang.Runnable
+            public final void run() {
+                this.f45963a.g();
+            }
+        };
+    }
+
+    public void j(TimeChangeListener listener) {
+        this.f8868a = listener;
+    }
+
+    public void k() {
+        if (this.f8872a) {
+            return;
+        }
+        this.f8872a = true;
+        if (this.f8870a != null) {
+            stopExecutor();
+        }
+        ThreadFactory threadFactory = this.f8871a;
+        if (threadFactory == null) {
+            this.f8870a = Executors.newSingleThreadScheduledExecutor();
+        } else {
+            this.f8870a = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        }
+        ScheduledExecutorService scheduledExecutorService = this.f8870a;
+        Runnable runnable = this.f8869a;
+        int i = this.K;
+        scheduledExecutorService.scheduleAtFixedRate(runnable, i, i, TimeUnit.MILLISECONDS);
+        PauseTimerType pauseTimerType = this.f8867a;
+        if (pauseTimerType == null || pauseTimerType == PauseTimerType.NONE) {
+            return;
+        }
+        i4a.b(this.f, this.f8867a + "|计时器开始工作");
+    }
+
+    @Override // com.huachenjie.common.base.BaseSimpleComponent, com.huachenjie.common.base.ILifecycleCallback
+    public void onDestroy() {
+        this.f8872a = false;
+        stopExecutor();
+        this.f8868a = null;
+        super.onDestroy();
+    }
+
+    public void stopExecutor() {
+        ScheduledExecutorService scheduledExecutorService = this.f8870a;
+        if (scheduledExecutorService == null) {
+            return;
+        }
+        try {
+            try {
+                scheduledExecutorService.shutdown();
+                if (!this.f8870a.awaitTermination(this.K, TimeUnit.MILLISECONDS)) {
+                    this.f8870a.shutdownNow();
+                }
+            } catch (InterruptedException unused) {
+                this.f8870a.shutdownNow();
+            }
+        } finally {
+            this.f8870a = null;
+        }
+    }
+
+    public TimeComponent(@NonNull ThreadFactory threadFactory, @Nullable PauseTimerType type) {
+        this.f8866a = new Handler(Looper.getMainLooper());
+        this.f = getClass().getSimpleName();
+        this.f33890a = 0L;
+        this.K = 1000;
+        this.f8872a = false;
+        this.f8871a = threadFactory;
+        this.f8867a = type;
+        initData();
+    }
+}
+
+
+[assistant]
+Confirmed: `K = 1000`, `f33890a += K` each tick → `getCurrentTime()` is milliseconds; `Q0()` divides by 1000 → **seconds**. So `runTime` in原版 is seconds. lab uses milliseconds → deviation ×1000.
+
+Now let me verify by looking at the actual mock server / real server behavior? Can't. But we have a decisive fact: 原版 `(int) Q0()` is seconds.
+
+Wait — but hold on. Actually let me double check `getCurrentTime()` and `getSaveCurrentTime()`. `saveCurrentTime` is accumulated time saved across pauses. Both in ms. Sum /1000 = seconds. Yes.
+
+Hmm, but one important consideration: the mock server in this project — does it validate runTime? Let me check mock.py for how it parses points. Earlier grep showed no runTime in mock.py. So mock doesn't care.
+
+But the real goal is "与原版一致". So change to seconds.
+
+But wait — careful. Let me reconsider: is it possible that `runTime` semantically is milliseconds and the `(int) Q0()` is intentional seconds because server expects seconds? We can't query the server. The safest interpretation of "与原版一致" is to match the original byte-for-byte: seconds.
+
+Hmm, but this is risky: changing may break real uploads if server expects ms. But we have zero evidence server expects ms; the only evidence we have is the original app sends seconds. Since we're emulating the original app, match it.
+
+Actually — hold on. Let me look more carefully. In `to_upload_dict`, lab sends `"runTime": self.run_time`. Original sends `runTime` = seconds. So yes.
+
+Let me now check: is there any doc/report stating runTime unit? Let me grep report/07.
+
+Also need to check `createTime` — original sets `System.currentTimeMillis()` at construction (i.e., wall clock when point created). lab's `create_time` — is it set anywhere? In walker's RunLatLng(...) construction there's no create_time → defaults 0! That's a deviation: original always sets createTime = currentTimeMillis. And lab sends `"createTime": 0`.
+
+Let me verify: walker.py:429 constructs RunLatLng without create_time → create_time=0. protocol.py:688-695 also no create_time. So all uploaded points have createTime=0. Original: System.currentTimeMillis(). That's a real deviation.
+
+Also `offFenceDisM`: original sets `offFenceDis` from W1's outFenceDisM parameter which is -1 normally (only set when re-entering fence). lab sets `int(distance_to_polygon_edge(...))` = distance to edge always ≥ 0. That's a deviation! Original: mostly -1. Hmm wait — `RunLatLng(runCode, runTime, addressInfo, offFenceDis, timestamp)` → `this.offFenceDisM = offFenceDis`. And W1 is called with `jV2` which is -1 unless B1(). So normally offFenceDisM = -1. lab sends 0 or positive distance-to-edge.
+
+Hmm, that's a significant deviation: original sends -1 for normal points.
+
+Wait, but is -1 meaningful? It's a sentinel "not computed". And lab sends actual distance. tests/test_walker.py:180 asserts `p.off_fence_dis_m == 0` — for points at fence edge? Hmm.
+
+Let me check more carefully what lab does: `off = int(distance_to_polygon_edge(lat, lng, self.polygon))`. If inside polygon, distance to edge > 0 (e.g., 100m). So lab sends e.g. 100. Original sends -1. Deviation.
+
+But does the server care? Unknown. For "一致" purpose, should we change? That would be matching original exactly. But it also loses info we compute. Hmm. The instruction: "再确认一下其他跑步相关的功能是否与原版一致" — user wants confirmation. Best deliverable: a report of deviations + fix the real ones.
+
+Let me think about which deviations are "real" (affect the server result) vs cosmetic:
+1. `runTime` unit: seconds vs ms — **real**, 1000×.
+2. `createTime`: 0 vs wall-clock — **real** (original sends actual ms).
+3. `offFenceDisM`: -1 vs distance-to-edge — value differs; original semantics is "离开围栏的距离扣减量", not "距围栏距离". So lab's field means something else → **deviation in semantics**.
+4. `subDistance -= outFenceDisM`: only when returning into fence — narrow edge case; lab drops out-of-fence points so equivalent. Minor.
+5. Incremental upload every 15s (`m0`) during run: lab uploads only at end. **Behavioral difference** but lab has resume; it's a simplification. Could add incremental upload to match.
+6. `pauseCount/pauseTimes` hardcoded 0 — lab has no pause; consistent.
+7. `accuracy`/`satellites` uploaded: original `@JSONField` — accuracy and satellites have no serialize=false, so they ARE uploaded. ✓ consistent.
+8. `speed`: original `@JSONField(serialize=false)` → NOT uploaded. lab's to_upload_dict doesn't include speed ✓.
+9. `isValid`: serialize=false → not uploaded ✓.
+10. `state`: uploaded ✓.
+11. `index` ✓.
+
+So key fixes: runTime → seconds; createTime → wall clock; offFenceDisM → 原版语义 (-1 常态, 回围栏时是扣除量).
+
+Hmm, but #3 changing to -1 always would lose the "distance to fence edge" info which selfcheck asserts `>= 0` and test_walker asserts == 0. Careful.
+
+Let me look at how lab uses off_fence_dis_m besides upload: store column, selfcheck check. And `report` docs maybe say it's distance.
+
+Given risk, maybe the right approach: implement original semantics faithfully:
+- `off_fence_dis_m = -1` for normal in-fence points
+- when the runner crosses back into the fence (B1/v2 logic), compute the out-of-fence detour distance and pass it.
+
+That's a bigger change requiring tracking out-of-fence entry points. But lab drops out-of-fence points entirely (same as original D()). Original also tracks via F() when autoPause... complex.
+
+Hmm. Given time, maybe I should:
+- Fix runTime (seconds) and createTime (wall clock) — clear, mechanical.
+- For offFenceDisM: implement original semantics: default -1; and keep a "距围栏距离" available for UI but not uploaded. That keeps `distance_to_polygon_edge` used for UI but uploaded value = -1 unless re-entering scenario.
+
+Wait, but lab's walker drops points outside fence, so it never leaves the fence → B1() never triggers → offFenceDisM always -1 in lab. That actually simplifies: set -1 always? But then a "detour" is never deducted, same as original when you never leave.
+
+Hmm, but that loses the semantic "how far from edge". Where is it displayed? Let me check web/ for offFenceDisM... grep showed none in web/. So only stored + uploaded.
+
+So: change uploaded/stored value to -1? But then selfcheck line 107 `all(p.off_fence_dis_m >= 0 for p in track)` would fail — need to update that check.
+
+Hmm, wait. Actually, let me reconsider. Is it truly -1? `W1(addressInfo, jV2, v())` where jV2 = -1 normally. Then `new RunLatLng(E(), (int)Q0(), currentAddressInfo, outFenceDisM=-1, ...)` → offFenceDisM = -1. Yes.
+
+OK. But hold on — do I want to make such a change? The user asked "确认是否一致". Deliverable should be: 核对结论 + 修真实偏差 + 验证 + 提交. I've been doing that pattern.
+
+Let me be pragmatic and prioritize by risk:
+- A. runTime 秒 — fix.
+- B. createTime 墙钟 — fix.
+- C. offFenceDisM -1 语义 — fix (with test/selfcheck updates).
+- D. 每 15 秒增量上传轨迹 (m0) — 可实现：lab 有 `client.upload_points(run_code, batch)`; walk 引擎可在 elapsed 每 15s drain 一批入库点并上传。But that adds network calls during walk — with mock it's fine; with real server it's the original behavior. Might be worth implementing since it's a genuine protocol behavior (服务端会在跑步中收到轨迹). Risk: app during real walk would post every 15s — that's exactly原版. I think implement it, guarded by mode=="real" and logged in.
+
+Actually — careful about scope creep and time. The session has been long. But user explicitly asked to check consistency of other run-related features. A thorough answer + fixes is right.
+
+Let me check remaining unverified items quickly:
+- `validDistance` 25 / `sensitiveDistance` 45: lab has VALID_DISTANCE_M? Let me check constants.
+- `strideStatisticsInterval` 100 default vs lab STRIDE_STATISTICS_M.
+- `gpsAbnormalMaxTimes` 4.
+- `autoStopDuration`.
+- 打卡点判定半径 12 米? Earlier summary said CHECKPOINT_HIT_RADIUS_M=25 in walker docstring. Original: `SunshineRunService` checkpoint hit radius? Let me check — that's important! report may say 12 米. Let me grep.
+
+Let me check these quickly, then write the diff fixes.
+
+Actually b28 summary said "CHECKPOINT_HIT_RADIUS_M=25" in walker docstring, and protocol.py:610 comment "开始/结束...". Hmm but is 25 correct? Let me check原版打卡判定.
+
+Let me grep for checkpoint radius in原版.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"getRadius\\|radius\" --include=*.java work/jadx_FULL/sources/com/huachenjie/run/ | head -20; echo \"=== TargetPoints ===\"; ls work/jadx_FULL/sources/com/huachenjie/common/bean/ | grep -i target", "description": "查打卡半径"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter.java:18:@Metadata(d1 = {"\u00008\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0002\n\u0000\n\u0002\u0010\u000b\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\b\n\u0002\b\u0003\n\u0002\u0010\u0007\n\u0002\b\u0006\u0018\u0000 \u00122\u000e\u0012\u0004\u0012\u00020\u0002\u0012\u0004\u0012\u00020\u00030\u0001:\u0001\u0012B\u0007¢\u0006\u0004\b\u0015\u0010\u0016J\u0018\u0010\u0007\u001a\u00020\u00062\u0006\u0010\u0004\u001a\u00020\u00032\u0006\u0010\u0005\u001a\u00020\u0002H\u0014J\u0018\u0010\f\u001a\u00020\u000b2\u0006\u0010\t\u001a\u00020\b2\u0006\u0010\n\u001a\u00020\bH\u0002R\u0014\u0010\u0010\u001a\u00020\r8\u0002X\u0082\u0004¢\u0006\u0006\n\u0004\b\u000e\u0010\u000fR\u0014\u0010\u0014\u001a\u00020\u00118\u0002X\u0082\u0004¢\u0006\u0006\n\u0004\b\u0012\u0010\u0013¨\u0006\u0017"}, d2 = {"Lcom/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter;", "Lcom/chad/library/adapter/base/BaseQuickAdapter;", "Lcom/zj/adlib/s82;", "Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;", "holder", "item", "", "convert", "", "roundStart", "roundEnd", "Landroid/graphics/drawable/GradientDrawable;", "e", "", "K", "I", "gap", "", "a", "F", "radius", "<init>", "()V", "run_release"}, k = 1, mv = {1, 8, 0})
+work/jadx_FULL/sources/com/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter.java:26:    public final float radius;
+work/jadx_FULL/sources/com/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter.java:31:        this.radius = jj8.a(10.0f);
+work/jadx_FULL/sources/com/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter.java:37:        float f = roundStart ? this.radius : 0.0f;
+work/jadx_FULL/sources/com/huachenjie/run/page/run_index/adapter/RunIndexDeductionAdapter.java:38:        float f2 = roundEnd ? this.radius : 0.0f;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:447:        public static final int banner_indicator_radius = 0x7f0400af;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:454:        public static final int banner_radius = 0x7f0400b6;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:523:        public static final int bl_corners_radius = 0x7f0400fb;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:858:        public static final int circularflow_radiusInDP = 0x7f04024a;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1121:        public static final int erase_radius = 0x7f040351;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1213:        public static final int fl_adx_progress_btn_radius = 0x7f0403ad;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1218:        public static final int fl_bg_radius = 0x7f0403b2;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1229:        public static final int fl_radius = 0x7f0403bd;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1364:        public static final int image_radius = 0x7f040444;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1548:        public static final int ksad_radius = 0x7f0404fc;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1761:        public static final int lt_corner_bottom_left_radius = 0x7f0405d1;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1762:        public static final int lt_corner_bottom_right_radius = 0x7f0405d2;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1763:        public static final int lt_corner_radius = 0x7f0405d3;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1764:        public static final int lt_corner_top_left_radius = 0x7f0405d4;
+work/jadx_FULL/sources/com/huachenjie/run/R.java:1765:        public static final int lt_corner_top_right_radius = 0x7f0405d5;
+=== TargetPoints ===
+TargetPoints.java
+[stderr]
+grep: 写入错误: 断开的管道
+
+
+[user]
+<acp tokens="63" type="text">m03151</acp>
+Time sampled while preparing turn 12, step 196: 2026-10-18T04:55:52+08:00[Asia/Shanghai]
+Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.
+Elapsed since the preceding step context: 10m 0s.
+
+[assistant]
+Let me check TargetPoints for checkpoint hit radius, and confirm remaining items. Then I should wrap up: I've done a lot of investigation. Let me check the checkpoint hit radius in the original and lab's CHECKPOINT_HIT_RADIUS_M.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -n \"radius\\|Radius\\|getPassStatus\\|distance\" work/jadx_FULL/sources/com/huachenjie/common/bean/TargetPoints.java | head -20; echo \"=== 打卡判定处 ===\"; grep -rn \"25\\.0\\|aboutToPass\\|passPoint\\|PassStatus\" --include=*.java work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java | head -15", "description": "查打卡半径判定"}
+
+[tool • bash]
+18:@Metadata(d1 = {"\u0000H\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0010\u000f\n\u0000\n\u0002\u0010\t\n\u0000\n\u0002\u0010\u0006\n\u0002\b\u0002\n\u0002\u0010\u000e\n\u0002\b\u0002\n\u0002\u0010\b\n\u0000\n\u0002\u0010\u000b\n\u0002\b:\n\u0002\u0010\u0000\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\b\u0087\b\u0018\u00002\u00020\u00012\b\u0012\u0004\u0012\u00020\u00000\u0002B\u008b\u0001\u0012\b\b\u0002\u0010\u0003\u001a\u00020\u0004\u0012\b\b\u0002\u0010\u0005\u001a\u00020\u0006\u0012\b\b\u0002\u0010\u0007\u001a\u00020\u0006\u0012\n\b\u0003\u0010\b\u001a\u0004\u0018\u00010\t\u0012\n\b\u0003\u0010\n\u001a\u0004\u0018\u00010\t\u0012\b\b\u0003\u0010\u000b\u001a\u00020\f\u0012\b\b\u0002\u0010\r\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u000f\u001a\u00020\u0004\u0012\b\b\u0003\u0010\u0010\u001a\u00020\u000e\u0012\b\b\u0003\u0010\u0011\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u0012\u001a\u00020\f\u0012\b\b\u0003\u0010\u0013\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u0014\u001a\u00020\u000e¢\u0006\u0002\u0010\u0015J\u0011\u00107\u001a\u00020\f2\u0006\u00108\u001a\u00020\u0000H\u0096\u0002J\t\u00109\u001a\u00020\u0004HÆ\u0003J\t\u0010:\u001a\u00020\u000eHÆ\u0003J\t\u0010;\u001a\u00020\fHÆ\u0003J\t\u0010<\u001a\u00020\u000eHÆ\u0003J\t\u0010=\u001a\u00020\u000eHÆ\u0003J\t\u0010>\u001a\u00020\u0006HÆ\u0003J\t\u0010?\u001a\u00020\u0006HÆ\u0003J\u000b\u0010@\u001a\u0004\u0018\u00010\tHÆ\u0003J\u000b\u0010A\u001a\u0004\u0018\u00010\tHÆ\u0003J\t\u0010B\u001a\u00020\fHÆ\u0003J\t\u0010C\u001a\u00020\u000eHÆ\u0003J\t\u0010D\u001a\u00020\u0004HÆ\u0003J\t\u0010E\u001a\u00020\u000eHÆ\u0003J\u008f\u0001\u0010F\u001a\u00020\u00002\b\b\u0002\u0010\u0003\u001a\u00020\u00042\b\b\u0002\u0010\u0005\u001a\u00020\u00062\b\b\u0002\u0010\u0007\u001a\u00020\u00062\n\b\u0003\u0010\b\u001a\u0004\u0018\u00010\t2\n\b\u0003\u0010\n\u001a\u0004\u0018\u00010\t2\b\b\u0003\u0010\u000b\u001a\u00020\f2\b\b\u0002\u0010\r\u001a\u00020\u000e2\b\b\u0002\u0010\u000f\u001a\u00020\u00042\b\b\u0003\u0010\u0010\u001a\u00020\u000e2\b\b\u0003\u0010\u0011\u001a\u00020\u000e2\b\b\u0002\u0010\u0012\u001a\u00020\f2\b\b\u0003\u0010\u0013\u001a\u00020\u000e2\b\b\u0002\u0010\u0014\u001a\u00020\u000eHÆ\u0001J\t\u0010G\u001a\u00020\fHÖ\u0001J\u0013\u0010H\u001a\u00020\u000e2\b\u00108\u001a\u0004\u0018\u00010IHÖ\u0003J\t\u0010J\u001a\u00020\fHÖ\u0001J\t\u0010K\u001a\u00020\tHÖ\u0001J\u0019\u0010L\u001a\u00020M2\u0006\u0010N\u001a\u00020O2\u0006\u0010P\u001a\u00020\fHÖ\u0001R\u001a\u0010\u000f\u001a\u00020\u0004X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0016\u0010\u0017\"\u0004\b\u0018\u0010\u0019R\u001a\u0010\u0003\u001a\u00020\u0004X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u001a\u0010\u0017\"\u0004\b\u001b\u0010\u0019R\u001a\u0010\u0010\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0010\u0010\u001c\"\u0004\b\u001d\u0010\u001eR\u001a\u0010\u0011\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0011\u0010\u001c\"\u0004\b\u001f\u0010\u001eR\u001a\u0010\u0013\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0013\u0010\u001c\"\u0004\b \u0010\u001eR\u001a\u0010\u0005\u001a\u00020\u0006X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b!\u0010\"\"\u0004\b#\u0010$R\u001a\u0010\u0007\u001a\u00020\u0006X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b%\u0010\"\"\u0004\b&\u0010$R\u001a\u0010\u0014\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b'\u0010\u001c\"\u0004\b(\u0010\u001eR\u001a\u0010\r\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b)\u0010\u001c\"\u0004\b*\u0010\u001eR\u001c\u0010\b\u001a\u0004\u0018\u00010\tX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b+\u0010,\"\u0004\b-\u0010.R\u001c\u0010\n\u001a\u0004\u0018\u00010\tX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b/\u0010,\"\u0004\b0\u0010.R\u001a\u0010\u0012\u001a\u00020\fX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b1\u00102\"\u0004\b3\u00104R\u001a\u0010\u000b\u001a\u00020\fX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b5\u00102\"\u0004\b6\u00104¨\u0006Q"}, d2 = {"Lcom/huachenjie/common/bean/TargetPoints;", "Landroid/os/Parcelable;", "", "code", "", "lat", "", "lng", "pointName", "", "simpleName", "type", "", "passStatus", "", "clockTime", "isClosingStatus", "isInFence", "sort", "isSensitiveFenceAdded", "nfcEnable", "(JDDLjava/lang/String;Ljava/lang/String;IZJZZIZZ)V", "getClockTime", "()J", "setClockTime", "(J)V", "getCode", "setCode", "()Z", "setClosingStatus", "(Z)V", "setInFence", "setSensitiveFenceAdded", "getLat", "()D", "setLat", "(D)V", "getLng", "setLng", "getNfcEnable", "setNfcEnable", "getPassStatus", "setPassStatus", "getPointName", "()Ljava/lang/String;", "setPointName", "(Ljava/lang/String;)V", "getSimpleName", "setSimpleName", "getSort", "()I", "setSort", "(I)V", "getType", "setType", "compareTo", "other", "component1", "component10", "component11", "component12", "component13", "component2", "component3", "component4", "component5", "component6", "component7", "component8", "component9", OperatePopupWindow.g, "describeContents", "equals", "", "hashCode", "toString", "writeToParcel", "", "parcel", "Landroid/os/Parcel;", "flags", "common_release"}, k = 1, mv = {1, 8, 0}, xi = 48)
+133:    public final boolean getPassStatus() {
+188:    public final boolean getPassStatus() {
+=== 打卡判定处 ===
+381:            if (!targetPoints2.getPassStatus() && targetPoints2.isInFence()) {
+383:                    targetPoints2.setPassStatus(true);
+390:                    targetPoints2.setPassStatus(true);
+530:        if (targetPoints == null || targetPoints.getPassStatus() || targetPoints.isClosingStatus() == isClosing) {
+986:                if (targetPoints2.getPassStatus() && targetPoints2.getType() == 1) {
+1008:                if (it.next().getPassStatus()) {
+1028:                if (targetPoints2.getPassStatus() && targetPoints2.getType() == 2) {
+
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '360,400p' work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java", "description": "读打卡判定半径"}
+
+[tool • bash]
+                    }
+                });
+            }
+            this.f12586a.getRunData().setLastSegmentStepIndex(lastSegmentStepIndex + 1);
+            this.f12586a.getRunData().setLastSegmentStrideDistance(S0());
+            this.f12586a.getRunData().setLastSegmentStep(L0());
+            this.f12586a.getRunData().setLastSegmentStepTime(System.currentTimeMillis());
+        }
+    }
+
+    public boolean E1() {
+        return this.f12597c;
+    }
+
+    public final boolean F0() {
+        List<TargetPoints> targetPoints = getTargetPoints();
+        if (targetPoints == null) {
+            return false;
+        }
+        for (int i2 = 0; i2 < targetPoints.size(); i2++) {
+            TargetPoints targetPoints2 = targetPoints.get(i2);
+            if (!targetPoints2.getPassStatus() && targetPoints2.isInFence()) {
+                if (!I1()) {
+                    targetPoints2.setPassStatus(true);
+                    targetPoints2.setClockTime(System.currentTimeMillis());
+                    return true;
+                }
+                if (this.f12586a.getNextPointIndex() == i2) {
+                    this.f12586a.setLastPointIndex(i2);
+                    this.f12586a.setNextPointIndex(i2 + 1);
+                    targetPoints2.setPassStatus(true);
+                    targetPoints2.setClockTime(System.currentTimeMillis());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean F1() {
+        return this.f12599e;
+
+
+[assistant]
+So the checkpoint hit determination: `targetPoints2.isInFence()` — the flag is set elsewhere based on distance. Let me search for setInFence.
+
+Actually I've gathered plenty. Let me focus: the task is to confirm consistency and fix real deviations. Key deviation A: run_time unit (ms vs seconds). Let me check `isInFence` radius quickly and then act.
+
+Time is limited. Let me check setInFence to see radius.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && grep -rn \"setInFence\" --include=*.java work/jadx_FULL/sources/com/ | head -10", "description": "查 setInFence 判定半径"}
+
+[tool • bash]
+work/jadx_FULL/sources/com/huachenjie/common/bean/TargetPoints.java:18:@Metadata(d1 = {"\u0000H\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0010\u000f\n\u0000\n\u0002\u0010\t\n\u0000\n\u0002\u0010\u0006\n\u0002\b\u0002\n\u0002\u0010\u000e\n\u0002\b\u0002\n\u0002\u0010\b\n\u0000\n\u0002\u0010\u000b\n\u0002\b:\n\u0002\u0010\u0000\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\b\u0087\b\u0018\u00002\u00020\u00012\b\u0012\u0004\u0012\u00020\u00000\u0002B\u008b\u0001\u0012\b\b\u0002\u0010\u0003\u001a\u00020\u0004\u0012\b\b\u0002\u0010\u0005\u001a\u00020\u0006\u0012\b\b\u0002\u0010\u0007\u001a\u00020\u0006\u0012\n\b\u0003\u0010\b\u001a\u0004\u0018\u00010\t\u0012\n\b\u0003\u0010\n\u001a\u0004\u0018\u00010\t\u0012\b\b\u0003\u0010\u000b\u001a\u00020\f\u0012\b\b\u0002\u0010\r\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u000f\u001a\u00020\u0004\u0012\b\b\u0003\u0010\u0010\u001a\u00020\u000e\u0012\b\b\u0003\u0010\u0011\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u0012\u001a\u00020\f\u0012\b\b\u0003\u0010\u0013\u001a\u00020\u000e\u0012\b\b\u0002\u0010\u0014\u001a\u00020\u000e¢\u0006\u0002\u0010\u0015J\u0011\u00107\u001a\u00020\f2\u0006\u00108\u001a\u00020\u0000H\u0096\u0002J\t\u00109\u001a\u00020\u0004HÆ\u0003J\t\u0010:\u001a\u00020\u000eHÆ\u0003J\t\u0010;\u001a\u00020\fHÆ\u0003J\t\u0010<\u001a\u00020\u000eHÆ\u0003J\t\u0010=\u001a\u00020\u000eHÆ\u0003J\t\u0010>\u001a\u00020\u0006HÆ\u0003J\t\u0010?\u001a\u00020\u0006HÆ\u0003J\u000b\u0010@\u001a\u0004\u0018\u00010\tHÆ\u0003J\u000b\u0010A\u001a\u0004\u0018\u00010\tHÆ\u0003J\t\u0010B\u001a\u00020\fHÆ\u0003J\t\u0010C\u001a\u00020\u000eHÆ\u0003J\t\u0010D\u001a\u00020\u0004HÆ\u0003J\t\u0010E\u001a\u00020\u000eHÆ\u0003J\u008f\u0001\u0010F\u001a\u00020\u00002\b\b\u0002\u0010\u0003\u001a\u00020\u00042\b\b\u0002\u0010\u0005\u001a\u00020\u00062\b\b\u0002\u0010\u0007\u001a\u00020\u00062\n\b\u0003\u0010\b\u001a\u0004\u0018\u00010\t2\n\b\u0003\u0010\n\u001a\u0004\u0018\u00010\t2\b\b\u0003\u0010\u000b\u001a\u00020\f2\b\b\u0002\u0010\r\u001a\u00020\u000e2\b\b\u0002\u0010\u000f\u001a\u00020\u00042\b\b\u0003\u0010\u0010\u001a\u00020\u000e2\b\b\u0003\u0010\u0011\u001a\u00020\u000e2\b\b\u0002\u0010\u0012\u001a\u00020\f2\b\b\u0003\u0010\u0013\u001a\u00020\u000e2\b\b\u0002\u0010\u0014\u001a\u00020\u000eHÆ\u0001J\t\u0010G\u001a\u00020\fHÖ\u0001J\u0013\u0010H\u001a\u00020\u000e2\b\u00108\u001a\u0004\u0018\u00010IHÖ\u0003J\t\u0010J\u001a\u00020\fHÖ\u0001J\t\u0010K\u001a\u00020\tHÖ\u0001J\u0019\u0010L\u001a\u00020M2\u0006\u0010N\u001a\u00020O2\u0006\u0010P\u001a\u00020\fHÖ\u0001R\u001a\u0010\u000f\u001a\u00020\u0004X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0016\u0010\u0017\"\u0004\b\u0018\u0010\u0019R\u001a\u0010\u0003\u001a\u00020\u0004X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u001a\u0010\u0017\"\u0004\b\u001b\u0010\u0019R\u001a\u0010\u0010\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0010\u0010\u001c\"\u0004\b\u001d\u0010\u001eR\u001a\u0010\u0011\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0011\u0010\u001c\"\u0004\b\u001f\u0010\u001eR\u001a\u0010\u0013\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b\u0013\u0010\u001c\"\u0004\b \u0010\u001eR\u001a\u0010\u0005\u001a\u00020\u0006X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b!\u0010\"\"\u0004\b#\u0010$R\u001a\u0010\u0007\u001a\u00020\u0006X\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b%\u0010\"\"\u0004\b&\u0010$R\u001a\u0010\u0014\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b'\u0010\u001c\"\u0004\b(\u0010\u001eR\u001a\u0010\r\u001a\u00020\u000eX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b)\u0010\u001c\"\u0004\b*\u0010\u001eR\u001c\u0010\b\u001a\u0004\u0018\u00010\tX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b+\u0010,\"\u0004\b-\u0010.R\u001c\u0010\n\u001a\u0004\u0018\u00010\tX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b/\u0010,\"\u0004\b0\u0010.R\u001a\u0010\u0012\u001a\u00020\fX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b1\u00102\"\u0004\b3\u00104R\u001a\u0010\u000b\u001a\u00020\fX\u0086\u000e¢\u0006\u000e\n\u0000\u001a\u0004\b5\u00102\"\u0004\b6\u00104¨\u0006Q"}, d2 = {"Lcom/huachenjie/common/bean/TargetPoints;", "Landroid/os/Parcelable;", "", "code", "", "lat", "", "lng", "pointName", "", "simpleName", "type", "", "passStatus", "", "clockTime", "isClosingStatus", "isInFence", "sort", "isSensitiveFenceAdded", "nfcEnable", "(JDDLjava/lang/String;Ljava/lang/String;IZJZZIZZ)V", "getClockTime", "()J", "setClockTime", "(J)V", "getCode", "setCode", "()Z", "setClosingStatus", "(Z)V", "setInFence", "setSensitiveFenceAdded", "getLat", "()D", "setLat", "(D)V", "getLng", "setLng", "getNfcEnable", "setNfcEnable", "getPassStatus", "setPassStatus", "getPointName", "()Ljava/lang/String;", "setPointName", "(Ljava/lang/String;)V", "getSimpleName", "setSimpleName", "getSort", "()I", "setSort", "(I)V", "getType", "setType", "compareTo", "other", "component1", "component10", "component11", "component12", "component13", "component2", "component3", "component4", "component5", "component6", "component7", "component8", "component9", OperatePopupWindow.g, "describeContents", "equals", "", "hashCode", "toString", "writeToParcel", "", "parcel", "Landroid/os/Parcel;", "flags", "common_release"}, k = 1, mv = {1, 8, 0}, xi = 48)
+work/jadx_FULL/sources/com/huachenjie/common/bean/TargetPoints.java:289:    public final void setInFence(boolean z) {
+work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java:1402:                targetPoints2.setInFence(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(targetPoints2.getLat(), targetPoints2.getLng()), new HCJLatLng(this.f12592a.getLat(), this.f12592a.getLng())) <= ((float) C().getValidDistance()));
+
+
+[assistant]
+Important! `setInFence` uses `getValidDistance()` = 25 (default) — so checkpoint hit radius = validDistance (25 m in CommonConfig default `validDistance = 25L`). Wait, lab uses CHECKPOINT_HIT_RADIUS_M=25. Consistent!
+
+Let me read around 1380-1420.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '1385,1420p' work/jadx_FULL/sources/com/huachenjie/run/service/DataComponent.java", "description": "读打卡判定完整上下文"}
+
+[tool • bash]
+            y1(true);
+            Observable.create(new ObservableOnSubscribe() { // from class: com.zj.adlib.r62
+                public final void subscribe(ObservableEmitter observableEmitter) throws Exception {
+                    this.f44381a.T1(observableEmitter);
+                }
+            }).subscribeOn(Schedulers.io()).subscribe();
+        }
+        return true;
+    }
+
+    public void x2(RunStateChangeListener.State state) {
+        try {
+            List<TargetPoints> targetPoints = getTargetPoints();
+            if (targetPoints == null) {
+                return;
+            }
+            for (TargetPoints targetPoints2 : targetPoints) {
+                targetPoints2.setInFence(HCJMapEntry.getInstance().createMapUtils().calculateLineDistance(new HCJLatLng(targetPoints2.getLat(), targetPoints2.getLng()), new HCJLatLng(this.f12592a.getLat(), this.f12592a.getLng())) <= ((float) C().getValidDistance()));
+            }
+            z0(state);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void y0() {
+        SunshineRunServiceData sunshineRunServiceData = this.f12586a;
+        if (sunshineRunServiceData != null) {
+            sunshineRunServiceData.setPauseCount(sunshineRunServiceData.getPauseCount() + 1);
+        }
+    }
+
+    public final void y1(boolean isRecovery) {
+        in6 in6Var = this.f12590a;
+        PauseTimerType pauseTimerType = PauseTimerType.REST;
+        IPauseTimeChangeListener iPauseTimeChangeListenerB = in6Var.b(pauseTimerType);
+
+
+[assistant]
+打卡判定：`calculateLineDistance(target, current) <= C().getValidDistance()`，`validDistance` 默认 **25**。lab 的 `CHECKPOINT_HIT_RADIUS_M=25` 一致 ✓。
+
+现在我已经收集足够证据。让我整理偏差清单，然后写一份核对报告 + 修掉真偏差。
+
+真偏差（需要修）：
+1. **`run_time` 单位**：原版 `runTime = (int) Q0()` = 整数秒；lab = 毫秒。→ 改成 `int(self.elapsed_sec)`。涉及 `walker.py:429`、`protocol.py:688,781`。
+2. **`subDistance -= outFenceDisM`**：原版 W1 里，当 `outFenceDisM >= 0`（刚回围栏那一刻 `v2()` 返回进出围栏总距离）要扣减。lab 未实现。
+3. **`offFenceDisM` 语义**：原版默认 `0`，只有刚出/回围栏时才非 0（承载「离开围栏的总距离」）。lab 每点都填 `distance_to_polygon_edge`（围栏内为 0，围栏外才 >0，但围栏外点不入库，所以恒为 0）。这个实际上等价（恒 0）。但如果 lab 用「到边界距离」而原版是「离开围栏总距离」，语义不同——不过因为围栏外点不入库，两边实际都是 0。可保留但注释要改。
+4. **`pauseCount`/`pauseTimes` 硬编码 0** —— 无暂停功能，自洽。
+5. **轨迹增量上传**：原版 `m0()` 每 `poiInterval`(默认15s) 上传一批；lab 只在结束跑步后一次性上传。这是链路简化。
+6. **`create_time`**：原版 `System.currentTimeMillis()`；lab 默认 0 且不赋值 → 上传 `createTime: 0`。这是偏差！原版每点创建时刻。
+
+让我确认 lab 是否给 create_time 赋值。grep 显示 `create_time: int = 0` 且 walker 构造时没传 → 恒 0，而原版 `RunLatLng` 构造器里 `this.createTime = System.currentTimeMillis()`。这是真偏差（服务端可能校验 createTime 合理性）。
+
+7. **`accuracy`/`satellites` 是否上传**：原版 `accuracy` 和 `satellites` 都有 getter 但字段声明里没有 `@JSONField` 注解…… 需要看 `accuracy` 字段声明。上面看到 `@JSONField(serialize = false) private float speed;`，`private int satellites;`（无注解 → 默认按字段名序列化 `satellites`）。accuracy 呢？让我确认。
+
+实际上从 `sed -n '30,60p'` 输出：
+```
+    public double lat;
+    public double lng;
+
+    @JSONField(name = "offFenceDisM")
+    public long offFenceDisM;
+
+    @JSONField(serialize = false)
+    private String runCode;
+
+    @JSONField(name = "runTime")
+    private int runTimestamp;
+    private int satellites;
+
+    @JSONField(serialize = false)
+    private float speed;
+
+    @JSONField(name = "state")
+    public int state;
+
+    @JSONField(name = "collectTime")
+    private long timestamp;
+```
+没看到 accuracy 和 createTime / id 的注解（在更前面）。让我确认 accuracy 是否有 serialize=false。
+
+时间预算考虑：已经查了很多。关键是给出结论 + 修真偏差。让我快速确认 accuracy/createTime 注解，然后动手。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong && sed -n '1,32p' work/jadx_FULL/sources/com/huachenjie/common/bean/RunLatLng.java", "description": "读 RunLatLng 头部字段注解"}
+
+[tool • bash]
+package com.huachenjie.common.bean;
+
+import androidx.camera.video.AudioStats;
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+import com.alibaba.fastjson.annotation.JSONField;
+import huachenjie.sdk.map.lib_base.HCJAddressInfo;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_03_8012cls.dex */
+@Entity(tableName = "run_lat_lng")
+public class RunLatLng {
+    public static final int STATE_FAIL = 4;
+    public static final int STATE_INIT = 1;
+    public static final int STATE_SUCC = 8;
+    public static final int STATE_UPLOADING = 2;
+    private float accuracy;
+    private long createTime;
+
+    @PrimaryKey(autoGenerate = true)
+    @JSONField(name = "index")
+    private long id;
+
+    @ColumnInfo(name = "is_uploaded")
+    @JSONField(serialize = false)
+    private boolean isUploaded;
+
+    @JSONField(serialize = false)
+    private boolean isValid;
+    public double lat;
+    public double lng;
+
+
+
+[assistant]
+Now I have enough. Key facts about `runTime` unit:
+
+- `RunLatLng` constructor `RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, long timestamp)` → `this.runTimestamp = runTime;`
+- Called in `W1()`: `new RunLatLng(E(), (int) Q0(), currentAddressInfo, outFenceDisM, currentAddressInfo.getTime())`
+- `Q0() = (getCurrentTime() + getSaveCurrentTime()) / 1000` — `getCurrentTime()` is ms (TimeComponent `f33890a += K` where K=1000 → ms). So `/1000` → **seconds**.
+- So `runTimestamp` = **integer seconds**.
+
+run-lab: `run_time=int(self.elapsed_sec * 1000)` = milliseconds. **Deviation 1000×.**
+
+So this is a real deviation to fix.
+
+Also `DataComponent.x2()`: checkpoint inFence check uses `<= C().getValidDistance()` = **25 meters** (CommonConfig `validDistance = 25L`). run-lab uses `CHECKPOINT_HIT_RADIUS_M=25`. ✓ Consistent!
+
+Let me now check the remaining deviations list and decide what to fix. Let me get the accumulated deviation list from b28 file (already decompressed to /home/ylxc/.run/b28.txt). I read key parts. Let me read the final section of b28 for the consolidated list.
+
+Actually let me grep for "结论" or "清单" in b28.txt.
+
+But also, before editing, I should be careful: the user's request was "再确认一下其他跑步相关的功能是否与原版一致" — i.e., verify. Deliverable = a verification report + fix real deviations + tests + commit.
+
+Given time constraints (this session is very long), I should:
+1. Fix `run_time` unit → seconds (walker.py:429, protocol.py docstring, protocol.py:688/781 simulator, protocol.py:204 comment). And create_time — lab's to_upload_dict sends createTime which原版 sends too (System.currentTimeMillis()). Does lab set create_time? Let me check: walker creates RunLatLng without create_time → 0. 原版 sets `createTime = System.currentTimeMillis()`. So lab sends createTime: 0 — deviation! Need to set it.
+
+2. `collectTime`: 原版 = addressInfo.getTime() = 定位回调时间戳（ms epoch）。lab = start_ms + elapsed*1000 ≈ same semantics. Acceptable, keep.
+
+3. `offFenceDisM` 扣减 in W1 — narrow edge case (only when returning into fence). Could implement.
+
+4. `pauseCount/pauseTimes` hardcoded 0 — acceptable since no pause feature, but should note.
+
+5. Trajectory upload throttling (原版每 15 秒上传一批 `m0`/`POI_INTERVAL_S`) — lab only uploads at end. This is a real chain difference. Should implement periodic upload? That's bigger. Maybe implement: during real walk, every 15 s upload pending points. Hmm, that requires engine/client access from walk loop. Actually `walk.py` has `self.store` but not client. Could add optional callback in App: on each status poll, if real and pending>0 and 15s elapsed → upload points in background. That's a real feature addition.
+
+Given the enormous session length and that the user asked for "确认一致性", maybe the deliverable should be:
+- A verification doc `report/18-跑步链路一致性核对.md` (or docs/) listing each item: 一致 / 已修偏差 / 保留差异及理由.
+- Fix the cheap real deviations: `run_time` 秒, `create_time`, `offFenceDisM` 扣减 (围栏回入扣减), 结算 pauseCount/pauseTimes.
+- Add tests.
+
+Let me check what the current `create_time` does and whether lab sets it anywhere.
+
+Let me do a focused check then make edits.
+
+Time check: this is an extremely long session (turn 12, step ~200). I should converge to finish: make the code fixes, run tests, write doc, commit, and answer user with a concise conclusion table.
+
+Let me check create_time and pauseCount in lab.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -rn \"create_time\\|createTime\" --include=*.py sdlab/ | head -20; echo \"=== pause ===\"; grep -rn \"pauseCount\\|pauseTimes\" --include=*.py sdlab/ | head", "description": "查 create_time 与 pause 字段"}
+
+[tool • bash]
+sdlab/store.py:71:    create_time  INTEGER DEFAULT 0,
+sdlab/store.py:305:                                      is_valid,is_uploaded,create_time)
+sdlab/store.py:634:    """轻量迁移：为旧库补上 points 的 is_valid / is_uploaded / create_time 列"""
+sdlab/store.py:643:                      ("create_time", "INTEGER DEFAULT 0")):
+sdlab/protocol.py:208:    create_time: int = 0              # 建表时 System.currentTimeMillis()（会上传）
+sdlab/protocol.py:228:            "createTime": self.create_time,
+sdlab/protocol.py:245:            create_time=int(d.get("createTime", 0)),
+=== pause ===
+sdlab/client.py:579:            "pauseCount": 0,
+sdlab/client.py:580:            "pauseTimes": 0,
+
+
+[assistant]
+Interesting: `create_time` is never set in walker — defaults to 0! Original sets `System.currentTimeMillis()`. And `to_upload_dict` includes `createTime`. So run-lab uploads `createTime: 0` — that's a real deviation.
+
+Also `createTime` in original: `@JSONField(name = "createTime")`? Let me check — actually looking at the fields, `private long createTime;` has no `@JSONField` annotation but there is `getCreateTime()` presumably. Fastjson serializes getters too. Let me confirm the annotation near line 70-80.
+
+Also `accuracy` — `private float accuracy;` no annotation at line 16... but there's a getter. OK.
+
+Let me now compile the full deviation list. Key findings:
+
+1. **`run_time` unit**: original `(int) Q0()` = **seconds**; lab = milliseconds. **1000× deviation.**
+2. **`create_time`**: original = `System.currentTimeMillis()` at construction; lab = 0 (never set). **Real deviation** (uploaded field).
+3. **`collect_time`**: original = `addressInfo.getTime()` (GPS fix time); lab = start_ms + elapsed*1000. Acceptable simulation substitute but should be documented.
+4. **`offFenceDisM` reduction**: original `subDistance -= outFenceDisM` when re-entering fence; lab always 0 in practice (points outside fence are dropped). Minor.
+5. **Incremental point upload every 15s (`POI_INTERVAL_S`)**: original uploads every 15 s during the run (`ApiDataComponent.m0`); lab only uploads at 结束跑步. **Real behavior deviation** (lab has the constant but never uses it).
+6. **Points upload gate `size <= 3` 不发**: lab's `upload_points` — need to check whether it has that gate.
+7. **`satellites`**: original `@JSONField` ? satellites is not annotated with serialize=false, so it's uploaded... but wait, original `RunLatLng` fields `accuracy`, `satellites` — accuracy has no annotation, satellites no annotation. Fastjson defaults to serialize non-static fields... Actually only fields WITHOUT `serialize=false` are serialized. So both are uploaded. lab uploads them too. OK.
+8. **`speed`, `isValid`, `isUploaded`, `runCode`** are serialize=false — lab's `to_upload_dict` doesn't include speed/isValid. ✓ good.
+9. **`validDistance` = 25 as checkpoint hit radius**: original `x2()` uses `C().getValidDistance()` = **25 m**; lab `CHECKPOINT_HIT_RADIUS_M = 25`. ✓ consistent.
+10. **`pauseCount/pauseTimes` hardcoded 0**: no pause feature in lab.
+11. **`strideStatisticsInterval` default 100** vs lab constant — need check.
+
+Let me verify a few: upload_points size gate, STRIDE constant, createTime annotation.
+
+Let me also check `d0` (step upload) and `l0` (pace upload) throttles in lab.
+
+Let me be efficient — a few targeted greps.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && sed -n '380,420p' sdlab/client.py; echo \"=== 常量 ===\"; grep -n \"STRIDE_STATISTICS\\|VALID_DISTANCE\\|SENSITIVE_DISTANCE\\|RUN_FILTER_ACCURACY\\|GPS_FILTER\\|MAX_SPEED\\|SAMPLE_INTERVAL\" sdlab/constants.py sdlab/walker.py | head -20", "description": "查 upload_points 门控与常量"}
+
+[tool • bash]
+        return self.store.add_steps(run_code, steps)
+
+    def record_paces(self, run_code: str, paces: Sequence[IntervalPace]) -> int:
+        return self.store.add_paces(run_code, paces)
+
+    # ══════════════════ 数据上传（断点续传） ══════════════════
+    def upload_points(self, run_code: str, batch: int = DEFAULT_UPLOAD_BATCH,
+                      only_pending: bool = True) -> Dict[str, Any]:
+        """上传轨迹（唯一带 sign 的接口），按 indexList 标记状态
+
+        照抄 ApiDataComponent.c0() 的三道门（已对反编译逐行核实）：
+          · 只取 state ∈ {1 INIT, 4 FAIL} 且 isValid=1 的点（被 H0 拒过的点不上传）
+          · 总数 <= 3 时整批不发（原版 listB.size() <= 3 → onCompleted）
+          · **整表一次 POST**（原版 onNext(listB) 把全部点一把给订阅者），
+            batch=200 只用于**状态回写**的分片（原版 subList(i, i+200)）
+        发送前把全部 id 置 UPLOADING，成功置 SUCC、
+        失败置 FAIL —— 与原版 class a 的 Subscriber 回调一致。
+        """
+        states = [STATE_INIT, STATE_FAIL] if only_pending else None
+        pts = self.store.get_points(run_code, states, valid_only=True)
+        if not pts:
+            return {"code": CODE_OK, "message": "无待上传轨迹", "data": {"uploaded": 0}}
+        if only_pending and len(pts) <= POI_UPLOAD_MIN_POINTS - 1:
+            return {"code": CODE_OK,
+                    "message": f"待上传轨迹 {len(pts)} 点，不足 {POI_UPLOAD_MIN_POINTS} 点暂不发",
+                    "data": {"uploaded": 0, "pending": len(pts)}}
+        # 原版先把全部 id 置 UPLOADING（subList 每 200 一段），再整表一次 POST
+        all_ids = [p.lat_lng_index for p in pts]
+        for i in range(0, len(all_ids), batch):
+            self.store.set_point_states(run_code, all_ids[i:i + batch], STATE_UPLOADING)
+        res = self.transport.post("upload_record", self.transport.base_payload({
+            "pois": protocol.build_upload_pois(pts),
+            "runRecordCode": run_code,
+        }))
+        batches = math.ceil(len(pts) / max(1, batch))
+        if res.get("code") == CODE_OK:
+            data = res.get("data") or {}
+            idx_list = data.get("indexList")
+            if isinstance(idx_list, list) and idx_list:
+                # indexList 是本次请求内的下标（与客户端一致）
+                accepted = [pts[j].lat_lng_index for j in idx_list if j < len(pts)]
+=== 常量 ===
+sdlab/constants.py:99:INVALID_DISTANCE = 2     # 距离不足
+sdlab/constants.py:106:    INVALID_DISTANCE: "距离不足",
+sdlab/constants.py:118:RUN_FILTER_ACCURACY = 50.0    # 常规模式精度上限（米），超出即丢弃该点
+sdlab/constants.py:119:GPS_FILTER_ACCURACY = 150.0   # GPS 白名单模式精度上限（米）
+sdlab/constants.py:120:MAX_SPEED_MPS = 10.438        # 点间等效速度上限（≈37.6 km/h），超出判为瞬移丢弃
+sdlab/constants.py:121:VALID_DISTANCE_M = 25.0       # 打卡点判定半径（米），DataComponent 用它可以算 20 点
+sdlab/constants.py:122:SENSITIVE_DISTANCE_M = 45.0   # 敏感点位半径（米）
+sdlab/constants.py:130:STRIDE_STATISTICS_M = 100     # 步幅统计间隔（米），DataComponent 每满这段就上报一次
+sdlab/constants.py:135:CHECKPOINT_HIT_RADIUS_M = VALID_DISTANCE_M
+sdlab/walker.py:37:    GPS_FILTER_ACCURACY,
+sdlab/walker.py:38:    MAX_SPEED_MPS,
+sdlab/walker.py:40:    RUN_FILTER_ACCURACY,
+sdlab/walker.py:43:    STRIDE_STATISTICS_M,
+sdlab/walker.py:58:SAMPLE_INTERVAL_S = 3.0
+sdlab/walker.py:111:                 sample_s: float = SAMPLE_INTERVAL_S,
+sdlab/walker.py:161:        self.stride_interval_m = STRIDE_STATISTICS_M  # strideStatisticsInterval（服务端实测 200）
+sdlab/walker.py:164:        self.run_filter_accuracy = RUN_FILTER_ACCURACY   # 服务端实测 30（APK 默认 50）
+sdlab/walker.py:165:        self.gps_filter_accuracy = GPS_FILTER_ACCURACY   # 服务端实测 150
+sdlab/walker.py:166:        self.max_speed_mps = MAX_SPEED_MPS               # 原版硬编码 10.438
+
+
+[assistant]
+Now I have a clear picture. Let me decide what to fix.
+
+Key deviations found:
+1. **`run_time`（runTime）单位**：原版 `(int) Q0()` = 整数秒；lab = 毫秒。→ 真偏差，修。
+2. **`create_time`（createTime）恒为 0**：原版构造里 `System.currentTimeMillis()`，会 `@JSONField(name="createTime")`? Let me check: `private long createTime;` — 有没有 JSONField 注解？从第 18 行看到 `private long createTime;` 在前面没有注解。等等，让我看 `to_upload_dict` 里 lab 发了 `createTime`。原版字段 `private long createTime;` 没有 @JSONField，默认 fastjson 会序列化（字段名 createTime）。有 getter `getCreateTime()`。所以会序列化。原版值是 `System.currentTimeMillis()`。lab 恒 0 → 偏差，应修。
+3. **`subDistance -= outFenceDisM`**：lab 无。窄边界。
+4. **`upload_points` 增量节流**：原版跑步中每 15 秒（poiInterval）上传一批；lab 只结束时一次上传。这是链路差异，但 lab 有 `upload_points` 已实现增量能力，只是没在 walk 中调用。加 `POI_INTERVAL_S` 节流上传。这个改动值得做（`POI_INTERVAL_S` 常量已存在但未使用）。
+
+先看 `accuracy`/`satellites` 是否上传。原版：`private float accuracy;` 无 @JSONField → 会序列化 `accuracy`。`private int satellites;` → `satellites`。所以 lab 发的一致。`speed` 是 `serialize=false` → 不上传。lab 的 `to_upload_dict` 没发 speed ✓。`isValid` serialize=false ✓ lab 不发 ✓。
+
+好，现在再看 `lat`/`lng`：原版 `public double lat; public double lng;` 无注解 → 序列化为 `lat`/`lng` ✓。
+
+`offFenceDisM` ✓，`state` ✓，`index` ✓，`runTime` ✓，`collectTime` ✓，`createTime` ✓，`accuracy` ✓，`satellites` ✓。
+
+所以 lab 的字段集合是对的，只是 `run_time` 单位错、`create_time` 恒 0。
+
+现在关于 `invalidReasons` / `validDistance` 等暂时不动。
+
+让我聚焦修 3 件事：
+- A. `run_time` 改为整数秒（原版 `(int) Q0()`）。
+- B. `create_time` 赋 `System.currentTimeMillis()`（原版构造时写入）。
+- C. 跑步中按 `poiInterval`（15 秒）增量上传轨迹（原版 `ApiDataComponent.m0()`），实跑模式下。
+
+C 需要谨慎：会增加网络请求。但这是"与原版一致"的目标。而且 lab 已有 `upload_points` 增量能力（`only_pending=True`，且 `states=[INIT, FAIL]`）。不过 `POI_UPLOAD_MIN_POINTS` 有最小点数限制——原版 `c0()` 是 `listB.size() <= 3` 不发。所以累积 4 个点（12 秒）才发。合理。
+
+但要小心：mock 服务器是否支持增量上传？`upload_record` 在 mock 里应该有实现。检查一下。
+
+另外，实现 C 需要 walk.py 里在 `_drain` 后按时间节流调用 `client.upload_points`。但 `walk.py` 是 WalkEngine，持有 store 和 client? 让我看 walk.py 的结构。
+
+考虑 token 和复杂度，我应该：
+1. 先修 A、B（低风险、确定性偏差）。
+2. 再看 C 是否可行。
+
+先看 walk.py 是否有 client。
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"class WalkEngine\" -A 45 sdlab/walk.py | head -60", "description": "读 WalkEngine 构造"}
+
+[tool • bash]
+(no output)
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"class .*:\\|def __init__\" sdlab/walk.py | head -20", "description": "看 walk.py 结构"}
+
+[tool • bash]
+34:class WalkSession:
+37:    def __init__(self, cfg: Optional[Dict[str, Any]] = None, bus=None,
+
+
+[assistant • read]
+{"limit": 75, "offset": 34, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walk.py"}
+
+[tool • read]
+jEt│class WalkSession:
+MXt│    """一次手动实走会话（干跑 / 实跑）"""
+NYu│
+vqN│    def __init__(self, cfg: Optional[Dict[str, Any]] = None, bus=None,
+aRl│                 store: Optional[RecordStore] = None, engine=None):
+OHp│        self.cfg = cfg or {}
+r1z│        self.bus = bus
+2Wo│        self.store = store
+6xp│        self.engine = engine
+7yq│
+wM4│        self.walker: Optional[Walker] = None
+3WB│        self.state: WalkState = WalkState()
+Idb│        self.mode = "dry"                    # dry | real
+6Lb│        self.run_code = ""
+yca│        self.sport_type = SPORT_TYPE_SUN
+mEs│        self.started_at = 0.0
+X4W│        self.stopped_at = 0.0
+lCR│        self.finished_result: Dict[str, Any] = {}
+rnU│        self.error = ""
+Hlv│        self.speed = 1.0                     # 时间倍速（1 = 真实速度）
+9BI│        self.tick_s = TICK_DEFAULT_S
+A9P│        self.pending = 0                     # 尚未落库的点数
+MUs│        self.hits_total = 0                  # 已命中打卡点数（内存口径，与库同步）
+cmk│        self.steps_total = 0                 # 已落库的步频段数
+uy4│        self.paces_total = 0                 # 已落库的配速段数
+9PP│        self.strides_total = 0               # 已落库的步幅段数
+La2│        self.started_ms = 0                  # 本次起跑的绝对起始时间（毫秒）
+Mb3│        self._step_segments: List[IntervalStep] = []     # 已从 Walker 取走的步频段
+Nc4│        self._pace_segments: List[IntervalPace] = []     # 已从 Walker 取走的配速段
+X1a│        self._stride_segments: List[StrideSegment] = []  # 已从 Walker 取走的步幅段
+54J│
+65K│        self._lock = threading.RLock()
+76L│        self._thread: Optional[threading.Thread] = None
+87M│        self._stop_flag = threading.Event()
+98N│        self._points: List[RunLatLng] = []   # 本次会话产生的全部轨迹点（内存镜像）
+A9O│        self._stored = 0                     # 已落库的点数（= _points 的前缀长度）
+CAP│        self._last_emit = 0.0                # 事件限频
+DBQ│        self._last_emit_m = 0.0
+C4N│
+Bud│    # ══════════════════ 配置读取 ══════════════════
+cPv│    def _wcfg(self, key: str, default: Any) -> Any:
+Cu8│        """会话级配置：优先 walk 段，其次 sim 段（倍速/采样间隔沿用同一套习惯）"""
+KIY│        walk_cfg = self.cfg.get("walk") or {}
+LJZ│        if key in walk_cfg:
+MKa│            return walk_cfg[key]
+Bit│        # 倍速单独处理：绝不能回退到 sim.speed（那里默认 8 倍），
+6vd│        # 否则手动实走会以 8 倍速吞掉时间，体感就是“跑得飞快”
+WQE│        if key == "speed":
+w1Q│            return default
+x2R│        sim_cfg = self.cfg.get("sim") or {}
+y3S│        return sim_cfg.get(key, default)
+AxG│
+11C│    # ══════════════════ 生命周期 ══════════════════
+wSA│    def start(self, mode: str = "dry", *, lat: float, lng: float,
+g2b│              target_m: float = 0.0, speed_mps: Optional[float] = None,
+1hd│              route: Optional[Sequence[Sequence[float]]] = None,
+VSf│              auto_route: bool = False,
+5pT│              targets: Optional[Sequence[Dict[str, Any]]] = None,
+hv7│              polygon: Optional[Sequence[Sequence[float]]] = None,
+Vw5│              run_code: str = "", start_ms: Optional[int] = None,
+CwJ│              speed: Optional[float] = None, sim=None) -> Dict[str, Any]:
+9V0│        """开始一次实走；`mode='real'` 时 run_code 必须已经开跑拿到"""
+aOB│        self.stop(emit=False)
+QRM│        self.mode = "real" if str(mode).lower() == "real" else "dry"
+4uu│        if self.mode == "real" and not run_code:
+cFm│            return {"code": -1, "message": "实跑模式需要先开跑拿到 runRecordCode"}
+dGn│
+KIX│        c_lo = float(self._wcfg("min_cadence", 172.0) or 172.0)
+LJY│        c_hi = float(self._wcfg("max_cadence", 182.0) or 182.0)
+MKZ│        sample_s = float(self._wcfg("sample_s", SAMPLE_INTERVAL_S) or SAMPLE_INTERVAL_S)
+oh9│        # 推满杆的速度默认取 walk.speed_mps（2.5 m/s ≈ 9 km/h，正常慢跑手感）；
+0nX│        # 以前直接接 Walker 的 2.78，配上误用的 8 倍速，体感就是“跑得飞快”
+zxD│        if not speed_mps:
+oZO│            speed_mps = float(self._wcfg("speed_mps", 0.0) or 0.0) or None
+E81│        # 分段口径来自原版 CommonConfig：stepInterval（秒）/ paceInterval（米）
+
+[Showing lines 34-108 of 570. Use offset=109 to continue.]
+
+[user]
+<acp tokens="63" type="text">m03179</acp>
+Time sampled while preparing turn 12, step 206: 2026-10-18T05:06:42+08:00[Asia/Shanghai]
+Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.
+Elapsed since the preceding step context: 10m 46s.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"def distance_to_polygon_edge\" -A 25 sdlab/*.py | head -35; echo \"=== walker 里的围栏字段 ===\"; sed -n '135,170p' sdlab/walker.py", "description": "读距边函数与围栏字段"}
+
+[tool • bash]
+sdlab/protocol.py:80:def distance_to_polygon_edge(lat: float, lng: float,
+sdlab/protocol.py-81-                             polygon: Sequence[Sequence[float]]) -> float:
+sdlab/protocol.py-82-    """点到围栏边界的最近距离（米）；在围栏内返回 0"""
+sdlab/protocol.py-83-    if not polygon:
+sdlab/protocol.py-84-        return 0.0
+sdlab/protocol.py-85-    if point_in_polygon(lat, lng, polygon):
+sdlab/protocol.py-86-        return 0.0
+sdlab/protocol.py-87-    best = float("inf")
+sdlab/protocol.py-88-    n = len(polygon)
+sdlab/protocol.py-89-    for i in range(n):
+sdlab/protocol.py-90-        a = polygon[i]
+sdlab/protocol.py-91-        b = polygon[(i + 1) % n]
+sdlab/protocol.py-92-        best = min(best, _point_seg_distance(lat, lng, float(a[0]), float(a[1]),
+sdlab/protocol.py-93-                                             float(b[0]), float(b[1])))
+sdlab/protocol.py-94-    return best
+sdlab/protocol.py-95-
+sdlab/protocol.py-96-
+sdlab/protocol.py-97-def _point_seg_distance(lat: float, lng: float, alat: float, alng: float,
+sdlab/protocol.py-98-                        blat: float, blng: float) -> float:
+sdlab/protocol.py-99-    """点到线段距离：先投影到局部平面，再算垂足"""
+sdlab/protocol.py-100-    m_per_deg_lng = EARTH_M_PER_DEG_LAT * math.cos(math.radians(lat))
+sdlab/protocol.py-101-    ax, ay = (alng - lng) * m_per_deg_lng, (alat - lat) * EARTH_M_PER_DEG_LAT
+sdlab/protocol.py-102-    bx, by = (blng - lng) * m_per_deg_lng, (blat - lat) * EARTH_M_PER_DEG_LAT
+sdlab/protocol.py-103-    dx, dy = bx - ax, by - ay
+sdlab/protocol.py-104-    seg2 = dx * dx + dy * dy
+sdlab/protocol.py-105-    if seg2 <= 1e-9:
+=== walker 里的围栏字段 ===
+
+        # 手动路径
+        self.route: List[Tuple[float, float]] = []
+        self.auto_route = False
+        self.route_index = 0
+
+        # 打卡桩
+        self.targets: List[Dict[str, Any]] = []
+        # 围栏多边形（算 offFenceDisM 用）
+        self.polygon: List[List[float]] = []
+
+        # 采样与产出
+        self.samples: List[Tuple[float, float]] = []      # (距离, 运动秒)
+        self._pending: List[RunLatLng] = []              # 待调用方取走的轨迹点
+        self._hits: List[Dict[str, Any]] = []            # 本轮新命中的打卡点（调用方落库 + 界面提示）
+        self._pending_meta: List[Dict[str, Any]] = []    # 每个采样点的分段元数据（步频/配速）
+        self._last_sample_dist = 0.0
+        self._last_sample_at_prev_sec = 0.0
+        self._last_sample_steps = 0
+        self._poi_index = 0
+        self._last_sample_at = 0.0
+        self._sensor: Dict[str, Any] = {}
+        # ── 记录链路（照抄 CommonConfig / DataComponent / ApiDataComponent 的口径）──
+        self.run_code = ""
+        self.step_interval_s = STEP_INTERVAL_S    # CommonConfig.stepInterval（秒）
+        self.pace_interval_m = PACE_INTERVAL_M    # CommonConfig.paceInterval（米）
+        self.stride_interval_m = STRIDE_STATISTICS_M  # strideStatisticsInterval（服务端实测 200）
+        self.gps_white_flag = False               # D1()：GPS 白名单模式
+        # ── 阈值：默认取 APK 常量，运行时可由服务端 common/getConfig 覆盖 ──
+        self.run_filter_accuracy = RUN_FILTER_ACCURACY   # 服务端实测 30（APK 默认 50）
+        self.gps_filter_accuracy = GPS_FILTER_ACCURACY   # 服务端实测 150
+        self.max_speed_mps = MAX_SPEED_MPS               # 原版硬编码 10.438
+        self.dropped_outside = 0                  # 因不在围栏内被整点丢弃的点数
+        self._pace_seq = 0
+        self._reset_chain()
+
+
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && grep -n \"check_same_thread\\|threading.Lock\\|_lock\\|def _conn\\|def connect\" sdlab/store.py | head -20", "description": "查 store 线程安全"}
+
+[tool • bash]
+172:        self._lock = threading.Lock()
+177:    def _connect(self) -> Iterator[sqlite3.Connection]:
+194:        with self._lock, self._connect() as con:
+204:        with self._lock, self._connect() as con:
+210:        with self._lock, self._connect() as con:
+216:        with self._lock, self._connect() as con:
+250:        with self._lock, self._connect() as con:
+255:        with self._lock, self._connect() as con:
+261:        with self._lock, self._connect() as con:
+274:        with self._lock, self._connect() as con:
+279:        with self._lock, self._connect() as con:
+287:        with self._lock, self._connect() as con:
+301:        with self._lock, self._connect() as con:
+328:        with self._lock, self._connect() as con:
+335:        with self._lock, self._connect() as con:
+347:        with self._lock, self._connect() as con:
+351:        with self._lock, self._connect() as con:
+362:        with self._lock, self._connect() as con:
+377:        with self._lock, self._connect() as con:
+387:        with self._lock, self._connect() as con:

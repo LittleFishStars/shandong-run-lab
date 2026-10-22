@@ -1,0 +1,3 @@
+[error] ReferenceError: 'Java' is not defined
+ReferenceError: 'Java' is not defined
+    at <eval> (/script1.js:28)

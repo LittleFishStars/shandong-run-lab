@@ -1,0 +1,324 @@
+════ 扫描 adrp+add 引用（PIC 寻址）════
+  adrp 指令数: 364
+
+  userToken (0x14310, page 0x14000, off 0x310): 66 个 adrp 命中
+     adrp @00023404  函数=FUN_00023118
+        add x0,x0,#0x87e
+        bl 0x00020ea0
+        add x28,x8,#0x1
+        lsl x0,x28,#0x2
+     adrp @00025424  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @000254c4  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @00029fa4  函数=FUN_00029f94
+        add x0,x0,#0xf19
+        bl 0x0003e398
+        paciasp
+        stp x29,x30,[sp, #-0x10]!
+     adrp @00029ff4  函数=FUN_00029fe0
+        add x0,x0,#0x98e
+        bl 0x0003e398
+        bl 0x00046000
+        adrp x0,0x15000
+     adrp @0002a188  函数=FUN_0002a180
+        adrp x8,0x4c000
+        add x9,x9,#0xdf3
+        str x9,[x8, #0x160]
+        bl 0x00046020
+
+  signKey (0x14b94, page 0x14000, off 0xb94): 66 个 adrp 命中
+     adrp @00023404  函数=FUN_00023118
+        add x0,x0,#0x87e
+        bl 0x00020ea0
+        add x28,x8,#0x1
+        lsl x0,x28,#0x2
+     adrp @00025424  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @000254c4  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @00029fa4  函数=FUN_00029f94
+        add x0,x0,#0xf19
+        bl 0x0003e398
+        paciasp
+        stp x29,x30,[sp, #-0x10]!
+     adrp @00029ff4  函数=FUN_00029fe0
+        add x0,x0,#0x98e
+        bl 0x0003e398
+        bl 0x00046000
+        adrp x0,0x15000
+     adrp @0002a188  函数=FUN_0002a180
+        adrp x8,0x4c000
+        add x9,x9,#0xdf3
+        str x9,[x8, #0x160]
+        bl 0x00046020
+
+  satoken (0x14ba0, page 0x14000, off 0xba0): 66 个 adrp 命中
+     adrp @00023404  函数=FUN_00023118
+        add x0,x0,#0x87e
+        bl 0x00020ea0
+        add x28,x8,#0x1
+        lsl x0,x28,#0x2
+     adrp @00025424  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @000254c4  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @00029fa4  函数=FUN_00029f94
+        add x0,x0,#0xf19
+        bl 0x0003e398
+        paciasp
+        stp x29,x30,[sp, #-0x10]!
+     adrp @00029ff4  函数=FUN_00029fe0
+        add x0,x0,#0x98e
+        bl 0x0003e398
+        bl 0x00046000
+        adrp x0,0x15000
+     adrp @0002a188  函数=FUN_0002a180
+        adrp x8,0x4c000
+        add x9,x9,#0xdf3
+        str x9,[x8, #0x160]
+        bl 0x00046020
+
+  encKey (0x14f0e, page 0x14000, off 0xf0e): 66 个 adrp 命中
+     adrp @00023404  函数=FUN_00023118
+        add x0,x0,#0x87e
+        bl 0x00020ea0
+        add x28,x8,#0x1
+        lsl x0,x28,#0x2
+     adrp @00025424  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @000254c4  函数=FUN_00025154
+        add x1,x1,#0xd97
+        add x8,sp,#0x20
+        mov x0,sp
+        bl 0x00028bd8
+     adrp @00029fa4  函数=FUN_00029f94
+        add x0,x0,#0xf19
+        bl 0x0003e398
+        paciasp
+        stp x29,x30,[sp, #-0x10]!
+     adrp @00029ff4  函数=FUN_00029fe0
+        add x0,x0,#0x98e
+        bl 0x0003e398
+        bl 0x00046000
+        adrp x0,0x15000
+     adrp @0002a188  函数=FUN_0002a180
+        adrp x8,0x4c000
+        add x9,x9,#0xdf3
+        str x9,[x8, #0x160]
+        bl 0x00046020
+
+════ userToken 的引用者 00023118 (1148 字节) ════
+
+ulong * FUN_00023118(undefined8 param_1,undefined8 param_2,byte *param_3,byte *param_4,byte *param_5
+                    ,long param_6,long param_7,undefined8 param_8)
+
+{
+  int *piVar1;
+  long lVar2;
+  ulong *puVar3;
+  ulong *puVar4;
+  ulong *puVar5;
+  long lVar6;
+  ulong uVar7;
+  byte *pbVar8;
+  long extraout_x8;
+  byte *pbVar9;
+  long lVar10;
+  byte *pbVar11;
+  byte *pbVar12;
+  byte *pbVar13;
+  byte *pbVar14;
+  ulong uVar15;
+  undefined1 auVar16 [16];
+  
+  if ((*param_3 & 1) == 0) {
+    pbVar8 = (byte *)(ulong)(*param_3 >> 1);
+    if (param_4 <= pbVar8) {
+      param_3 = param_3 + 1;
+LAB_0002314c:
+      pbVar11 = pbVar8 + -(long)param_4;
+      if (param_5 <= pbVar8 + -(long)param_4) {
+        pbVar11 = param_5;
+      }
+      puVar3 = (ulong *)FUN_00045ef0(param_1,param_2,param_3 + (long)param_4,pbVar11);
+      return puVar3;
+    }
+  }
+  else {
+    pbVar8 = *(byte **)(param_3 + 8);
+    if (param_4 <= pbVar8) {
+      param_3 = *(byte **)(param_3 + 0x10);
+      goto LAB_0002314c;
+    }
+  }
+  auVar16 = FUN_000460e0();
+  pbVar8 = auVar16._8_8_;
+  puVar3 = auVar16._0_8_;
+  if (((byte)*puVar3 & 1) == 0) {
+    pbVar11 = (byte *)(ulong)(byte)((byte)*puVar3 >> 1);
+    pbVar9 = pbVar11 + -(long)pbVar8;
+    if (pbVar8 <= pbVar11) {
+      pbVar12 = pbVar9;
+      if (param_3 <= pbVar9) {
+        pbVar12 = param_3;
+      }
+      if (pbVar12 + (4 - (long)pbVar11) < param_5) {
+        lVar6 = 4;
+LAB_00023200:
+        FUN_00046140(puVar3,lVar6,(long)(pbVar11 + (long)param_5) - (long)(pbVar12 + lVar6),pbVar11,
+                     pbVar8,pbVar12,param_5,param_4);
+        return puVar3;
+      }
+      pbVar14 = (byte *)((long)puVar3 + 4);
+joined_r0x0002327c:
+      pbVar13 = param_5;
+      if ((pbVar12 != param_5) &&
+         (lVar6 = (long)pbVar9 - (long)pbVar12, pbVar13 = pbVar12, lVar6 != 0)) {
+        pbVar9 = pbVar14 + (long)pbVar8 * 4;
+        if (param_5 < pbVar12) {
+          if (param_5 != (byte *)0x0) {
+            FUN_00046150(pbVar9,param_4,param_5);
+          }
+          FUN_00046150(pbVar9 + (long)param_5 * 4,pbVar9 + (long)pbVar12 * 4,lVar6);
+          goto LAB_00023300;
+        }
+        if ((pbVar9 < param_4) && (param_4 < pbVar14 + (long)pbVar11 * 4)) {
+          if (param_4 < pbVar9 + (long)pbVar12 * 4) {
+            if (pbVar12 != (byte *)0x0) {
+              FUN_00046150(pbVar9,param_4,pbVar12);
+            }
+            pbVar8 = pbVar12 + (long)pbVar8;
+            param_4 = param_4 + (long)param_5 * 4;
+            param_5 = param_5 + -(long)pbVar12;
+            pbVar12 = (byte *)0x0;
+          }
+          else {
+            param_4 = param_4 + ((long)
+
+════ userToken 的引用者 00025154 (964 字节) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+ulong FUN_00025154(undefined8 param_1,undefined8 param_2,byte *param_3,ulong param_4,ulong param_5)
+
+{
+  int iVar1;
+  int iVar2;
+  byte bVar3;
+  byte bVar4;
+  ulong uVar5;
+  ulong uVar6;
+  undefined8 uVar7;
+  int *piVar8;
+  long *plVar9;
+  long lVar10;
+  ulong uVar11;
+  ulong *extraout_x8;
+  byte *pbVar12;
+  byte *pbVar13;
+  ulong uVar14;
+  undefined1 auVar15 [16];
+  byte local_e0 [16];
+  undefined8 local_d0;
+  long local_c8;
+  undefined1 auStack_c0 [24];
+  long local_a8;
+  undefined1 *local_a0;
+  undefined8 uStack_98;
+  undefined1 *local_60;
+  undefined8 uStack_58;
+  
+  if ((*param_3 & 1) == 0) {
+    uVar11 = (ulong)(*param_3 >> 1);
+    if (param_4 <= uVar11) {
+      param_3 = param_3 + 4;
+LAB_00025188:
+      uVar5 = uVar11 - param_4;
+      if (param_5 <= uVar11 - param_4) {
+        uVar5 = param_5;
+      }
+      uVar11 = FUN_000461d0(param_1,param_2,param_3 + param_4 * 4,uVar5);
+      return uVar11;
+    }
+  }
+  else {
+    uVar11 = *(ulong *)(param_3 + 8);
+    if (param_4 <= uVar11) {
+      param_3 = *(byte **)(param_3 + 0x10);
+      goto LAB_00025188;
+    }
+  }
+  auVar15 = FUN_000460e0();
+  pbVar13 = auVar15._8_8_;
+  uStack_58 = 0x251a8;
+  *extraout_x8 = 0;
+  extraout_x8[1] = 0;
+  extraout_x8[2] = 0;
+  local_60 = &stack0xfffffffffffffff0;
+  uVar5 = FUN_00045e90();
+  bVar3 = *pbVar13;
+  uVar11 = (ulong)(bVar3 >> 1);
+  if ((bVar3 & 1) != 0) {
+    uVar11 = *(ulong *)(pbVar13 + 8);
+  }
+  uVar6 = uVar11 + uVar5;
+  if (uVar6 < 0xfffffffffffffff0) {
+    if (uVar6 < 0x17) {
+      uVar14 = (long)extraout_x8 + 1;
+      *(char *)extraout_x8 = (char)((int)uVar5 << 1);
+      uVar6 = 0;
+    }
+    else {
+      uVar6 = uVar6 + 0x10 & 0xfffffffffffffff0;
+      uVar14 = FUN_00045ea0(uVar6);
+      extraout_x8[1] = uVar5;
+      extraout_x8[2] = uVar14;
+      *extraout_x8 = uVar6 | 1;
+      uVar6 = uVar14;
+    }
+    if (uVar5 != 0) {
+      uVar6 = FUN_00045eb0(uVar14,auVar15._0_8_,uVar5);
+      bVar3 = *pbVar13;
+    }
+    *(undefined1 *)(uVar14 + uVar5) = 0;
+    pbVar12 = *(byte **)(pbVar13 + 0x10);
+    bVar4 = (byte)*extraout_x8;
+    if ((bVar3 & 1) == 0) {
+      pbVar12 = pbVar13 + 1;
+    }
+    if ((bVar4 & 1) == 0) {
+      uVar5 = (ulong)(bVar4 >> 1);
+      lVar10 = 0x16;
+    }
+    else {
+      uVar5 = extraout_x8[1];
+      lVar10 = (*extraout_x8 & 0xfffffffffffffffe) - 1;
+    }
+    if (lVar10 - uVar5 < uVar11) {
+      uVar6 = FUN_000460c0(extraout_x8,lVar10,(uVar5 + uVar11) - lVar10,uVar5,uVar5,0,uVar11);
+    }
+    else if (uVar11 != 0) {
+      uVar14 = extraout_x8[2];
+      if ((bVa

@@ -1,0 +1,6 @@
+package com.alibaba.ariver.commonability.device.jsapi.clipboard;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_12_10194cls.dex */
+public interface a {
+    String a(String str);
+}

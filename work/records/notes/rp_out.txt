@@ -1,0 +1,19 @@
+[*] spawned pid=18466
+[js] [i] JNIEnv=0x7cd88e1ca0  table=0x7cd87d7390
+[js] [i] RegisterNatives=0x7cd8522860 (libart.so+0x360860)
+[js] [✓] RegisterNatives 钩子已装
+[*] script loaded
+[js] ════ RegisterNatives #1  com.netease.nis.wrapper.MyJni  n=11   caller=libnesec.so+0xa69bc
+[js]     load (Landroid/app/Application;Ljava/lang/String;)Z → libnesec.so+0xa5adc
+[js]     run (Landroid/content/Context;Landroid/app/Application;)Z → libnesec.so+0xa61ac
+[js]     d (Ljava/lang/String;)V → libnesec.so+0xa6a7c
+[js]     e (Ljava/lang/String;)V → libnesec.so+0xa6b10
+[js]     cp ()V → libnesec.so+0xa6b4c
+[js]     ip (Landroid/app/Application;)V → libnesec.so+0xa6b90
+[js]     ra (Landroid/content/Context;Landroid/app/Application;)Z → libnesec.so+0xa6e94
+[js]     getEnvInfo ()Ljava/lang/String; → libnesec.so+0x9f2bc
+[js]     cl (Ljava/lang/ClassLoader;Landroid/content/pm/ApplicationInfo;Ljava/lang/String;)Ljava/lang/ClassLoader; → libnesec.so+0xa7184
+[js]     rp (Landroid/content/Context;Landroid/app/Application;)Z → libnesec.so+0xa721c
+[js]     ed (Ljava/lang/String;)V → libnesec.so+0xa7870
+[!] 进程已退出
+[*] 等待结束

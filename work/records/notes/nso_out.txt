@@ -1,0 +1,9 @@
+[*] spawned pid=4906
+[*] script loaded
+[js] Java.perform 就绪
+[js] CallObjectMethod 钩子已装，table=0x7cd87d7390
+[js] [35] libnesec.so+0x8034c  obj=0x7fd3f14028  methodID=0x71780950
+[js] [35] libnesec.so+0x8034c  obj=0x7fd3f1402c  methodID=0x70c5cc38
+[js] [35] libnesec.so+0x8034c  obj=0x0  methodID=0x70c697e8
+[!] 进程已退出
+[*] 等待结束

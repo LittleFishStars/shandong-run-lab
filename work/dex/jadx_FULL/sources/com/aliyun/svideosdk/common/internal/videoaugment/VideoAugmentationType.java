@@ -1,0 +1,13 @@
+package com.aliyun.svideosdk.common.internal.videoaugment;
+
+import com.aliyun.Visible;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_12_10194cls.dex */
+@Visible
+public enum VideoAugmentationType {
+    BRIGHTNESS,
+    CONTRAST,
+    SATURATION,
+    SHARPNESS,
+    VIGNETTE
+}

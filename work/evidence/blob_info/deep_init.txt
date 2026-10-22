@@ -1,0 +1,319 @@
+════ FUN_0034a644 @0034a644  1280 字节 ════
+  运行时偏移 = 0x24a644
+
+void FUN_0034a644(char *param_1,undefined8 param_2,undefined8 param_3,undefined8 param_4,
+                 long param_5)
+
+{
+  long lVar1;
+  int iVar2;
+  ulong uVar3;
+  size_t sVar4;
+  undefined8 uVar5;
+  long lVar6;
+  char *pcVar7;
+  void *pvVar8;
+  ulong local_a0;
+  size_t local_98;
+  void *local_90;
+  ulong local_88;
+  size_t local_80;
+  void *local_78;
+  undefined1 local_70;
+  undefined1 local_6f;
+  undefined1 local_6e;
+  undefined1 local_6d;
+  long local_68;
+  
+  lVar1 = tpidr_el0;
+  local_68 = *(long *)(lVar1 + 0x28);
+  pthread_rwlock_wrlock((pthread_rwlock_t *)&DAT_005d2690);
+  if ((DAT_005d26c8 & 1) != 0) goto LAB_0034aaec;
+  uVar3 = (**(code **)(*(long *)PTR_DAT_00577ea0 + 0x98))(param_1);
+  if (uVar3 < 0x14) {
+    uVar5 = FUN_0036aed4();
+    FUN_0036b2c4(uVar5,param_2);
+    uVar5 = FUN_0036aed4();
+    local_a0 = 0;
+    local_98 = 0;
+    local_90 = (void *)0x0;
+    sVar4 = strlen(param_1);
+    if (0xffffffffffffffef < sVar4) {
+                    /* WARNING: Subroutine does not return */
+      FUN_0011ebc8(&local_a0);
+    }
+    if (sVar4 < 0x17) {
+                    /* catch() { ... } // from try @ 0034a8c0 with catch @ 0034a918 */
+      pvVar8 = (void *)((ulong)&local_a0 | 1);
+      local_a0 = CONCAT71(local_a0._1_7_,(char)(sVar4 << 1));
+      if (sVar4 != 0) goto LAB_0034a998;
+    }
+    else {
+      uVar3 = sVar4 + 0x10 & 0xfffffffffffffff0;
+      pvVar8 = (void *)FUN_004780a8(uVar3);
+      local_a0 = uVar3 | 1;
+      local_98 = sVar4;
+      local_90 = pvVar8;
+LAB_0034a998:
+      memcpy(pvVar8,param_1,sVar4);
+    }
+    *(undefined1 *)((long)pvVar8 + sVar4) = 0;
+    FUN_002df3ec(&local_88,&local_a0);
+    thunk_FUN_00130e04(uVar5,&local_88);
+    if (((byte)local_88 & 1) != 0) {
+      FUN_00478110(local_78);
+    }
+    if ((local_a0 & 1) != 0) {
+      FUN_00478110(local_90);
+    }
+    uVar5 = FUN_0036aed4();
+    lVar6 = 0;
+    pcVar7 = (char *)((ulong)&local_a0 | 4);
+    local_a0 = 0x2e3334330000005a;
+    do {
+      pcVar7[lVar6] = pcVar7[lVar6] ^ 0x5a;
+      lVar6 = lVar6 + 1;
+    } while (lVar6 != 4);
+    local_98 = local_98 & 0xffffffffffffff00;
+    local_80 = 0;
+    local_78 = (void *)0x0;
+    local_88 = 0;
+    sVar4 = strlen(pcVar7);
+    if (0xffffffffffffffef < sVar4) {
+                    /* WARNING: Subroutine does not return */
+      FUN_0011ebc8(&local_88);
+    }
+    if (sVar4 < 0x17) {
+      pvVar8 = (void *)((ulong)&local_88 | 1);
+      local_88 = CONCAT71(local_88._1_7_,(char)(sVar4 << 1));
+      if (sVar4 != 0) goto LAB_0034aa9c;
+    }
+    else {
+      uVar3 = sVar4 + 0x10 & 0xfffffffffffffff0;
+      pvVar8 = (void *)FUN_004780a8(uVar3);
+      local_88 = uVar3 | 1;
+      local_80 = sVar4;
+      local_78 = pvVar8;
+LAB_0034aa9c:
+      memcpy(pvVar8,pcVar7,sVar4);
+    }
+    *(undefined1 *)((long)pvVar8 + sVar4) = 0;
+    FUN_0036b93c(uVar5,&local_88);
+    if ((local_88 & 1) != 0) {
+      FUN_00478110(local_78);
+    }
+    if (param_5 != 0) {
+      lVar6 = FUN_0036aed4();
+      *(long *)(lVar6 + 0x160) = param_5;
+    }
+    FUN_00348470(param_3,param_4);
+    DAT_005d26c8 = 1;
+    goto LAB_0034aaec;
+  }
+  lVar6 = 0;
+  local_88 = 0x4943595a0000002a;
+  local_80 = 0x5759465c11444c5b;
+  local_78 = (void *)0x5a59575650184553;
+  local_70 = 0x5f;
+  local_6f = 0x53;
+  pcVar7 = (char *)((ulong)&local_88 | 4);
+  local_6e = 0x60;
+  do {
+    pcVar7[lVar6] = pcVar7[lVar6] ^ (char)lVar6 + 0x2aU;
+    lVar6 = lVar6 + 1;
+  } while (lVar6 != 0x17);
+  local_6d = 0;
+  local_98 = 0;
+  local_90 = (void *)0x0;
+  local_a0 = 0;
+  sVar4 = strlen(pc
+
+════ FUN_001780dc @001780dc  2480 字节 ════
+  运行时偏移 = 0x780dc
+
+void FUN_001780dc(long *param_1,int param_2,undefined4 param_3)
+
+{
+  byte bVar1;
+  undefined1 *puVar2;
+  uint uVar3;
+  ulong uVar4;
+  ulong uVar5;
+  ulong uVar6;
+  ulong uVar7;
+  undefined1 auVar8 [16];
+  long lVar9;
+  undefined *puVar10;
+  uint uVar11;
+  bool bVar12;
+  int iVar13;
+  uint *puVar14;
+  size_t __n;
+  undefined1 uVar15;
+  long lVar16;
+  ulong uVar17;
+  byte bVar18;
+  int iVar19;
+  uint uVar20;
+  ulong uVar21;
+  ulong uVar22;
+  uint uVar23;
+  ulong uVar24;
+  uint uVar25;
+  undefined1 *puVar26;
+  long lVar27;
+  undefined1 uVar28;
+  void *__dest;
+  undefined1 *puVar29;
+  byte *pbVar30;
+  ulong uVar31;
+  undefined8 uVar32;
+  byte local_110;
+  undefined1 local_10f [7];
+  ulong local_108;
+  undefined1 *local_100;
+  ulong local_f8;
+  ulong local_f0;
+  ulong local_e8;
+  ulong local_e0;
+  size_t local_d8;
+  void *local_d0;
+  byte local_c8 [8];
+  ulong local_c0;
+  byte *local_b8;
+  byte local_b0 [16];
+  undefined8 local_a0;
+  byte local_98;
+  byte local_97;
+  ulong local_90;
+  byte *local_88;
+  ulong local_80;
+  undefined8 local_78;
+  ulong local_70;
+  long local_68;
+  
+  lVar9 = tpidr_el0;
+  local_68 = *(long *)(lVar9 + 0x28);
+  FUN_0036aed4();
+  FUN_0036b2a8(local_b0);
+  local_80 = 0x766f66766c6b777a;
+  lVar16 = 0;
+  local_78 = 0x68777b6877717266;
+  local_70 = CONCAT44(local_70._4_4_,0x747971);
+  do {
+    *(char *)((long)&local_80 + lVar16) = *(char *)((long)&local_80 + lVar16) + -3;
+    lVar16 = lVar16 + 1;
+  } while (lVar16 != 0x13);
+  FUN_001238c4(local_c8,local_b0,&local_80);
+  uVar21 = (ulong)(local_c8[0] >> 1);
+  pbVar30 = (byte *)((ulong)local_c8 | 1);
+  if ((local_c8[0] & 1) != 0) {
+    uVar21 = local_c0;
+    pbVar30 = local_b8;
+  }
+  puVar14 = (uint *)FUN_004780a8(0xc);
+  puVar10 = PTR_DAT_00577ea0;
+  lVar16 = *(long *)PTR_DAT_00577ea0;
+  *(undefined8 *)puVar14 = DAT_00492888;
+  puVar14[2] = 0x473b1fd4;
+  lVar16 = (**(code **)(lVar16 + 0x160))(0x400);
+  if (lVar16 == 0) {
+    iVar19 = 0;
+  }
+  else {
+    uVar17 = 0;
+    do {
+      iVar19 = 8;
+      uVar31 = uVar17 & 0xffffffff;
+      do {
+        uVar24 = uVar31 >> 1;
+        if ((uVar31 & 1) != 0) {
+          uVar24 = (ulong)(*puVar14 ^ (uint)uVar24);
+        }
+        iVar19 = iVar19 + -1;
+        uVar31 = uVar24;
+      } while (iVar19 != 0);
+      *(int *)(lVar16 + uVar17 * 4) = (int)uVar24;
+      uVar17 = uVar17 + 1;
+    } while (uVar17 != 0x100);
+    if ((int)uVar21 < 1) {
+      uVar23 = 0;
+    }
+    else {
+      uVar21 = uVar21 & 0xffffffff;
+      uVar23 = 0xffffffff;
+      do {
+        uVar21 = uVar21 - 1;
+        uVar23 = (*(uint *)(lVar16 + (ulong)(uVar23 & 0xff ^ (uint)*pbVar30) * 4) ^ uVar23 >> 8) +
+                 puVar14[1];
+        pbVar30 = pbVar30 + 1;
+      } while (uVar21 != 0);
+      uVar23 = ~uVar23;
+    }
+    uVar20 = puVar14[2];
+    (**(code **)(*(long *)puVar10 + 0x168))();
+    iVar19 = uVar20 + uVar23;
+  }
+  FUN_00478110(puVar14);
+  if (param_2 == 1) {
+    iVar13 = (**(code **)(*param_1 + 0x18))(param_1,param_3);
+  }
+  else {
+    iVar13 = (**(code **)(*param_1 + 0x20))(param_1,param_3);
+  }
+  local_80 = 0x65766972696b7378;
+  lVar16 = 0;
+  local_78 = CONCAT17(local_78._7_1_,0x7d696f656978);
+  do {
+    *(char *)((long)&local_80 + lVar16) = *(char *)((long)&local_80 + lVar16) + -4;
+    lVar16 = lVar16 + 1;
+  } while (lVar16 != 0xe);
+  local_e0 = 0;
+  local_d8 = 0;
+  local_d0 = (void *)0x0;
+  __n = strlen((char *)&local_80);
+  if (0xffffffffffffffef < __n) {
+                    /* WARNING: Subroutine does not return */
+    FUN_0011ebc8(&local_e0);
+  }
+
+════ FUN_00178090 @00178090  76 字节 ════
+  运行时偏移 = 0x78090
+
+void FUN_00178090(void)
+
+{
+  undefined8 *puVar1;
+  undefined8 uVar2;
+  
+  if (DAT_0057d9b8 == (undefined8 *)0x0) {
+    puVar1 = (undefined8 *)FUN_004780a8(0x10);
+    uVar2 = *(undefined8 *)PTR_DAT_00577ea0;
+    DAT_0057d9b8 = puVar1;
+    *puVar1 = &PTR_FUN_0056e7c0;
+    puVar1[1] = uVar2;
+  }
+  return;
+}
+
+
+
+════ FUN_0036aed4 @0036aed4  108 字节 ════
+  运行时偏移 = 0x26aed4
+
+undefined8 FUN_0036aed4(void)
+
+{
+  int iVar1;
+  undefined8 uVar2;
+  
+  if (((DAT_005d2738 & 1) == 0) && (iVar1 = FUN_00475d10(&DAT_005d2738), iVar1 != 0)) {
+    uVar2 = FUN_004780a8(0x248);
+    FUN_0036ad00(uVar2);
+    DAT_005d2730 = uVar2;
+    FUN_00475dcc(&DAT_005d2738);
+  }
+  return DAT_005d2730;
+}
+
+

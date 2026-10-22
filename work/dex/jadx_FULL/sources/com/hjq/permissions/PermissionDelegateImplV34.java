@@ -1,0 +1,32 @@
+package com.hjq.permissions;
+
+import android.app.Activity;
+import android.content.Context;
+import androidx.annotation.NonNull;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_03_8012cls.dex */
+class PermissionDelegateImplV34 extends PermissionDelegateImplV33 {
+    @Override // com.hjq.permissions.PermissionDelegateImplV33, com.hjq.permissions.PermissionDelegateImplV31, com.hjq.permissions.PermissionDelegateImplV30, com.hjq.permissions.PermissionDelegateImplV29, com.hjq.permissions.PermissionDelegateImplV28, com.hjq.permissions.PermissionDelegateImplV26, com.hjq.permissions.PermissionDelegateImplV23, com.hjq.permissions.PermissionDelegateImplV21, com.hjq.permissions.PermissionDelegateImplV19, com.hjq.permissions.PermissionDelegateImplV18, com.hjq.permissions.PermissionDelegateImplBase, com.hjq.permissions.PermissionDelegate
+    public boolean isDoNotAskAgainPermission(@NonNull Activity activity, @NonNull String str) {
+        if (PermissionUtils.equalsPermission(str, Permission.READ_MEDIA_VISUAL_USER_SELECTED)) {
+            return (!AndroidVersion.isAndroid14() || PermissionUtils.checkSelfPermission(activity, str) || PermissionUtils.shouldShowRequestPermissionRationale(activity, str)) ? false : true;
+        }
+        return super.isDoNotAskAgainPermission(activity, str);
+    }
+
+    @Override // com.hjq.permissions.PermissionDelegateImplV33, com.hjq.permissions.PermissionDelegateImplV31, com.hjq.permissions.PermissionDelegateImplV30, com.hjq.permissions.PermissionDelegateImplV29, com.hjq.permissions.PermissionDelegateImplV28, com.hjq.permissions.PermissionDelegateImplV26, com.hjq.permissions.PermissionDelegateImplV23, com.hjq.permissions.PermissionDelegateImplV21, com.hjq.permissions.PermissionDelegateImplV19, com.hjq.permissions.PermissionDelegateImplV18, com.hjq.permissions.PermissionDelegateImplBase, com.hjq.permissions.PermissionDelegate
+    public boolean isGrantedPermission(@NonNull Context context, @NonNull String str) {
+        if (!PermissionUtils.equalsPermission(str, Permission.READ_MEDIA_VISUAL_USER_SELECTED)) {
+            return super.isGrantedPermission(context, str);
+        }
+        if (AndroidVersion.isAndroid14()) {
+            return PermissionUtils.checkSelfPermission(context, str);
+        }
+        return true;
+    }
+
+    @Override // com.hjq.permissions.PermissionDelegateImplV33, com.hjq.permissions.PermissionDelegateImplV23, com.hjq.permissions.PermissionDelegateImplBase, com.hjq.permissions.PermissionDelegate
+    public boolean recheckPermissionResult(@NonNull Context context, @NonNull String str, boolean z) {
+        return (AndroidVersion.isAndroid14() && PermissionUtils.containsPermission(new String[]{Permission.READ_MEDIA_IMAGES, Permission.READ_MEDIA_VIDEO}, str)) ? isGrantedPermission(context, Permission.READ_MEDIA_VISUAL_USER_SELECTED) : super.recheckPermissionResult(context, str, z);
+    }
+}

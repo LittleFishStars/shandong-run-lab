@@ -1,0 +1,223 @@
+ arch:
+ failed
+ failed : 
+ failed:
+ failed:\n
+ flags:
+ for the nativeLibrary is 64 bit
+ for the nativeLibrary is not 64 bit
+ from
+ in 
+ in black 
+ mProviderSwitch:
+ mShellCnt:
+ not exists
+ not found in 
+ not in white 
+ same file exists
+ success
+ to 
+ update begin
+ update end,size:
+ with parameters 
+-
+-x86
+.CrashHandler
+.nesec_patch
+.user.UserStrategy
+/
+/cmdline
+/lib/arm64
+/lib/x86
+/libnesec-x86.so
+/libnesec.so
+/proc/
+/proc/self/maps
+/system/bin/app_process
+/templib
+/templib/libnesec.so
+/templib/libs.zip
+1
+7.6.3_936
+:
+;
+B
+BUGRPT_SWITCH
+C
+Comp loadLibrary 
+Constructor with parameters 
+D
+Detected an abnormal ROM.
+Detected that a VPN is being used.
+Detected that a proxy is being used.
+Detected that the USB debugging mode is enabled.
+Detected that the app has been injected.
+Detected that the app is a trial version, please do not release it directly.
+Detected that the app is running in a dual app environment.
+Detected that the app is running in a hooking environment.
+Detected that the app is running in a rooted environment.
+Detected that the app is running in an Xposed environment.
+Detected that the app is running in an abnormal environment.
+Detected that the app is running in an environment with cloud phone.
+Detected that the app is running in an environment with fake location.
+Detected that the app is running in an environment with network sniffing.
+Detected that the app is running in an environment with screen share.
+Detected that the app is running in an environment with simulated clicks.
+Detected that the app is running in an environment with virtual machine.
+Detected that the app is running on an emulator.
+Detected that the application has been tampered.
+Detected the presence of a debugger.
+F
+Field 
+Given context is null
+Given library is either null or empty
+I
+J
+L
+Method 
+NoClassDefFoundError
+Please download the official app from the official channel.
+ProxyComponentFactory init, classLoader = 
+S
+System.loadLibrary 
+WebViewGoogle
+Z
+[
+[attachBaseContext] begin, version:
+[attachBaseContext] end, time:
+[attachBaseContext] loadso exception,
+[createPackageContext] packageName:
+[load] time:
+[needControlShellLaunch] bShellLaunchLimited:
+[needExtractSo] bNeedExtact:
+[needX86So] bNeedX86:
+[onCreate] end, time:
+[run] MyApplication.newApp is null,runApp is 
+[run] time:
+\n
+] = 
+]:
+adb_enabled
+again loadLibrary 
+android.app.ActivityThread
+appInfo
+arm64
+arm64-v8a
+armeabi
+armeabi-v7a
+array[
+assets/.nesec_patch
+boolean
+bugrpt
+byte
+char
+class 
+classTable
+com.huachenjie.shandong_school
+com.netease.nis.
+com.netease.nis.wrapper
+com.netease.nis.wrapper.CrashHandler
+com.netease.nis.wrapper.MyApplication
+com.netease.nis.wrapper.user.ReLinker
+copy 
+cpu:
+currentActivityThread
+dalvik.system.BaseDexClassLoader
+debug_switch_0
+double
+end of [extractLib] time:
+exception:
+extract_switch_0
+failed
+field name:%s type:%s
+files
+find entry 
+findLoadedClass
+float
+get linker arch failed:
+get method:
+getApplicationInfo failed : 
+getFieldSCDesc name:%s
+getFieldSCDesc require name:%s type:%s
+getName
+hint:
+ignore the 
+init
+init bugrpt error:
+installNativeLibraryPath, folder %s is illegal 
+installNativeLibraryPath, v23 fail, sdk: %d, error: %s, try to fallback to V14
+installNativeLibraryPath, v25 fail, sdk: %d, error: %s, try to fallback to V23
+instantiateClassLoader:
+int
+interface 
+isClassLoaded error: 
+iso-8859-1
+java.util.zip.ZipEntry
+leaveBreadcrumb
+lib
+lib dir[
+libPath
+libdexfix.so
+libneguard.so
+libnesec
+libnesec.so
+libnesec64
+libraryPathElements
+linker:
+load libnesec.so failed:
+loadLibrary
+loadLibrary failed:
+long
+mActivityThread
+mBoundApplication
+mLoadedApk
+makePathElements
+nativeLibraryDirectories
+nativeLibraryPathElements
+nesec
+nesec-x86
+nesec_patch2
+notProbation
+on
+pathList
+provider_switch_1
+relink load 
+setClassTable error: 
+setFilterWords
+setUserTag
+shell_limit_0
+short
+soextractor
+start unzip 
+systemNativeLibraryDirectories
+target ABIs:
+unknown
+unzip so 
+uploadCatchedException
+wrapper
+x86
+x86_64
+x86_switch_1
+zh
+当前版本为加固试用版，请勿直接发布上线
+检测到Rom异常
+检测到USB调试开关打开
+检测到VPN开启
+检测到Xposed环境
+检测到云手机环境
+检测到代理环境
+检测到位置伪造
+检测到在双开app中运行
+检测到在模拟器中运行
+检测到屏幕共享
+检测到异常环境
+检测到抓包环境
+检测到模拟点击环境
+检测到虚拟机环境
+检测到该应用在hook环境中运行
+检测到该应用在root环境中运行
+检测到该应用已被篡改
+检测到该应用被注入so
+检测到调试器
+确定
+请前往官方渠道下载正版APP

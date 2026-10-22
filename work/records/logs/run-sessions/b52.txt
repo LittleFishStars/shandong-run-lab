@@ -1,0 +1,579 @@
+[assistant]
+Now edit the start() method, tick(), and rewrite _sample_if_due + add the H0/W1 chain methods. Let me read the current relevant sections for fresh anchors.
+
+[assistant • read]
+{"limit": 70, "offset": 254, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py"}
+
+[assistant • read]
+{"limit": 75, "offset": 324, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py"}
+
+[tool • read]
+qoO│        self.running = False
+5CP│        self.sim.stop()
+6DQ│        return self.state()
+7ER│
+CpN│    # ══════════════════ 单帧推进 ══════════════════
+3qk│    def tick(self, dt: float) -> WalkState:
+E0w│        """推进 dt 秒（虚拟时间）；返回推进后的状态
+F1x│
+548│        步行方向优先取路径（auto_route），否则取摇杆；速度为 0 时只走时间不走路，
+DM2│        这样"站着不动"也能被界面区分出来（距离不变、配速掉下去）。
+EN3│        """
+Cbc│        if dt <= 0:
+Dcd│            return self.state()
+CFw│        dx, dy, mag = self.dir_x, self.dir_y, self.mag
+4tU│        if self.auto_route:
+v1s│            nxt = self._direction_to_next_waypoint()
+ER4│            if nxt is None:
+mmm│                self.arrived = "路径已走完"
+nnn│                self.running = False
+ooo│                self.sim.stop()
+ppp│                return self.state()
+ayA│            dx, dy, mag = nxt[0], nxt[1], 1.0
+bzB│
+A2h│        speed = 0.0
+ZAv│        if mag > JOYSTICK_DEADZONE:
+Peb│            speed = self.target_speed_mps * mag
+TKW│            move = speed * dt
+mIB│            self.lat += (dy * move) / EARTH_M_PER_DEG_LAT
+fXb│            self.lng += (dx * move) / (EARTH_M_PER_DEG_LAT *
+q8A│                                       max(1e-6, math.cos(math.radians(self.lat))))
+zsO│            self.dist_m += move
+bLY│            self.move_sec += dt
+iLb│            # 采样与打卡都读 _sensor（步数/步频），所以必须先把它推到当前帧，
+nKc│            # 否则分段步数会整体滞后一帧、与总步数对不上
+O0q│            self._refresh_sensor()
+P1r│            self._check_targets()
+Q2s│            self._sample_if_due(speed)
+EcC│
+cMZ│        # 步数用「真实运动时长」而不是时间轴：站着不动就不计步，与暂停语义一致
+dNa│        self._refresh_sensor()
+rVv│        if self.target_distance_m > 0 and self.dist_m >= self.target_distance_m:
+NlU│            self.arrived = f"已达目标距离 {int(self.target_distance_m)} 米"
+OmV│            self.running = False
+PnW│            self.sim.stop()
+QoX│        return self.state()
+RpY│
+kJi│    def _refresh_sensor(self) -> None:
+Z8O│        """把仿真器推进到当前运动时长，刷新加速度/步频/累计步数"""
+a9P│        sample = self.sim.sample_at(self.move_sec, elapsed_s=self.move_sec)
+cAQ│        self._sensor = {
+dBR│            "accel_z": sample.z, "cadence": sample.cadence,
+eCS│            "steps": int(sample.steps_cum),   # 累计步数：base + 运动时长 × 步频
+fDT│            "step_detected": bool(sample.step_detected),
+gEU│        }
+hFV│
+iGW│    def state(self) -> WalkState:
+RCc│        s = self._sensor or {}
+7as│        passed = sum(1 for c in self.targets if int(c.get("passed") or 0) == 1)
+Z7x│        dest = None
+1gm│        if self.auto_route and self.route:
+hTm│            wp = self.route[self.route_index % len(self.route)]
+vLC│            dest = (float(wp[0]), float(wp[1]))
+AZT│        return WalkState(
+Kjs│            lat=self.lat, lng=self.lng, dist_m=self.dist_m, move_sec=self.move_sec,
+suH│            steps=int(s.get("steps") or 0), speed_mps=self._speed_now(),
+ooU│            accel_z=float(s.get("accel_z") or 0.0),
+qrB│            cadence=float(s.get("cadence") or 0.0),
+mfg│            passed=passed, targets=len(self.targets), points=len(self.samples),
+i65│            arrived=self.arrived, route_index=self.route_index, destination=dest,
+kvp│        )
+
+[Showing lines 254-323 of 488. Use offset=324 to continue.]
+
+[tool • read]
+lwq│
+52q│    def _speed_now(self) -> float:
+k9v│        """最近一帧的速度：站着不动就是 0（界面靠它显示"正在跑 / 已停下"）"""
+AUb│        if self.mag <= JOYSTICK_DEADZONE and not self.auto_route:
+Nwl│            return 0.0
+Oxm│        if self.auto_route:
+1Xu│            return self.target_speed_mps
+4eb│        return self.target_speed_mps * self.mag
+5fc│
+kgU│    # ══════════════════ 路径导航 ══════════════════
+Jpp│    def _direction_to_next_waypoint(self) -> Optional[Tuple[float, float]]:
+hSv│        """朝下一个路点的单位方向；走到路点就切下一个，绕满 MAX_LAPS 圈算走完"""
+EcZ│        if not self.route:
+rD1│            return None
+jIe│        while True:
+kJf│            wp = self.route[self.route_index % len(self.route)]
+AXf│            d = _haversine(self.lat, self.lng, wp[0], wp[1])
+whM│            if d < WAYPOINT_REACH_M:
+xdt│                self.route_index += 1
+ppV│                if self.route_index >= len(self.route) * MAX_LAPS:
+qqW│                    return None
+k7o│                continue
+yMM│            d_lat = wp[0] - self.lat
+Aik│            d_lng = (wp[1] - self.lng) * math.cos(math.radians(self.lat))
+4LK│            length = math.hypot(d_lat, d_lng)
+4eO│            if length < 1e-9:
+5fP│                self.route_index += 1
+6gQ│                continue
+6kR│            return (d_lng / length, d_lat / length)
+7lS│
+2kA│    # ══════════════════ 打卡与采样 ══════════════════
+yeh│    def _check_targets(self) -> None:
+MpA│        now = int(time.time() * 1000)
+NqB│        for cp in self.targets:
+G3j│            if int(cp.get("passed") or 0) == 1:
+H4k│                continue
+a3U│            try:
+D3T│                tlat, tlng = float(cp["lat"]), float(cp["lng"])
+hlY│            except (KeyError, TypeError, ValueError):
+imZ│                continue
+Wcn│            radius = float(cp.get("radius_m") or self.checkin_radius_m)
+AVF│            if _haversine(self.lat, self.lng, tlat, tlng) <= radius:
+Au8│                cp["passed"] = 1
+Bv9│                cp["hit_lat"] = self.lat
+CxA│                cp["hit_lng"] = self.lng
+DyB│                cp["hit_ms"] = now
+xSp│                # 命中的桩必须立刻交给调用方：实跑时要落库（mark_checkpoint_hit），
+Fwk│                # 否则本地库 checkpoints.passed 恒为 0，上传时等于一个都没打
+FFu│                self._hits.append(dict(cp))
+JqV│
+arb│    def _sample_if_due(self, speed: float) -> None:
+YR0│        """每 sample_s 秒落一个采样点（同时进 samples 与待取走的 _pending）"""
+s2y│        if self.move_sec - self._last_sample_at < self.sample_s - 1e-9:
+EoP│            return
+cLT│        self._last_sample_at = self.move_sec
+FNG│        self.samples.append((self.dist_m, self.move_sec))
+YP6│        lat = _round6(self.lat)
+CMv│        lng = _round6(self.lng)
+RSC│        off = 0
+PQ3│        if self.polygon:
+Fdd│            off = int(distance_to_polygon_edge(lat, lng, self.polygon))
+J4H│        self._pending.append(RunLatLng(
+K5I│            lat=lat, lng=lng, lat_lng_index=self._poi_index,
+L6J│            run_time=int(self.move_sec * 1000),
+M7K│            collect_time=self.start_ms + int(self.move_sec * 1000),
+N8L│            state=STATE_INIT, off_fence_dis_m=off,
+O9M│            accuracy=round(self.rng.uniform(5.0, 12.0), 1),
+QAN│            speed=round(speed, 2),
+RBO│            satellites=self.rng.randint(8, 13),
+SCP│        ))
+aza│        # 采样点是「段」的载体：实跑时要把这段走了多少米/多少步/走了多久带上，
+bjs│        # 否则落库的步频段与配速段只能事后猜（一键跑是一次性算完，没有这个问题）
+VBD│        self._pending_meta.append({
+BDe│            "index": self._poi_index,
+3W8│            "seg_dist_m": self.dist_m - self._last_sample_dist,
+
+[Showing lines 324-398 of 488. Use offset=399 to continue.]
+
+[assistant]
+Now I need to replace `tick()` with the new logic, and add the new chain methods. Let me plan the walker.py rewrite.
+
+Key design (from summary b49 and the decompile facts):
+- `tick(dt)`:
+  - position advance: only if mag > deadzone; move_sec += dt (movement time, for step sensor)
+  - elapsed_sec += dt (Q0() timeline — advances always)
+  - `_refresh_sensor()` using move_sec
+  - `total_steps = sensor steps`
+  - `_check_targets()`
+  - `_advance_clock()` → each whole second: if sec % step_interval == 0 → j0() → close step segment; if (sec-1) % 60 == 0 → mark step upload due
+  - `_sample_if_due(speed)` → W1 chain
+  - arrive check
+
+- `_sample_if_due(speed)` → build RunLatLng exactly like W1:
+  - `run_time = int(elapsed_sec)` (seconds!) — original `new RunLatLng(E(), (int) Q0(), addressInfo, offFenceDisM, addressInfo.getTime())` → runTimestamp = Q0() = seconds.
+  - collect_time = start_ms + int(move_sec*1000) (addressInfo.getTime() = real timestamp)
+  - **K1 gate**: if polygon and not point_in_polygon → dropped_outside += 1, return (no point, no distance)
+  - sub_distance = round(haversine(last_valid, cur)) ; if off >= 0: sub -= off ; clamp 0
+  - H0 filter → is_valid
+  - if valid: append to valid_points, _last_valid = p, dist_m += sub (if sub>0)
+  - **always** append p to _pending (落库)
+  - then X1: `_advance_pace()` 
+
+Wait — careful: in original, `i0(runLatLng)` is called with the *unfiltered* runLatLng, and `y2(S0())` is called unconditionally. But the K1 gate happens *before* W1 at the SunshineRunService level: `if (!K1(addressInfo)) return;` — so outside-fence points never even reach W1. So the fence check is upstream.
+
+Now for the pace segment: original `T(j, j2, i)` where j = Q0() seconds, j2 = current distance, i = L0() total steps. My implementation:
+
+```python
+def _advance_pace(self) -> None:
+    """照抄 ApiDataComponent.T()：配速段「就地延长 + 超 paceInterval 封口」"""
+    j = self._clock_sec    # Q0() 秒
+    j2 = int(self.dist_m)
+    i = self.total_steps
+    tail = self._tail_pace
+    if tail is None:
+        p = IntervalPace(pace_index=self._pace_seq, start_time=j, end_time=j,
+                         start_distance=j2, end_distance=j2,
+                         start_step_count=i, end_step_count=i, run_code=self.run_code)
+        self._pace_seq += 1
+        self.pace_segments.append(p)
+        self._tail_pace = p
+        self._pace_out[p.pace_index] = p
+        return
+    if (j2 - tail.end_distance) + tail.distance > self.pace_interval_m or tail.is_valid:
+        tail.is_valid = True
+        self._pace_out[tail.pace_index] = tail   # 封口（更新）
+        p2 = IntervalPace(pace_index=self._pace_seq, start_time=tail.end_time, end_time=j,
+                          start_distance=tail.end_distance, end_distance=j2,
+                          start_step_count=tail.end_step_count, end_step_count=i,
+                          run_code=self.run_code)
+        self._pace_seq += 1
+        self.pace_segments.append(p2)
+        self._tail_pace = p2
+        self._pace_out[p2.pace_index] = p2
+    else:
+        tail.end_time = j; tail.end_distance = j2; tail.end_step_count = i
+        self._pace_out[tail.pace_index] = tail
+```
+
+But IntervalPace's derived fields distance/step_count/time — since it's a dataclass in protocol.py with independent fields, I need to compute them. The setter linkage: setEndDistance → distance = endDistance - startDistance. So I should add a `_sync()` method on the dataclasses, or compute inline. Best: add helper methods to protocol.py dataclasses: `IntervalPace.set_end_distance()`... Actually cleaner: add a `recount()` method. But summary b49 said "protocol.py dataclasses currently treat them as independent fields, needs fixing". Let me add `resync()` methods to IntervalStep and IntervalPace in protocol.py and call them after mutation. That's minimal and safe.
+
+Actually simpler and more faithful: add methods mirroring the Java setters:
+- `IntervalStep.set_end_step(v)`, `set_end_time(v)`
+- `IntervalPace.set_end_distance(v)`, `set_end_step_count(v)`, `set_end_time(v)`
+
+Hmm but the dataclass fields are directly assigned elsewhere in engine.py/TrackGenerator. Adding setter methods is additive — safe. Let me add a `resync()` method too as a convenience.
+
+Let me now write the walker.py changes.
+
+For step segments:
+```python
+def _advance_clock(self) -> None:
+    """照抄 DataComponent.Y1()：整秒回调驱动步频切段与周期性上传标记"""
+    sec = int(self.elapsed_sec)
+    if sec <= self._clock_sec:
+        # 时间没跨过整秒（tick 步长可能小于 1 秒）
+        return
+    step_interval = int(self.step_interval_s or 0)
+    for s in range(self._clock_sec + 1, sec + 1):
+        if step_interval != 0 and s % step_interval == 0:
+            self._close_step_segment(s)
+        if (s - 1) % 60 == 0:
+            self._step_upload_due = True
+    self._clock_sec = sec
+```
+
+`_close_step_segment(sec)`:
+```python
+def _close_step_segment(self, sec: int) -> None:
+    """照抄 ApiDataComponent.Y()：startTime = currentTime - stepInterval"""
+    step_interval = int(self.step_interval_s or 0)
+    from_step = self.last_record_step
+    to_step = self.total_steps
+    if from_step > to_step:      # 原版 j0 的守卫：步数倒退整段丢弃
+        return
+    seg = IntervalStep(
+        step_index=self._step_seq, run_code=self.run_code,
+        start_time=max(0, sec - step_interval), end_time=sec,
+        start_step=from_step, end_step=to_step,
+    )
+    seg.resync()
+    self._step_seq += 1
+    self.step_segments.append(seg)
+    self._step_out[seg.step_index] = seg
+    self.last_record_step = to_step    # 回调 onNext(i3) → setLastRecordStep
+```
+
+Wait: original `setStartTime(j - i)`, `setEndTime(j)` then `setStartStep(i2)`, `setEndStep(i3)`. Since setEndTime computes time = endTime - startTime, and setEndStep computes step = endStep - startStep. Order matters: startTime must be set before endTime. In my dataclass-with-resync approach, order doesn't matter since resync computes both. Good.
+
+Also `getTailSectionStepData(nextId)`: at finish time, if Q0() % stepInterval != 0, append a tail step segment:
+```python
+def tail_step_segment(self, next_index: int) -> Optional[IntervalStep]:
+    sec = self._clock_sec  # Q0()
+    step_interval = int(self.step_interval_s or 0)
+    if not step_interval:
+        return None
+    rem = sec % step_interval
+    if rem == 0:
+        return None
+    seg = IntervalStep(step_index=next_index, run_code=self.run_code,
+                       start_time=sec - rem, end_time=sec,
+                       start_step=self.last_record_step, end_step=self.total_steps)
+    seg.resync()
+    return seg
+```
+
+And tail pace: `_tail_pace` if not valid.
+
+Now the H0 filter:
+
+```python
+def _filter_point(self, p: RunLatLng, sub_distance: float) -> bool:
+    """照抄 DataComponent.H0()：返回 False 表示该点被拒（但仍要落库）"""
+    last = self._last_valid
+    if self.gps_white_flag:
+        if p.accuracy > GPS_FILTER_ACCURACY:
+            return False
+    else:
+        if p.accuracy > RUN_FILTER_ACCURACY:
+            return False
+        if p.speed < 0.0 and last is not None and last.speed < 0.0:
+            return False
+        if last is not None and (p.collect_time - last.collect_time) > 0:
+            if (sub_distance * 1000.0) / (p.collect_time - last.collect_time) > MAX_SPEED_MPS:
+                return False
+    p.is_valid = True
+    return True
+```
+
+Hmm — original uses `addressInfo.getTimestamp()` for the speed check, which is the *timestamp* passed to the constructor = `currentAddressInfo.getTime()` = collect_time. Yes, matches.
+
+And `subDistance` is the *already rounded* distance in metres. Original: `(subDistance * 1000.0f) / (ts - b.getTimestamp())` — subDistance in metres, delta in ms → m/s. Correct.
+
+Now the W1 chain in `_sample_if_due`:
+
+```python
+def _sample_if_due(self, speed: float) -> None:
+    """照抄 DataComponent.W1()：落点 → 过 H0 → 累加距离 → 推进配速段"""
+    if self.move_sec - self._last_sample_at < self.sample_s - 1e-9:
+        return
+    self._last_sample_at = self.move_sec
+    lat, lng = _round6(self.lat), _round6(self.lng)
+    # 照抄 SunshineRunService.D() 的围栏闸门：不在围栏内的点整点丢弃
+    if self.polygon and not point_in_polygon(lat, lng, self.polygon):
+        self.dropped_outside += 1
+        return
+    # 离开围栏的距离（原版 B1() 为真时才算，否则恒为 -1）
+    off = 0
+    if self.polygon and point_in_polygon(lat, lng, self.polygon):
+        off = int(distance_to_polygon_edge(lat, lng, self.polygon))
+    ...
+```
+
+Hmm, careful. `offFenceDisM` semantics: at W1, if outFenceDisM >= 0, subtract it from the distance. In SunshineRunService `jV2 = B1() ? v2(...) : -1`. B1() is about the fence-transition state. This is subtle and only matters when the runner exits and re-enters the fence. For our simulator, runners stay inside the fence normally. 
+
+The prior summary (b44/b48) recorded that the decision was made in the earlier session — let me check what the compressed summary says about design. Summary b49 tail mentions "① constants.py…⑥ bus.py". Let me search context for the design decisions already recorded.
+
+Actually, let me search the compressed blocks for the design decisions I made about `off_fence_dis_m` and the fence gate, to stay consistent.
+
+Let me use search_context.
+
+Actually — I should be efficient. Key design questions:
+1. `off_fence_dis_m` — what to store. Original stores `offFenceDisM` from the constructor param. When B1() is false → -1. Our current code stores `int(distance_to_polygon_edge(...))` — distance to edge, always ≥0, and passes it to RunLatLng but doesn't subtract.
+
+Following the original faithfully: outFenceDisM = -1 when not in the "re-entering" state (i.e., normal running inside the fence) → no distance deduction. The v2() integral only kicks in when the runner has crossed the fence boundary. That's a rare state; faithfully implementing the full v2 integral requires the fence-crossing state machine.
+
+Given the user's requirement "完全依照原app的实现逻辑" but for a simulator that walks inside the fence, the pragmatic faithful choice: keep the point-level behavior identical for the common case (inside fence → outFenceDisM = -1, no deduction; outside fence → point dropped upstream). I'll implement `off_fence_dis_m = -1` for normal in-fence points... 
+
+Hmm, but then the stored `offFenceDisM` value changes from "distance to edge" to -1 for every point, which loses information and would break existing tests/UI that display it. Let me check what tests/UI expect.
+
+Let me search first, then decide. Let me grep the repo.
+
+Let me be decisive and check the code.
+
+[assistant • bash]
+{"command": "cd /home/ylxc/Projects/lib/ShanDong/shandong-run-lab && echo \"=== off_fence usages ===\" && grep -rn \"off_fence_dis_m\\|offFenceDisM\\|dropped_outside\" --include=*.py --include=*.js --include=*.html . | grep -v \"\\.run/\" ", "description": "查找 off_fence_dis_m 的所有使用点"}
+
+[assistant • search_context]
+{"query": "walker.py 设计定案 围栏 offFenceDisM -1 距离删减 H0 过滤"}
+
+[tool • bash]
+=== off_fence usages ===
+./sdlab/mock.py:439:    # 轨迹是否越出围栏（用真实几何判定，而不是信任客户端上报的 offFenceDisM）
+./sdlab/protocol.py:118:    off_fence_dis_m: int = 0          # @JSONField("offFenceDisM") 距围栏距离（米）
+./sdlab/protocol.py:136:            "offFenceDisM": self.off_fence_dis_m,
+./sdlab/protocol.py:148:            off_fence_dis_m=int(d.get("offFenceDisM", 0)),
+./sdlab/protocol.py:464:      · 起点/终点都在围栏内，全程 offFenceDisM = 0
+./sdlab/protocol.py:545:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+./sdlab/protocol.py:638:                off_fence_dis_m=int(distance_to_polygon_edge(lat, lng, self.polygon or [])),
+./sdlab/store.py:64:    off_fence_dis_m INTEGER DEFAULT 0,
+./sdlab/store.py:285:                 p.state, p.off_fence_dis_m, p.accuracy, p.speed, p.satellites,
+./sdlab/store.py:291:                                      off_fence_dis_m,accuracy,speed,satellites,
+./sdlab/store.py:297:                     off_fence_dis_m=excluded.off_fence_dis_m, accuracy=excluded.accuracy,
+./sdlab/store.py:556:        state=int(row["state"]), off_fence_dis_m=int(row["off_fence_dis_m"]),
+./sdlab/walker.py:141:        # 围栏多边形（算 offFenceDisM 用）
+./sdlab/walker.py:160:        self.dropped_outside = 0                  # 因不在围栏内被整点丢弃的点数
+./sdlab/walker.py:389:            state=STATE_INIT, off_fence_dis_m=off,
+./scripts/selfcheck.py:107:    check(all(p.off_fence_dis_m >= 0 for p in track), "所有轨迹点都在围栏内/围栏上")
+./tests/test_walker.py:176:            self.assertEqual(p.off_fence_dis_m, 0)
+
+
+[tool • search_context]
+Found 5 block(s) for "walker.py 设计定案 围栏 offFenceDisM -1 距离删减 H0 过滤":
+
+b46 (T1) "m01803 实施（三）：复核原版 W1/H0/K1/D1/B1/v2/Q0 + RunLatLng 构造 + walker.py 改造前全文" [m02600–m02645, m02647–m02648 · 48 msgs]
+  ... d/runCode/speed。映射：runTimestamp→"runTime"、timestamp→"collectTime"、state→"state"、【offFenceDisM】→"offFenceDisM"。
+构造 `RunLatLng(String runCode, int runTime, HCJAddressInfo addressInfo, long offFenceDis, lo ...
+
+b21 (T1) "原 App 记录链路逐行规格（DataComponent/ApiDataComponent/DAO/RunLatLng/CommonConfig）" [m01953–m01959, m01961–m01964, m01966–m01981, m01983–m01988, m02008–m02021 …+49 more · 96 msgs]
+  ... at_lng")，STATE_FAIL=4/STATE_INIT=1/STATE_SUCC=8/STATE_UPLOADING=2。@JSONField 映射：【offFenceDisM】→offFenceDisM(long)、runTimestamp→runTime(int)、timestamp→collectTime(long)、state→state(int)；serialize=false：r ...
+
+b43 (T1) "本轮改造依据：原版 DataComponent/ApiDataComponent 逐行原文 + 实体 setter 联动 + interval 取值链" [m02485–m02532, m02534–m02537, m02539–m02542 · 56 msgs]
+  ... e();   // 取整到米
+    if (outFenceDisM >= 0) { jLongValue -= outFenceDisM;  log("离开【围栏】的距离已删减~~~~"); }
+    if (jLongValue <= 0) jLongValue = 0;
+} else { jLongValue = 0; }
+RunLatLng runLatLngH0 = H0(runLatL ...
+
+b49 (T1) "m01803 实施（六）：首次编辑 walker.py 失败 —— 锚点冲突教训 + 已确认的最终设计" [m02684–m02700, m02702–m02705, m02707–m02708, m02710–m02711 · 25 msgs]
+  ■ 历史（m01803 实施过程记录 + 【设计定案】）。
+
+【编辑失败教训（重要）】对 `sdlab/walker.py` 的一次批量 edit（9 项）被整批拒绝：`E_STALE_ANCHOR` —— edits[7] 引用的锚点 "7m5" 落在 edits[5] 的替换区间 Cyg~7m5 内部，锚点在同一批次里既是「被替换区间终点」又要被另一项单独引用。**教训：同一批次内，一个锚点只能出 ...
+
+b48 (T1) "m01803 实施（五）：原版 W1/H0 复核 + 围栏语义定案 + 现状核对" [m02659–m02682 · 24 msgs]
+  ... 4a == State.normal) {
+    if (!f12580a.K1(addressInfo)) return;            // 不在【围栏】内 → 整点丢弃
+    long jV2 = f12580a.B1() ? f12580a.v2(null, addressInfo, 0L) : -1L;
+    f12580a.W1(addressInfo, jV2, v()); ...
+
+[truncated: showing 5 of 30 candidates by relevance — pass limit:30 to see the rest]
+
+[assistant]
+Let me decompress b49 to recall the design decisions exactly.
+
+[assistant • decompress]
+{"blockId": "b49"}
+
+[tool • decompress]
+[Block b49 content — 25 item(s)]
+Content (57002 chars) written to: /tmp/acp-decompress-b49-1792128237872.txt
+Use the read tool to access it.
+
+[assistant • bash]
+{"command": "sed -n '1,120p' /tmp/acp-decompress-b49-1792128237872.txt", "description": "读取 b49 摘要开头"}
+
+[tool • bash]
+[stderr]
+sed：无法读取 /tmp/acp-decompress-b49-1792128237872.txt：没有那个文件或目录
+[exit code: 2]
+
+[assistant • bash]
+{"command": "ls -la /home/ylxc/.run/acp-decompress-b49-*.txt 2>/dev/null; find / -name \"acp-decompress-b49-*\" -maxdepth 6 2>/dev/null | head", "description": "定位解压输出文件"}
+
+[tool • bash]
+(no output)
+
+[assistant]
+The file went somewhere. Let me just decompress to the workspace instead.
+
+Actually, I have enough knowledge. Let me not waste time; I recall the design from the summaries: b46/b49 had the walker.py redesign plan. Let me decompress to a workspace file.
+
+Actually, better: I have the full spec. Let me just write the new walker.py recording chain directly. I know exactly what's needed:
+
+1. `_advance_clock()` — every integer second of `elapsed_sec`, increment `_clock_sec`; when `Q0 % step_interval_s == 0` → close step segment.
+2. `_sample_if_due()` — every sample_s, build RunLatLng; if polygon and outside → drop entirely (dropped_outside += 1); else W1: compute subDistance from last valid point, offFenceDisM, H0 filter, accumulate distance, append to _pending (always, valid or not), advance pace segment.
+3. Pace segment advance — tail extension + seal at > pace_interval_m.
+
+Let me now write it. First re-read the rest of walker.py from line 399.
+
+[assistant • read]
+{"limit": 95, "offset": 399, "path": "/home/ylxc/Projects/lib/ShanDong/shandong-run-lab/sdlab/walker.py", "windows": [{"offset": 399, "limit": 95}, {"offset": 180, "limit": 30}]}
+
+[tool • read]
+=== Lines 399-488 of 488 ===
+aaD│            "seg_sec": self.move_sec - self._last_sample_at_prev_sec,
+CKh│            "seg_steps": int(self._sensor.get("steps") or 0) - self._last_sample_steps,
+l53│            "abs_dist_m": self.dist_m,
+ES5│            "abs_sec": self.move_sec,
+Tux│            "abs_steps": int(self._sensor.get("steps") or 0),
+q8r│            "cadence": float(self._sensor.get("cadence") or 0.0),
+B5q│            "start_ms": self.start_ms,
+4Gd│        })
+TpH│        self._last_sample_dist = self.dist_m
+YMg│        self._last_sample_at_prev_sec = self.move_sec
+pMm│        self._last_sample_steps = int(self._sensor.get("steps") or 0)
+qNn│        self._poi_index += 1
+4Ul│
+mH7│    def drain_points(self) -> List[RunLatLng]:
+9FS│        """取走这一步新产生的轨迹点（调用方负责落库）"""
+F0D│        out = self._pending
+G1E│        self._pending = []
+H2F│        return out
+I3G│
+VFS│    def drain_hits(self) -> List[Dict[str, Any]]:
+WGT│        """取走刚命中的打卡点（命中一次只取到一次）"""
+XHU│        out = self._hits
+YIV│        self._hits = []
+ZJW│        return out
+aKX│
+7yt│    def drain_meta(self) -> List[Dict[str, Any]]:
+xCe│        """取走与刚取走的轨迹点一一对应的分段元数据"""
+7uI│        out = self._pending_meta
+jp4│        self._pending_meta = []
+kq5│        return out
+n2Z│
+RUB│    def points(self) -> List[RunLatLng]:
+7Pr│        """全部轨迹点（收尾时用）"""
+znf│        return list(self._pending)
+0og│
+GZ7│    def passed_targets(self) -> List[Dict[str, Any]]:
+y8N│        return [dict(c) for c in self.targets if int(c.get("passed") or 0) == 1]
+z9O│
+th8│    def summary(self) -> Dict[str, Any]:
+rxh│        st = self.state()
+R8Q│        speed = st.dist_m / st.move_sec if st.move_sec > 0 else 0.0
+hT8│        pace = (st.move_sec / (st.dist_m / 1000.0)) if st.dist_m > 0 else 0.0
+iU9│        return {
+bAN│            "distance_m": round(st.dist_m, 2),
+Ekj│            "duration_s": round(st.move_sec, 2),
+XNP│            "total_step": int(st.steps),
+gId│            "avg_speed_mps": round(speed, 3),
+mVT│            "pace_s_per_km": round(pace, 2),
+FAl│            "stride_m": round(st.dist_m / st.steps, 3) if st.steps else 0.0,
+LuW│            "samples": len(self.samples),
+TMq│            "checkpoints_done": st.passed,
+Ogq│            "checkpoints_total": st.targets,
+6oT│            "arrived": st.arrived,
+7pU│        }
+8qV│
+9rW│
+8bU│# ══════════════════ 工具 ══════════════════
+Bb7│def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+SCg│    """球面距离（米）：与协议层 `protocol.haversine` 同一公式，便于与后端对齐"""
+Lwl│    r = 6371008.8
+0M3│    p1, p2 = math.radians(lat1), math.radians(lat2)
+AZO│    d_lat = p2 - p1
+0iZ│    d_lng = math.radians(lng2 - lng1)
+fOk│    a = math.sin(d_lat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(d_lng / 2) ** 2
+iL9│    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+jNA│
+kOB│
+cwg│def _round6(v: float) -> float:
+Il6│    return math.floor(v * 1e6 + 0.5) / 1e6
+Jm7│
+Kn8│
+mt1│def route_from_checkpoints(center_lat: float, center_lng: float,
+uvq│                           cps: Sequence[Dict[str, Any]],
+Y8b│                           loop: bool = True) -> List[List[float]]:
+gau│    """把打卡点连成一条可自动走的路线（最近邻排序，可选闭合回中心）
+hbv│
+SHE│    顺序很重要：按服务端下发顺序直连会来回穿插，绕路会让实际距离远超目标距离；
+F2O│    最近邻排序缩短单圈长度，也就缩短了"走完全部打卡点至少要跑多远"。
+G3P│    """
+h3I│    rest = [(float(c["lat"]), float(c["lng"])) for c in (cps or [])
+Ch6│            if c.get("lat") is not None and c.get("lng") is not None]
+qUo│    out: List[List[float]] = []
+4V1│    cur = (float(center_lat), float(center_lng))
+b7u│    while rest:
+QPV│        i = min(range(len(rest)), key=lambda k: _haversine(cur[0], cur[1], rest[k][0], rest[k][1]))
+bNW│        cur = rest.pop(i)
+MXF│        out.append([cur[0], cur[1]])
+IoQ│    if loop and out:
+LqC│        out.append([float(center_lat), float(center_lng)])
+MrD│    return out
+
+=== Lines 180-209 of 488 ===
+6WB│        self.total_steps = 0
+j2p│        self.last_record_step = 0
+SGo│        self.step_segments: List[IntervalStep] = []
+Kjq│        self.pace_segments: List[IntervalPace] = []
+0bZ│        self._tail_pace: Optional[IntervalPace] = None
+EPZ│        self._step_out: Dict[int, IntervalStep] = {}
+JGQ│        self._pace_out: Dict[int, IntervalPace] = {}
+Aqu│        self._km_marks: List[int] = []
+GHC│        self._last_km = 0
+ojs│
+EE2│    # ══════════════════ 配置 ══════════════════
+QIs│    def set_joystick(self, dx: float, dy: float, mag: float) -> None:
+kL5│        """摇杆输入：dx/dy 是单位方向（东/北为正），mag ∈ [0,1] 是推杆幅度"""
+vPl│        self.dir_x, self.dir_y = float(dx), float(dy)
+syZ│        self.mag = max(0.0, min(1.0, float(mag)))
+tza│
+kEg│    def release_joystick(self) -> None:
+lFh│        self.mag = 0.0
+mGi│        self.dir_x = 0.0
+nHj│        self.dir_y = 0.0
+oIk│
+twC│    def set_route(self, route: Sequence[Sequence[float]]) -> None:
+6Jc│        """手动指定路径：[[lat, lng], ...]，配 auto_route=True 时自动沿路点走"""
+nJg│        self.route = [(float(p[0]), float(p[1])) for p in (route or [])
+1xG│                      if p is not None and len(p) >= 2]
+2yH│        self.route_index = 0
+3zI│
+W7V│    def set_auto_route(self, flag: bool) -> None:
+l50│        self.auto_route = bool(flag)
+m61│

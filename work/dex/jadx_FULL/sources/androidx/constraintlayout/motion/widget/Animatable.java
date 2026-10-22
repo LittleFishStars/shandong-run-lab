@@ -1,0 +1,8 @@
+package androidx.constraintlayout.motion.widget;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_13_8952cls.dex */
+public interface Animatable {
+    float getProgress();
+
+    void setProgress(float progress);
+}

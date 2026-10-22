@@ -1,0 +1,393 @@
+扫描 7078 条指令
+
+════ 指向 0x14300-0x15000 的 adrp+add ════
+  目标 0x14354:
+     00044490  add x3,x3,#0x354   函数=00044254
+  目标 0x143e9:
+     00043f44  add x0,x0,#0x3e9   函数=00042d54
+  目标 0x1442a:
+     00043ef0  add x0,x0,#0x42a   函数=00042d54
+  目标 0x144cd:
+     00040f2c  add x0,x0,#0x4cd   函数=00040f20
+  目标 0x144ee:
+     00040f4c  add x0,x0,#0x4ee   函数=00040f44
+  目标 0x14561:
+     00041950  add x2,x2,#0x561   函数=0004187c
+  目标 0x1458a:
+     00043e50  add x0,x0,#0x58a   函数=00042d54
+  目标 0x145c9:
+     00043ff8  add x2,x2,#0x5c9   函数=00042d54
+     0004444c  add x2,x2,#0x5c9   函数=00044254
+     00045b88  add x2,x2,#0x5c9   函数=000457b4
+  目标 0x146a0:
+     00040f94  add x0,x0,#0x6a0   函数=00040f8c
+  目标 0x146af:
+     000414e0  add x0,x0,#0x6af   函数=000414d8
+  目标 0x146bf:
+     00044488  add x2,x2,#0x6bf   函数=00044254
+     000444b4  add x2,x2,#0x6bf   函数=00044254
+     000444e0  add x2,x2,#0x6bf   函数=00044254
+     0004450c  add x2,x2,#0x6bf   函数=00044254
+     00044534  add x2,x2,#0x6bf   函数=00044254
+  目标 0x14766:
+     0003e478  add x1,x1,#0x766   函数=0003e398
+  目标 0x14804:
+     00043ed4  add x1,x1,#0x804   函数=00042d54
+  目标 0x14856:
+     00042330  add x0,x0,#0x856   函数=000421a0
+  目标 0x1486a:
+     0004233c  add x0,x0,#0x86a   函数=000421a0
+  目标 0x1487e:
+     00023408  add x0,x0,#0x87e   函数=00023118
+  目标 0x148fc:
+     00043e20  add x0,x0,#0x8fc   函数=00042d54
+  目标 0x1493e:
+     00044514  add x3,x3,#0x93e   函数=00044254
+  目标 0x1496e:
+     00044000  add x3,x3,#0x96e   函数=00042d54
+     00044454  add x3,x3,#0x96e   函数=00044254
+     00045b90  add x3,x3,#0x96e   函数=000457b4
+  目标 0x1498e:
+     00029ff8  add x0,x0,#0x98e   函数=00029fe0
+  目标 0x14ace:
+     00041954  add x3,x3,#0xace   函数=0004187c
+  目标 0x14b31:
+     00043f28  add x0,x0,#0xb31   函数=00042d54
+  目标 0x14c0f:
+     00041484  add x0,x0,#0xc0f   函数=0004147c
+  目标 0x14c29:
+     00043ddc  add x0,x0,#0xc29   函数=00042d54
+  目标 0x14cb1:
+     00045964  add x0,x0,#0xcb1   函数=000457b4
+  目标 0x14d2c:
+     000444e8  add x3,x3,#0xd2c   函数=00044254
+  目标 0x14d5c:
+     000452d8  add x0,x0,#0xd5c   函数=?
+     000456f8  add x0,x0,#0xd5c   函数=000455d8
+  目标 0x14d97:
+     00025428  add x1,x1,#0xd97   函数=00025154
+     000254c8  add x1,x1,#0xd97   函数=00025154
+  目标 0x14de2:
+     0003e460  add x0,x0,#0xde2   函数=0003e398
+  目标 0x14df3:
+     0002a190  add x9,x9,#0xdf3   函数=0002a180
+  目标 0x14e24:
+     00040fc4  add x0,x0,#0xe24   函数=00040fbc
+  目标 0x14e39:
+     0004194c  add x1,x1,#0xe39   函数=0004187c
+     00041a08  add x1,x1,#0xe39   函数=000419a0
+     00042374  add x1,x1,#0xe39   函数=000421a0
+     0004239c  add x1,x1,#0xe39   函数=000421a0
+     00043f94  add x1,x1,#0xe39   函数=00042d54
+  目标 0x14ebc:
+     00045c68  add x3,x3,#0xebc   函数=00045ba8
+  目标 0x14f19:
+     00029fa8  add x0,x0,#0xf19   函数=00029f94
+  目标 0x14fcb:
+     00043e88  add x0,x0,#0xfcb   函数=00042d54
+
+涉及 21 个函数
+
+════ 00023118 (1148 字节, 229 行) ════
+
+ulong * FUN_00023118(undefined8 param_1,undefined8 param_2,byte *param_3,byte *param_4,byte *param_5
+                    ,long param_6,long param_7,undefined8 param_8)
+
+{
+  int *piVar1;
+  long lVar2;
+  ulong *puVar3;
+  ulong *puVar4;
+  ulong *puVar5;
+  long lVar6;
+  ulong uVar7;
+  byte *pbVar8;
+  long extraout_x8;
+  byte *pbVar9;
+  long lVar10;
+  byte *pbVar11;
+  byte *pbVar12;
+  byte *pbVar13;
+  byte *pbVar14;
+  ulong uVar15;
+  undefined1 auVar16 [16];
+  
+  if ((*param_3 & 1) == 0) {
+    pbVar8 = (byte *)(ulong)(*param_3 >> 1);
+    if (param_4 <= pbVar8) {
+      param_3 = param_3 + 1;
+LAB_0002314c:
+      pbVar11 = pbVar8 + -(long)param_4;
+      if (param_5 <= pbVar8 + -(long)param_4) {
+        pbVar11 = param_5;
+      }
+      puVar3 = (ulong *)FUN_00045ef0(param_1,param_2,param_3 + (long)param_4,pbVar11);
+      return puVar3;
+    }
+  }
+  else {
+    pbVar8 = *(byte **)(param_3 + 8);
+    if (param_4 <= pbVar8) {
+      param_3 = *(byte **)(param_3 + 0x10);
+      goto LAB_0002314c;
+    }
+  }
+  auVar16 = FUN_000460e0();
+  pbVar8 = auVar16._8_8_;
+  puVar3 = auVar16._0_8_;
+  if (((byte)*puVar3 & 1) == 0) {
+    pbVar11 = (byte *)(ulong)(byte)((byte)*puVar3 >> 1);
+    pbVar9 = pbVar11 + -(long)pbVar8;
+    if (pbVar8 <= pbVar11) {
+      pbVar12 = pbVar9;
+      if (param_3 <= pbVar9) {
+        pbVar12 = param_3;
+      }
+      if (pbVar12 + (4 - (long)pbVar11) < param_5) {
+        lVar6 = 4;
+LAB_00023200:
+        FUN_00046140(puVar3,lVar6,(long)(pbVar11 + (long)param_5) - (long)(pbVar12 + lVar6),pbVar11,
+                     pbVar8,pbVar12,param_5,param_4);
+        return puVar3;
+      }
+      pbVar14 = (byte *)((long)puVar3 + 4);
+joined_r0x0002327c:
+      pbVar13 = param_5;
+      if ((pbVar12 != param_5) &&
+         (lVar6 = (long)pbVar9 - (long)pbVar12, pbVar13 = pbVar12, lVar6 != 0)) {
+        pbVar9 = pbVar14 + (long)pbVar8 * 4;
+        if (param_5 < pbVar12) {
+          if (param_5 != (byte *)0x0) {
+            FUN_00046150(pbVar9,param_4,param_5);
+          }
+          FUN_00046150(pbVar9 + (long)param_5 * 4,pbVar9 + (long)pbVar12 * 4,lVar6);
+          goto LAB_00023300;
+        }
+        if ((pbVar9 < param_4) && (param_4 < pbVar14 + (long)pbVar11 * 4)) {
+          if (param_4 < pbVar9 + (long)pbVar12 * 4) {
+            if (pbVar12 != (byte *)0x0) {
+              FUN_00046150(pbVar9,param_4,pbVar12);
+            }
+            pbVar8 = pbVar12 + (long)pbVar8;
+            param_4 = param_4 + (long)param_5 * 4;
+            param_5 = param_5 + -(long)pbVar12;
+            pbVar12 = (byte *)0x0;
+          }
+          else {
+            param_4 = param_4 + ((long)param_5 - (long)pbVar12) * 4;
+          }
+        }
+        FUN_00046150(pbVar14 + (long)param_5 * 4 + (long)pbVar8 * 4,
+                     pbVar14 + (long)pbVar12 * 4 + (long)pbVar8 * 4,lVar6);
+        pbVar13 = pbVar12;
+      }
+      if (param_5 != (byte *)0x0) {
+        FUN_00046150(pbVar14 + (long)pbVar8 * 4,param_4,param_5);
+      }
+LAB_00023300:
+      pbVar11 = pbVar11 + ((long)param_5 - (
+
+════ 00025154 (964 字节, 184 行) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+ulong FUN_00025154(undefined8 param_1,undefined8 param_2,byte *param_3,ulong param_4,ulong param_5)
+
+{
+  int iVar1;
+  int iVar2;
+  byte bVar3;
+  byte bVar4;
+  ulong uVar5;
+  ulong uVar6;
+  undefined8 uVar7;
+  int *piVar8;
+  long *plVar9;
+  long lVar10;
+  ulong uVar11;
+  ulong *extraout_x8;
+  byte *pbVar12;
+  byte *pbVar13;
+  ulong uVar14;
+  undefined1 auVar15 [16];
+  byte local_e0 [16];
+  undefined8 local_d0;
+  long local_c8;
+  undefined1 auStack_c0 [24];
+  long local_a8;
+  undefined1 *local_a0;
+  undefined8 uStack_98;
+  undefined1 *local_60;
+  undefined8 uStack_58;
+  
+  if ((*param_3 & 1) == 0) {
+    uVar11 = (ulong)(*param_3 >> 1);
+    if (param_4 <= uVar11) {
+      param_3 = param_3 + 4;
+LAB_00025188:
+      uVar5 = uVar11 - param_4;
+      if (param_5 <= uVar11 - param_4) {
+        uVar5 = param_5;
+      }
+      uVar11 = FUN_000461d0(param_1,param_2,param_3 + param_4 * 4,uVar5);
+      return uVar11;
+    }
+  }
+  else {
+    uVar11 = *(ulong *)(param_3 + 8);
+    if (param_4 <= uVar11) {
+      param_3 = *(byte **)(param_3 + 0x10);
+      goto LAB_00025188;
+    }
+  }
+  auVar15 = FUN_000460e0();
+  pbVar13 = auVar15._8_8_;
+  uStack_58 = 0x251a8;
+  *extraout_x8 = 0;
+  extraout_x8[1] = 0;
+  extraout_x8[2] = 0;
+  local_60 = &stack0xfffffffffffffff0;
+  uVar5 = FUN_00045e90();
+  bVar3 = *pbVar13;
+  uVar11 = (ulong)(bVar3 >> 1);
+  if ((bVar3 & 1) != 0) {
+    uVar11 = *(ulong *)(pbVar13 + 8);
+  }
+  uVar6 = uVar11 + uVar5;
+  if (uVar6 < 0xfffffffffffffff0) {
+    if (uVar6 < 0x17) {
+      uVar14 = (long)extraout_x8 + 1;
+      *(char *)extraout_x8 = (char)((int)uVar5 << 1);
+      uVar6 = 0;
+    }
+    else {
+      uVar6 = uVar6 + 0x10 & 0xfffffffffffffff0;
+      uVar14 = FUN_00045ea0(uVar6);
+      extraout_x8[1] = uVar5;
+      extraout_x8[2] = uVar14;
+      *extraout_x8 = uVar6 | 1;
+      uVar6 = uVar14;
+    }
+    if (uVar5 != 0) {
+      uVar6 = FUN_00045eb0(uVar14,auVar15._0_8_,uVar5);
+      bVar3 = *pbVar13;
+    }
+    *(undefined1 *)(uVar14 + uVar5) = 0;
+    pbVar12 = *(byte **)(pbVar13 + 0x10);
+    bVar4 = (byte)*extraout_x8;
+    if ((bVar3 & 1) == 0) {
+      pbVar12 = pbVar13 + 1;
+    }
+    if ((bVar4 & 1) == 0) {
+      uVar5 = (ulong)(bVar4 >> 1);
+      lVar10 = 0x16;
+    }
+    else {
+      uVar5 = extraout_x8[1];
+      lVar10 = (*extraout_x8 & 0xfffffffffffffffe) - 1;
+    }
+    if (lVar10 - uVar5 < uVar11) {
+      uVar6 = FUN_000460c0(extraout_x8,lVar10,(uVar5 + uVar11) - lVar10,uVar5,uVar5,0,uVar11);
+    }
+    else if (uVar11 != 0) {
+      uVar14 = extraout_x8[2];
+      if ((bVar4 & 1) == 0) {
+        uVar14 = (long)extraout_x8 + 1;
+      }
+      uVar6 = FUN_00045eb0(uVar14 + uVar5,pbVar12,uVar11);
+      uVar5 = uVar5 + uVar11;
+      if ((*extraout_x8 & 1) == 0) {
+        *(char *)extraout_x8 = (char)((int)uVar5 << 1);
+      }
+      else {
+        extraout_x8[1] = uVar5;
+      }
+      *(undefined1 *)(uVar14 + uVar5) = 0;
+    }
+    return uVar6;
+  }
+  uVar7 = FUN_00045ec0
+
+════ 00029f94 (76 字节, 13 行) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined8 FUN_00029f94(code *param_1)
+
+{
+  (*param_1)();
+  FUN_0003e398(s_unexpected_handler_unexpectedly_r_00014f19);
+  FUN_00029f94(*_DAT_0004ac88);
+  return *_DAT_0004ac90;
+}
+
+
+
+════ 00029fe0 (100 字节, 33 行) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined8 FUN_00029fe0(code *param_1)
+
+{
+  char cVar1;
+  bool bVar2;
+  undefined8 *puVar3;
+  undefined8 uVar4;
+  undefined8 uVar5;
+  
+  (*param_1)();
+  FUN_0003e398(s_terminate_handler_unexpectedly_r_0001498e);
+  FUN_00046000();
+  uVar4 = FUN_0003e398(s_terminate_handler_unexpectedly_t_00015721);
+  FUN_00046010();
+  FUN_00020cbc(uVar4);
+  uVar4 = FUN_00020cbc();
+  puVar3 = _DAT_0004ac98;
+  do {
+    uVar5 = *puVar3;
+    cVar1 = '\x01';
+    bVar2 = (bool)ExclusiveMonitorPass(puVar3,0x10);
+    if (bVar2) {
+      *puVar3 = uVar4;
+      cVar1 = ExclusiveMonitorsStatus();
+    }
+  } while (cVar1 != '\0');
+  return uVar5;
+}
+
+
+
+════ 0002a180 (72 字节, 33 行) ════
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined8 FUN_0002a180(void)
+
+{
+  undefined *puVar1;
+  char cVar2;
+  bool bVar3;
+  undefined8 *puVar4;
+  undefined *puVar5;
+  undefined8 uVar6;
+  
+  _DAT_0004c160 = s_unexpected_00014df3;
+  puVar5 = (undefined *)FUN_00046020();
+  puVar4 = _DAT_0004ac88;
+  puVar1 = &DAT_0002a17c;
+  if (puVar5 != (undefined *)0x0) {
+    puVar1 = puVar5;
+  }
+  do {
+    uVar6 = *puVar4;
+    cVar2 = '\x01';
+    bVar3 = (bool)ExclusiveMonitorPass(puVar4,0x10);
+    if (bVar3) {
+      *puVar4 = puVar1;
+      cVar2 = ExclusiveMonitorsStatus();
+    }
+  } while (cVar2 != '\0');
+  return uVar6;
+}
+

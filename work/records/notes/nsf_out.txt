@@ -1,0 +1,42 @@
+[*] spawned pid=9231
+[*] script loaded
+[js] Java.perform 就绪
+[js] 字段/方法探针已装 8 个，table=0x7cd87d7390
+[js] N+0x95d10  FindClass("@��|")
+[js] N+0x95d10  FindClass("<bad>")
+[js] N+0x95d10  FindClass("<bad>")
+[js] N+0x95d10  FindClass("<bad>")
+[js] N+0x95d10  FindClass("@��|")
+[js] N+0x95d10  FindClass("<null>")
+[js] N+0x95d10  FindClass("@��|")
+[js] N+0x95d10  FindClass("<bad>")
+[js] N+0x95d10  FindClass("@��|")
+[js] N+0x95d10  FindClass("<bad>")
+[js] N+0x95d10  FindClass("@��|")
+[js] N+0xa6504  FindClass("<bad>")
+[js] N+0x88a10  FindClass("<bad>")
+[js] N+0x88a38  GetStaticMethodID("d", "(Ljava/lang/String;)V") = 0x7cbd738a90
+[js] N+0x88a58  GetStaticMethodID("e", "(Ljava/lang/String;)V") = 0x7cbd738ab8
+[js] N+0xae67c  FindClass("getClassNameList")
+[js] N+0xae6b8  GetStaticMethodID("getClassNameList", "(Ljava/lang/Object;)[Ljava/lang/String;") = 0x70e07030
+[js] N+0x88d24  FindClass("<bad>")
+[js] N+0x88d9c  GetStaticMethodID("setApiBlacklistExemptions", "([Ljava/lang/String;)V") = 0x71940160
+[js] N+0x88e38  FindClass("<bad>")
+[js] N+0xb65fc  FindClass("<bad>")
+[js] N+0xb664c  GetMethodID("getApplicationInfo", "()Landroid/content/pm/ApplicationInfo;") = 0x71780950
+[js] N+0xaec5c  FindClass("<bad>")
+[js] N+0xaeca4  GetMethodID("getBytes", "(Ljava/lang/String;)[B") = 0x70c5cc38
+[js] N+0xaeec0  FindClass("<bad>")
+[js] N+0xaeef0  GetFieldID("publicSourceDir", "Ljava/lang/String;") = 0x715f028c
+[js] N+0xaef0c  GetObjectField(obj=0x715f028c) = 0xb9
+[js] N+0xaeec0  FindClass("<bad>")
+[js] N+0xaeef0  GetFieldID("dataDir", "Ljava/lang/String;") = 0x715f00fc
+[js] N+0xaef0c  GetObjectField(obj=0x715f00fc) = 0xb1
+[js] N+0x9fac0  FindClass("<bad>")
+[js] N+0xb1098  FindClass("<bad>")
+[js] N+0xb1118  GetMethodID("getResource", "(Ljava/lang/String;)Ljava/net/URL;") = 0x70c697e8
+[js] N+0xaf8a4  FindClass("<bad>")
+[js] N+0xaf8ec  GetMethodID("<init>", "([BLjava/lang/String;)V") = 0x70c5c530
+[js] N+0xb1190  FindClass("<bad>")
+[!] 进程已退出
+[*] 等待结束

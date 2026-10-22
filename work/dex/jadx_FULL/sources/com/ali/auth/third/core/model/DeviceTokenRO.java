@@ -1,0 +1,7 @@
+package com.ali.auth.third.core.model;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_12_10194cls.dex */
+public class DeviceTokenRO {
+    public String key;
+    public String salt;
+}

@@ -1,0 +1,6 @@
+[*] spawned pid=23596
+[*] script loaded
+[js] [i] ShandongApplication.attachBaseContext 存在: function attachBaseContext(android.content.Context): void
+[js] [✓] 诊断钩子已装
+[!] 进程已退出
+[*] 等待结束

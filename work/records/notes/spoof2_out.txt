@@ -1,0 +1,15 @@
+[*] spawned pid=30113
+[js] [*] 原版证书已装载: 779 字节
+[js] [*] spoof_sig2.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] Signature.toByteArray 已挂
+[js] [+] Signature.<init> 已挂
+[js] [+] getPackageInfo 已挂
+[js] [+] System.exit 已挂
+[js] [SPOOF] toByteArray() 761 B (调试证书) → 换原版 779 B
+[js] [PKG] getPackageInfo(0x40) signatures[0] 779 B
+[js] [SPOOF] toByteArray() 761 B (调试证书) → 换原版 779 B
+[js] [EXIT] System.exit(0) —— spoof 未能阻止
+[!] 进程已退出
+[*] 等待结束

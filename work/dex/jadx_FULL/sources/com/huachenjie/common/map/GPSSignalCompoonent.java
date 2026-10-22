@@ -1,0 +1,152 @@
+package com.huachenjie.common.map;
+
+import android.content.res.Resources;
+import android.view.View;
+import androidx.core.content.res.ResourcesCompat;
+import androidx.fragment.app.Fragment;
+import com.huachenjie.common.R;
+import com.huachenjie.common.base.BaseComponent;
+import com.huachenjie.common.event.SignalChangeEvent;
+import com.huachenjie.common.widget.ShadowLayout;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_02_3758cls.dex */
+public class GPSSignalCompoonent<T> extends BaseComponent<T> {
+    public static final String f = "GPSSignalCompoonent";
+
+    /* JADX INFO: renamed from: a, reason: collision with root package name */
+    public View f33824a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public SignalChangeListener f8785a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public ShadowLayout f8786a;
+
+    /* JADX INFO: renamed from: a, reason: collision with other field name */
+    public boolean f8787a;
+    public View b;
+    public View c;
+
+    public interface SignalChangeListener {
+        void a();
+
+        void b();
+    }
+
+    public GPSSignalCompoonent(T context) {
+        super(context);
+    }
+
+    @Override // com.huachenjie.common.base.BaseComponent
+    public void bindData() {
+    }
+
+    public void d() {
+    }
+
+    public void e(SignalChangeListener listener) {
+        this.f8785a = listener;
+    }
+
+    @Override // com.huachenjie.common.base.BaseComponent
+    public void findViews() {
+        this.f8786a = (ShadowLayout) a(R.id.sl_gps_signal);
+        this.f33824a = a(R.id.view_signal_1);
+        this.b = a(R.id.view_signal_2);
+        this.c = a(R.id.view_signal_3);
+    }
+
+    @Override // com.huachenjie.common.base.BaseComponent
+    public void initListeners() {
+    }
+
+    @Override // com.huachenjie.common.base.BaseComponent, com.huachenjie.common.base.ILifecycleCallback
+    public void onCreate() {
+        super.onCreate();
+        EventBus.f().v(this);
+    }
+
+    @Override // com.huachenjie.common.base.BaseComponent, com.huachenjie.common.base.ILifecycleCallback
+    public void onDestroy() {
+        super.onDestroy();
+        EventBus.f().A(this);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onEvent(SignalChangeEvent signalChangeEvent) {
+        if (signalChangeEvent != null) {
+            int validLocCount = signalChangeEvent.getValidLocCount();
+            if (validLocCount <= 0) {
+                View view = this.f33824a;
+                Resources resources = b().getResources();
+                int i = R.color.color_cacaca;
+                view.setBackgroundColor(ResourcesCompat.getColor(resources, i, null));
+                this.b.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i, null));
+                this.c.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i, null));
+                SignalChangeListener signalChangeListener = this.f8785a;
+                if (signalChangeListener != null) {
+                    signalChangeListener.a();
+                }
+                T t = ((BaseComponent) this).f33636a;
+                if (t instanceof Fragment) {
+                    Fragment fragment = (Fragment) t;
+                    if (fragment.isHidden()) {
+                        return;
+                    }
+                    fragment.isVisible();
+                    return;
+                }
+                return;
+            }
+            if (validLocCount == 1) {
+                this.f33824a.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), R.color.color_ff4040, null));
+                View view2 = this.b;
+                Resources resources2 = b().getResources();
+                int i2 = R.color.color_cacaca;
+                view2.setBackgroundColor(ResourcesCompat.getColor(resources2, i2, null));
+                this.c.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i2, null));
+                SignalChangeListener signalChangeListener2 = this.f8785a;
+                if (signalChangeListener2 != null) {
+                    signalChangeListener2.a();
+                }
+                T t2 = ((BaseComponent) this).f33636a;
+                if (t2 instanceof Fragment) {
+                    Fragment fragment2 = (Fragment) t2;
+                    if (fragment2.isHidden()) {
+                        return;
+                    }
+                    fragment2.isVisible();
+                    return;
+                }
+                return;
+            }
+            if (validLocCount == 2) {
+                View view3 = this.f33824a;
+                Resources resources3 = b().getResources();
+                int i3 = R.color.color_main_v2;
+                view3.setBackgroundColor(ResourcesCompat.getColor(resources3, i3, null));
+                this.b.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i3, null));
+                this.c.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), R.color.color_cacaca, null));
+                SignalChangeListener signalChangeListener3 = this.f8785a;
+                if (signalChangeListener3 != null) {
+                    signalChangeListener3.b();
+                    return;
+                }
+                return;
+            }
+            View view4 = this.f33824a;
+            Resources resources4 = b().getResources();
+            int i4 = R.color.color_main_v2;
+            view4.setBackgroundColor(ResourcesCompat.getColor(resources4, i4, null));
+            this.b.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i4, null));
+            this.c.setBackgroundColor(ResourcesCompat.getColor(b().getResources(), i4, null));
+            SignalChangeListener signalChangeListener4 = this.f8785a;
+            if (signalChangeListener4 != null) {
+                signalChangeListener4.b();
+            }
+        }
+    }
+}

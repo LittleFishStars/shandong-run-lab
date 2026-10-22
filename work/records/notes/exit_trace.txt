@@ -1,0 +1,60 @@
+[*] spawned pid=21151
+[js] [+] hooked native exit @ 0x7d5dda0580
+[js] [+] hooked native _exit @ 0x7d5ddf5540
+[js] [+] hooked native abort @ 0x7d5dda5b40
+[js] [+] hooked native kill @ 0x7d5ddf5a08
+[js] [+] hooked native pthread_kill @ 0x7d5de09630
+[js] [*] hook_exit.js 装载完成
+[*] script loaded
+[js] [+] Java.perform 进入
+[js] [+] hooked System.exit
+[js] [+] hooked Runtime.exit
+[js] [+] hooked Runtime.halt
+[js] [+] hooked Process.killProcess
+[js] [+] hooked ApplicationPackageManager.getPackageInfo
+[js] [+] hooked Signature.<init>
+[js] [SIG] getPackageInfo(flags=64) 请求签名
+java.lang.Throwable
+	at android.app.ApplicationPackageManager.getPackageInfo(Native Method)
+	at com.netease.nis.wrapper.MyJni.load(Native Method)
+	at com.netease.nis.wrapper.MyApplication.attachBaseContext(Unknown Source:123)
+	at android.app.Application.attach(Application.java:216)
+	at android.app.Instrumentation.newApplication(Instrumentation.java:1121)
+	at android.app.LoadedApk.makeApplication(LoadedApk.java:1122)
+	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:6321)
+	at android.app.ActivityThread.handleBindApplication(Native Method)
+	at android.app.ActivityThread.access$1300(ActivityThread.java:233)
+	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1877)
+	at android.os.Handler.dispatchMessage(Handler.java:106)
+	at android.os.Looper.loop(Looper.java:242)
+	at android.app.ActivityThread.main(ActivityThread.java:7227)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:499)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:962)
+
+[js] [!!] System.exit 参数=[0]  (第 1 次，已阻断)
+java.lang.Throwable
+	at java.lang.System.exit(Native Method)
+
+[js] [!!] System.exit 参数=[0]  (第 2 次，已阻断)
+java.lang.Throwable
+	at java.lang.System.exit(Native Method)
+
+[js] [SIG] getPackageInfo(flags=64) 请求签名
+java.lang.Throwable
+	at android.app.ApplicationPackageManager.getPackageInfo(Native Method)
+	at com.umeng.commonsdk.utils.b.a(SourceFile:7)
+	at com.umeng.commonsdk.utils.UMUtils.getAppVersionName(SourceFile:3)
+	at com.umeng.analytics.pro.k.a(SourceFile:20)
+	at com.umeng.analytics.pro.q.d(SourceFile:3)
+	at com.umeng.analytics.pro.q.a(SourceFile:72)
+	at com.umeng.analytics.CoreProtocol.workEvent(Unknown Source:6)
+	at com.umeng.commonsdk.framework.UMWorkDispatch.handleEvent(Unknown Source:43)
+	at com.umeng.commonsdk.framework.UMWorkDispatch.access$000(Unknown Source:0)
+	at com.umeng.commonsdk.framework.UMWorkDispatch$1.handleMessage(Unknown Source:31)
+	at android.os.Handler.dispatchMessage(Handler.java:106)
+	at android.os.Looper.loop(Looper.java:242)
+	at android.os.HandlerThread.run(HandlerThread.java:65)
+
+[*] 等待结束
+[*] 已 kill pid=21151

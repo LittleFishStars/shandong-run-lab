@@ -1,0 +1,50 @@
+package com.aliyun.vod.log.struct;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_10_7392cls.dex */
+public class AliyunLogEvent {
+    public static final int EVENT_ADD_FILTER = 2009;
+    public static final int EVENT_ADD_MUSIC = 2008;
+    public static final int EVENT_ADD_PASTER = 2007;
+    public static final int EVENT_APPLY_FILTER = 3005;
+    public static final int EVENT_APPLY_MUSIC = 3008;
+    public static final int EVENT_APPLY_MV = 3006;
+    public static final int EVENT_APPLY_WATERMARK = 3007;
+    public static final int EVENT_CANCEL_COMPOSE = 3012;
+    public static final int EVENT_CHANGE_BEAUTY = 2011;
+    public static final int EVENT_CHANGE_CAMREA = 2012;
+    public static final int EVENT_CHANGE_SPEED = 2010;
+    public static final int EVENT_COMPOSE_COMPLETE = 3017;
+    public static final int EVENT_COMPOSE_ERROR = 3016;
+    public static final int EVENT_CREATE_CANVAS_CONTROLLER = 3004;
+    public static final int EVENT_CREATE_PASTER_MANAGER = 3003;
+    public static final int EVENT_CREATE_PLAYER = 3002;
+    public static final int EVENT_CURRENT_PLAY_POSITION = 4005;
+    public static final int EVENT_DELETE_CLIP = 2004;
+    public static final int EVENT_FINISH_RECORDING = 2005;
+    public static final int EVENT_INIT_EDITOR = 3001;
+    public static final int EVENT_INIT_RECORDER = 2001;
+    public static final int EVENT_OBTAIN_DURATION = 4006;
+    public static final int EVENT_ON_EDITOR_DESTORY = 3015;
+    public static final int EVENT_ON_EDITOR_PAUSE = 3014;
+    public static final int EVENT_ON_EDITOR_RESUME = 3013;
+    public static final int EVENT_PAUSE_PLAY = 4002;
+    public static final int EVENT_RECORDING_FAILED = 2006;
+    public static final int EVENT_RESUME_PLAY = 4003;
+    public static final int EVENT_SET_SCALE_MODE = 4008;
+    public static final int EVENT_SET_TAIL_BMP = 3010;
+    public static final int EVENT_SET_VOLUME = 4007;
+    public static final int EVENT_SET_WEIGHT = 3009;
+    public static final int EVENT_START_COMPOSE = 3011;
+    public static final int EVENT_START_PLAY = 4001;
+    public static final int EVENT_START_RECORDING = 2002;
+    public static final int EVENT_STOP_PLAY = 4004;
+    public static final int EVENT_STOP_RECORDING = 2003;
+    public static final int EVENT_UPLOAD_ADD_FILES = 20001;
+    public static final int EVENT_UPLOAD_CANCEL = 20008;
+    public static final int EVENT_UPLOAD_FILE_FAILED = 20004;
+    public static final int EVENT_UPLOAD_PART_COMPLETED = 20007;
+    public static final int EVENT_UPLOAD_PART_FAILED = 20006;
+    public static final int EVENT_UPLOAD_PART_START = 20005;
+    public static final int EVENT_UPLOAD_STARTED = 20002;
+    public static final int EVENT_UPLOAD_SUCCESSED = 20003;
+}

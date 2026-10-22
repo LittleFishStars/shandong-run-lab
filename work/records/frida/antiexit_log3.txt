@@ -1,0 +1,2 @@
+[send] {'type': 'log', 'message': 'native hook 异常: TypeError: not a function / stack=TypeError: not a function\n    at <anonymous> (/script1.js:116)\n    at forEach (native)\n    at hookNative (/script1.js:133)\n    at <anonymous> (/script1.js:156)\n    at <eval> (/script1.js:158)'}
+[send] {'type': 'log', 'message': 'anti-exit 脚本已加载'}

@@ -1,0 +1,46 @@
+package com.alipay.android.app.helper;
+
+import android.content.Context;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_12_10194cls.dex */
+public class TidHelper extends com.alipay.sdk.tid.TidHelper {
+    public static void clearTID(Context context) {
+        com.alipay.sdk.tid.TidHelper.clearTID(context);
+    }
+
+    public static String getIMEI(Context context) {
+        return com.alipay.sdk.tid.TidHelper.getIMEI(context);
+    }
+
+    public static String getIMSI(Context context) {
+        return com.alipay.sdk.tid.TidHelper.getIMSI(context);
+    }
+
+    public static synchronized String getTIDValue(Context context) {
+        return com.alipay.sdk.tid.TidHelper.getTIDValue(context);
+    }
+
+    public static String getVirtualImei(Context context) {
+        return com.alipay.sdk.tid.TidHelper.getVirtualImei(context);
+    }
+
+    public static String getVirtualImsi(Context context) {
+        return com.alipay.sdk.tid.TidHelper.getVirtualImsi(context);
+    }
+
+    public static Tid loadLocalTid(Context context) {
+        return Tid.fromRealTidModel(com.alipay.sdk.tid.TidHelper.loadLocalTid(context));
+    }
+
+    public static synchronized Tid loadOrCreateTID(Context context) {
+        return Tid.fromRealTidModel(com.alipay.sdk.tid.TidHelper.loadOrCreateTID(context));
+    }
+
+    public static Tid loadTID(Context context) {
+        return Tid.fromRealTidModel(com.alipay.sdk.tid.TidHelper.loadTID(context));
+    }
+
+    public static boolean resetTID(Context context) throws Exception {
+        return com.alipay.sdk.tid.TidHelper.resetTID(context);
+    }
+}

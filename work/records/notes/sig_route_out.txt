@@ -1,0 +1,80 @@
+[*] spawned pid=26783
+[js] [*] native 文件钩子已装
+[js] [*] sig_route.js 装载完成
+[*] script loaded
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk.arm64.flock")
+[js] [NAT] stat("/data/dalvik-cache/arm64/data@app@com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==@base.apk@classes.vdex")
+[js] [NAT] stat("/data/dalvik-cache/arm64/data@app@com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==@base.apk@classes.vdex")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.vdex")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.odex")
+[js] [NAT] lstat("/data/app")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.odex")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.vdex")
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.vdex")
+[js] [NAT] lstat("/data/app")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.art")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/oat/arm64/base.art")
+[js] [NAT] lstat("/data/app")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] lstat("/data/app")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==")
+[js] [NAT] lstat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/lib/arm64")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/lib/arm64")
+[js] [NAT] stat("/data/misc/profiles/cur/0/com.huachenjie.shandong_school/primary.prof")
+[js] [NAT] stat("/data/misc/profiles/ref/com.huachenjie.shandong_school/primary.prof")
+[js] [NAT] stat("/data/misc/profiles/cur/0/com.huachenjie.shandong_school/primary.prof")
+[js] [NAT] lstat("/data/data/com.huachenjie.shandong_school")
+[js] [+] Java.perform 进入
+[js] [+] 已挂 ApplicationPackageManager.getPackageInfo
+[js] [+] 已挂 ApplicationPackageManager.getPackageArchiveInfo
+[js] [+] 已挂 checkSignatures
+[js] [+] 已挂 Signature
+[js] [+] 已挂 SigningInfo
+[js] [+] 已挂 com.netease.nis.wrapper.MyJni
+[js] [-] libnesec.so 未加载
+[js] [-] libNetHTProtect.so 未加载
+[js] [-] liby.so 未加载
+[js] [+] 已挂 com.netease.nis.wrapper.MyApplication
+[js] [+] 已挂 com.netease.nis.wrapper.Utils
+[js] [+] 已挂 com.netease.nis.wrapper.Entry
+[js] [+] 已挂 System.exit
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.attachBaseContext(android.app.ContextImpl@94744e1)
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.a()
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.getVersion()
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.needExtractSo()
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.needX86So()
+[js] [SHELL] com.netease.nis.wrapper.MyJni.a()
+[js] [SHELL] com.netease.nis.wrapper.MyJni.b()
+[js] [SHELL] com.netease.nis.wrapper.MyJni.a(x86)
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/lib/arm64/libnesec.so")
+[js] [SHELL] com.netease.nis.wrapper.MyJni.load(com.netease.nis.wrapper.MyApplication@15b1206, com.huachenjie.shandong_school)
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] open("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] stat("/data/app/com.huachenjie.shandong_school-mdFyD-NBh6H1TT8Q4bUEPQ==/base.apk")
+[js] [NAT] fopen("/data/user/0/com.huachenjie.shandong_school/files/1792060995")
+[js] [NAT] open("/data/user/0/com.huachenjie.shandong_school/files/1792060995")
+[js] [PM] ApplicationPackageManager.getPackageInfo("com.huachenjie.shandong_school", flags=0x40)
+[js] [SIG] Signature.toByteArray() len=761 sha256=1417a9cfe8fc662aef6179ac56350201fd4490e3c7e53b4a8a166168e86cfcae
+[js]      → signatures[0] len=761 sha256=1417a9cfe8fc662aef6179ac56350201fd4490e3c7e53b4a8a166168e86cfcae
+[js]      → signingInfo = null
+[js] [SIG] Signature.toByteArray() len=761 sha256=1417a9cfe8fc662aef6179ac56350201fd4490e3c7e53b4a8a166168e86cfcae
+[js] [SHELL] com.netease.nis.wrapper.MyApplication.getAppCtx()
+[js] [NAT] fopen("/data/user/0/com.huachenjie.shandong_school/.cache/.rpcesredsopoiu.bin")
+[js] [NAT] open("/data/user/0/com.huachenjie.shandong_school/.cache/.rpcesredsopoiu.bin")
+[js] [EXIT] System.exit(0)
+      java.lang.System.exit(Native Method)
+[!] 进程已退出
+[*] 等待结束

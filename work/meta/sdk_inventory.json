@@ -1,0 +1,2048 @@
+{
+  "apk": "com.huachenjie.shandong_school.apk",
+  "abi": "arm64-v8a",
+  "lib_count": 93,
+  "total_size": 120537916,
+  "rules_version": "1.0",
+  "note": "判定完全基于 .so 内的可打印字符串证据；分数低于阈值的记为「未确定」，不做猜测。",
+  "libs": [
+    {
+      "lib": "libAMapSDK_MAP_v9_5_0.so",
+      "path": "lib/arm64-v8a/libAMapSDK_MAP_v9_5_0.so",
+      "size": 13364904,
+      "size_human": "12.75 MB",
+      "sha256_prefix": "",
+      "sdk": "高德地图 SDK (AMap) v9.5.0",
+      "category": "地图",
+      "score": 26,
+      "evidence_keywords": [
+        "libamapsdk_map(+10)",
+        "amap(+6)",
+        "com/autonavi(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeClear",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeContain",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeCreate",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeCreateOverlay",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeDestroy",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeFinalize",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeGetCurrentParticleNum",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeGetNativeOverlayProperties",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeRemoveOverlay",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeRender",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeSetAMapEngine",
+        "Java_com_autonavi_base_amap_mapcore_AMapNativeGlOverlayLayer_nativeUpdateOptions"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libBaiduMapSDK_base_v7_6_3.so",
+      "path": "lib/arm64-v8a/libBaiduMapSDK_base_v7_6_3.so",
+      "size": 516368,
+      "size_human": "504.27 KB",
+      "sha256_prefix": "",
+      "sdk": "百度地图 SDK v7.6.3",
+      "category": "地图",
+      "score": 20,
+      "evidence_keywords": [
+        "libbaidumapsdk_base(+10)",
+        "baidumapsdk(+10)"
+      ],
+      "evidence_samples": [
+        "libBaiduMapSDK_base_v7_6_3.so",
+        "libBaiduMapSDK"
+      ],
+      "string_count": 1746
+    },
+    {
+      "lib": "libInno.so",
+      "path": "lib/arm64-v8a/libInno.so",
+      "size": 113496,
+      "size_human": "110.84 KB",
+      "sha256_prefix": "",
+      "sdk": "趣盟/奇妙 advlib 广告 SDK（com.qm.advlib）+ InnoSecure 资源加密",
+      "category": "广告",
+      "score": 48,
+      "evidence_keywords": [
+        "com/qm/advlib(+10)",
+        "qm/advlib(+10)",
+        "innosecure(+10)",
+        "advlib(+8)",
+        "libinno(+10)"
+      ],
+      "evidence_samples": [
+        "INNOSECURE_M2_HEAD_PADDING",
+        "innosecure_x21",
+        "innosecure_x22",
+        "innosecure_x23",
+        "innosecure_x24",
+        "innosecure_x25",
+        "innosecure_x26",
+        "libInno.so",
+        "libinno",
+        "com/qm/advlib/trdparty/identifier/utils/NativeUtils"
+      ],
+      "string_count": 440
+    },
+    {
+      "lib": "libInnoSecure.so",
+      "path": "lib/arm64-v8a/libInnoSecure.so",
+      "size": 67664,
+      "size_human": "66.08 KB",
+      "sha256_prefix": "",
+      "sdk": "趣盟/奇妙 advlib 广告 SDK（com.qm.advlib）+ InnoSecure 资源加密",
+      "category": "广告",
+      "score": 58,
+      "evidence_keywords": [
+        "com/qm/advlib(+10)",
+        "qm/advlib(+10)",
+        "innosecure(+10)",
+        "com/inno/innosecure(+10)",
+        "advlib(+8)",
+        "libinno(+10)"
+      ],
+      "evidence_samples": [
+        "innoSecure",
+        "innoSecureBytes",
+        "INNOSECURE_M2_HEAD_PADDING",
+        "innoSecureParityTable256",
+        "innosecure_crctable",
+        "innosecure_sbox",
+        "innosecure_sboxinv",
+        "innosecure_x1",
+        "innosecure_x10",
+        "innosecure_x11",
+        "innosecure_x12",
+        "innosecure_x13"
+      ],
+      "string_count": 241
+    },
+    {
+      "lib": "libInspireFace.so",
+      "path": "lib/arm64-v8a/libInspireFace.so",
+      "size": 5327208,
+      "size_human": "5.08 MB",
+      "sha256_prefix": "",
+      "sdk": "虹软 ArcSoft InspireFace 人脸识别",
+      "category": "AI/人脸",
+      "score": 18,
+      "evidence_keywords": [
+        "libinspireface(+10)",
+        "inspireface(+8)"
+      ],
+      "evidence_samples": [
+        "GetInspireFaceExtendedInformation",
+        "GetInspireFaceVersionMajorStr",
+        "GetInspireFaceVersionMinorStr",
+        "GetInspireFaceVersionPatchStr",
+        "HFCreateInspireFaceSession",
+        "HFLaunchInspireFace",
+        "HFQueryInspireFaceLaunchStatus",
+        "HFQueryInspireFaceVersion",
+        "HFReleaseInspireFaceSession",
+        "HFReloadInspireFace",
+        "HFTerminateInspireFace",
+        "Java_com_insightface_sdk_inspireface_InspireFace_CosineSimilarityConvertToPercentage"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libNetHTProtect.so",
+      "path": "lib/arm64-v8a/libNetHTProtect.so",
+      "size": 4689848,
+      "size_human": "4.47 MB",
+      "sha256_prefix": "",
+      "sdk": "网易易盾 (NetEase Yidun) 加固/风控",
+      "category": "安全/加固",
+      "score": 44,
+      "evidence_keywords": [
+        "netease(+6)",
+        "nished(+8)",
+        "htprotect(+10)",
+        "com/netease/htprotect(+10)",
+        "libnethtprotect(+10)"
+      ],
+      "evidence_samples": [
+        "libNetHTProtect.so",
+        "XzUnpacker_IsStreamWasFinished",
+        "com/netease/htprotect/factory/JNIFactory",
+        "(Landroid/content/Context;Ljava/lang/String;Lcom/netease/htprotect/callback/HTPCallback;Lcom/netease/htprotect/HTProtectConfig;)V",
+        "client finished",
+        "server finished"
+      ],
+      "string_count": 2670
+    },
+    {
+      "lib": "libOSETSDKProtected.so",
+      "path": "lib/arm64-v8a/libOSETSDKProtected.so",
+      "size": 1621548,
+      "size_human": "1.55 MB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 6,
+      "evidence_keywords": [
+        "gdt(+6)"
+      ],
+      "evidence_samples": [
+        "GDTI.j"
+      ],
+      "string_count": 2781
+    },
+    {
+      "lib": "libPglbizssdk_ml.so",
+      "path": "lib/arm64-v8a/libPglbizssdk_ml.so",
+      "size": 1120672,
+      "size_human": "1.07 MB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 火山引擎 MobSec 安全 SDK",
+      "category": "安全/加固",
+      "score": 28,
+      "evidence_keywords": [
+        "com/volcengine/mobsec(+10)",
+        "volcengine(+8)",
+        "mobsec(+10)"
+      ],
+      "evidence_samples": [
+        "com/volcengine/mobsecBiz/metasec/ml/PglMS"
+      ],
+      "string_count": 645
+    },
+    {
+      "lib": "libRCAD.so",
+      "path": "lib/arm64-v8a/libRCAD.so",
+      "size": 660008,
+      "size_human": "644.54 KB",
+      "sha256_prefix": "",
+      "sdk": "rc 设备指纹（com.rc.base.NativeHelper）",
+      "category": "安全/设备指纹",
+      "score": 30,
+      "evidence_keywords": [
+        "getsysbootmark(+10)",
+        "getsysupdatemark(+10)",
+        "librcad(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_rc_base_NativeHelper_getSysBootMark",
+        "Java_com_rc_base_NativeHelper_getSysUpdateMark",
+        "libRCAD.so"
+      ],
+      "string_count": 770
+    },
+    {
+      "lib": "libalivcffmpeg.so",
+      "path": "lib/arm64-v8a/libalivcffmpeg.so",
+      "size": 2426704,
+      "size_human": "2.31 MB",
+      "sha256_prefix": "",
+      "sdk": "阿里云视频 SDK（播放器/FFmpeg/Alivc）",
+      "category": "播放器",
+      "score": 20,
+      "evidence_keywords": [
+        "libalivcffmpeg(+10)",
+        "alivc(+10)"
+      ],
+      "evidence_samples": [
+        "libalivcffmpeg.so"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "liball_in_one.so",
+      "path": "lib/arm64-v8a/liball_in_one.so",
+      "size": 8929344,
+      "size_human": "8.52 MB",
+      "sha256_prefix": "",
+      "sdk": "阿里云视频 SDK（播放器/FFmpeg/Alivc）",
+      "category": "播放器",
+      "score": 20,
+      "evidence_keywords": [
+        "libalivcffmpeg(+10)",
+        "alivc(+10)"
+      ],
+      "evidence_samples": [
+        "libalivcffmpeg.so",
+        "org/webrtc/utils/AlivcLog",
+        "/home/admin/.emas/build/33592775/workspace/media_core/common/log/Android/alivc_log_jni.cc",
+        "Register Alivc Log native method failed",
+        "com/aliyun/svideosdk/AlivcSdkCore",
+        "com/aliyun/svideosdk/conan/AlivcConan",
+        "com/aliyun/svideosdk/conan/event/AlivcEventReporter",
+        "EditorService::%s, send ALIVC_SVIDEO_EDITOR_EVENT_ERROR, notifyMsg->param1 %ld.",
+        "EditorService::%s, send ALIVC_SVIDEO_EDITOR_EVENT_ERROR, nofityReq.param1 %ld.",
+        "alivc_media_base_plugin.cpp",
+        "AlivcVideoEncoder",
+        "AlivcH264Encoder.cc"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libapp.so",
+      "path": "lib/arm64-v8a/libapp.so",
+      "size": 6030256,
+      "size_human": "5.75 MB",
+      "sha256_prefix": "",
+      "sdk": "TensorFlow Lite (Google)",
+      "category": "AI/推理",
+      "score": 8,
+      "evidence_keywords": [
+        "tflite(+8)"
+      ],
+      "evidence_samples": [
+        "assets/tflite_model/movenet_singlepose_lightning.tflite"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libavmdl_lite.so",
+      "path": "lib/arm64-v8a/libavmdl_lite.so",
+      "size": 747584,
+      "size_human": "730.06 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里云视频 SDK（播放器/FFmpeg/Alivc）",
+      "category": "播放器",
+      "score": 8,
+      "evidence_keywords": [
+        "avmdl(+8)"
+      ],
+      "evidence_samples": [
+        "libavmdl_lite.so",
+        "/Users/thq/mywork/workbuffer/dev/medialoader/medialoader/medialoader/android/jni/AVMDLJniBase.cpp",
+        "avmdl_log_info",
+        "avmdl_get_str",
+        "avmdl_loader_event_info",
+        "com/bykv/vk/component/ttvideo/mediakit/medialoader/AVMDLDataLoader",
+        "init_avmdl_app_wrapper",
+        "avmdl_release_wrapper",
+        "/Users/thq/mywork/workbuffer/dev/medialoader/medialoader/medialoader/android/jni/AVMDLManagerBridge.cpp",
+        "AVMDL-1.1.37.41-boringssl-lite-ANDROID",
+        "AnAVMDLWrapper is null fail register other methods fail",
+        "avmdl manager cls nullptr"
+      ],
+      "string_count": 1088
+    },
+    {
+      "lib": "libbarhopper_v3.so",
+      "path": "lib/arm64-v8a/libbarhopper_v3.so",
+      "size": 4358080,
+      "size_human": "4.16 MB",
+      "sha256_prefix": "",
+      "sdk": "Google ML Kit 条码识别 (barhopper)",
+      "category": "AI/条码",
+      "score": 44,
+      "evidence_keywords": [
+        "libbarhopper(+10)",
+        "barhopper(+10)",
+        "barcode(+6)",
+        "oqei5.prod.google.com(+10)",
+        "mlkit(+8)"
+      ],
+      "evidence_samples": [
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_createNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_createNativeWithClientOptions",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_closeNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_recognizeBitmapNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_recognizeBufferNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_recognizeStridedBufferNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_recognizeNative",
+        "Java_com_google_android_libraries_barhopper_BarhopperV3_recognizeStridedNative",
+        "libbarhopper_v3.so",
+        "googlefile:/google_src/files/536433581/depot/branches/mlkit.android_release_branch/536407635.1/OVERLAY_READONLY/google3",
+        "//depot/branches/mlkit.android_release_branch/536407635.1/google3",
+        "firebase-ml-android-sdk-releaser@oqei5.prod.google.com:/google/src/cloud/buildrabbit-username/buildrabbit-client/google3"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libbcmarsxlog.so",
+      "path": "lib/arm64-v8a/libbcmarsxlog.so",
+      "size": 137224,
+      "size_human": "134.01 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里百川 TLog 日志（com.alibaba.baichuan）",
+      "category": "日志",
+      "score": 36,
+      "evidence_keywords": [
+        "com/alibaba/baichuan(+10)",
+        "baichuan(+8)",
+        "tlog(+8)",
+        "libbcmarsxlog(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_alibaba_baichuan_log_TLogNative_addModuleFilter",
+        "Java_com_alibaba_baichuan_log_TLogNative_appenderClose",
+        "Java_com_alibaba_baichuan_log_TLogNative_appenderFlush",
+        "Java_com_alibaba_baichuan_log_TLogNative_appenderOpen",
+        "Java_com_alibaba_baichuan_log_TLogNative_cleanModuleFilter",
+        "Java_com_alibaba_baichuan_log_TLogNative_getLogLevel",
+        "Java_com_alibaba_baichuan_log_TLogNative_logWrite",
+        "Java_com_alibaba_baichuan_log_TLogNative_logWrite2",
+        "Java_com_alibaba_baichuan_log_TLogNative_setAppenderMode",
+        "Java_com_alibaba_baichuan_log_TLogNative_setConsoleLogOpen",
+        "Java_com_alibaba_baichuan_log_TLogNative_setLogLevel",
+        "libbcmarsxlog.so"
+      ],
+      "string_count": 450
+    },
+    {
+      "lib": "libbitmaps.so",
+      "path": "lib/arm64-v8a/libbitmaps.so",
+      "size": 9784,
+      "size_human": "9.55 KB",
+      "sha256_prefix": "",
+      "sdk": "Facebook Fresco 图片库（com.facebook.imagepipeline）",
+      "category": "图片",
+      "score": 32,
+      "evidence_keywords": [
+        "com/facebook/imagepipeline(+10)",
+        "nativePinBitmap(+8)",
+        "nativeReleaseByteBuffer(+8)",
+        "imagepipeline(+6)"
+      ],
+      "evidence_samples": [
+        "com/facebook/imagepipeline/nativecode/Bitmaps",
+        "nativePinBitmap",
+        "nativeReleaseByteBuffer"
+      ],
+      "string_count": 51
+    },
+    {
+      "lib": "libc++_shared.so",
+      "path": "lib/arm64-v8a/libc++_shared.so",
+      "size": 985464,
+      "size_human": "962.37 KB",
+      "sha256_prefix": "",
+      "sdk": "LLVM libc++ 运行库（开源基础库）",
+      "category": "基础库",
+      "score": 16,
+      "evidence_keywords": [
+        "libc++_shared.so(+10)",
+        "libc++abi(+6)"
+      ],
+      "evidence_samples": [
+        "libc++_shared.so",
+        "libc++abi"
+      ],
+      "string_count": 2895
+    },
+    {
+      "lib": "libcn_hzjizhun_admin_base.so",
+      "path": "lib/arm64-v8a/libcn_hzjizhun_admin_base.so",
+      "size": 633088,
+      "size_human": "618.25 KB",
+      "sha256_prefix": "",
+      "sdk": "rc 设备指纹（com.rc.base.NativeHelper）",
+      "category": "安全/设备指纹",
+      "score": 20,
+      "evidence_keywords": [
+        "getsysbootmark(+10)",
+        "getsysupdatemark(+10)"
+      ],
+      "evidence_samples": [
+        "Java_cn_hzjizhun_admin_base_ad_NativeHelper_getSysBootMark",
+        "Java_cn_hzjizhun_admin_base_ad_NativeHelper_getSysUpdateMark"
+      ],
+      "string_count": 476
+    },
+    {
+      "lib": "libcommonV2DevInfo.so",
+      "path": "lib/arm64-v8a/libcommonV2DevInfo.so",
+      "size": 325568,
+      "size_human": "317.94 KB",
+      "sha256_prefix": "",
+      "sdk": "倍孜 Beizi Fusion 广告聚合 SDK",
+      "category": "广告",
+      "score": 28,
+      "evidence_keywords": [
+        "com/beizi/fusion(+10)",
+        "beizi(+10)",
+        "devsysmark(+8)"
+      ],
+      "evidence_samples": [
+        "com/beizi/fusion/asnp/common/v2/dev/info/DevSysMark"
+      ],
+      "string_count": 910
+    },
+    {
+      "lib": "libcrashsdk.so",
+      "path": "lib/arm64-v8a/libcrashsdk.so",
+      "size": 647928,
+      "size_human": "632.74 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 UC / 友盟 crashsdk native 崩溃采集",
+      "category": "崩溃监控",
+      "score": 18,
+      "evidence_keywords": [
+        "com/uc/crashsdk(+10)",
+        "crashsdk(+8)"
+      ],
+      "evidence_samples": [
+        "libcrashsdk.so",
+        "CRASHSDK",
+        "CRASHSDK_150",
+        "CRASHSDK_210",
+        "CRASHSDK_323",
+        "crashsdk_addHeaderInfo",
+        "crashsdk_registerThread",
+        "crashsdk_registerFeature",
+        "crashsdk_registerInfoCallback",
+        "crashsdk_addCachedInfo",
+        "crashsdk_addDumpFile",
+        "crashsdk_generateCustomLog"
+      ],
+      "string_count": 1694
+    },
+    {
+      "lib": "libflupdatemark.so",
+      "path": "lib/arm64-v8a/libflupdatemark.so",
+      "size": 19000,
+      "size_human": "18.55 KB",
+      "sha256_prefix": "",
+      "sdk": "SAAS ADX 广告 SDK（com.fl.saas.adx）",
+      "category": "广告",
+      "score": 16,
+      "evidence_keywords": [
+        "flupdatemark(+10)",
+        "addoplusflags(+6)"
+      ],
+      "evidence_samples": [
+        "libflupdatemark.so",
+        "addOplusFlags"
+      ],
+      "string_count": 117
+    },
+    {
+      "lib": "libflutter.so",
+      "path": "lib/arm64-v8a/libflutter.so",
+      "size": 10601880,
+      "size_human": "10.11 MB",
+      "sha256_prefix": "",
+      "sdk": "Flutter (Google) —— 应用 UI 框架本身",
+      "category": "应用框架",
+      "score": 10,
+      "evidence_keywords": [
+        "libflutter.so(+10)"
+      ],
+      "evidence_samples": [
+        "libflutter.so"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libfyplayer.so",
+      "path": "lib/arm64-v8a/libfyplayer.so",
+      "size": 77088,
+      "size_human": "75.28 KB",
+      "sha256_prefix": "",
+      "sdk": "ltmb / ltsdk 广告与安全模块",
+      "category": "广告/安全",
+      "score": 28,
+      "evidence_keywords": [
+        "com/ltmb/ltsdk(+10)",
+        "ltsdk(+8)",
+        "com/ltmb(+10)"
+      ],
+      "evidence_samples": [
+        "com/ltmb/ltsdk/core/fy"
+      ],
+      "string_count": 230
+    },
+    {
+      "lib": "libglide-webp.so",
+      "path": "lib/arm64-v8a/libglide-webp.so",
+      "size": 448840,
+      "size_human": "438.32 KB",
+      "sha256_prefix": "",
+      "sdk": "Android Glide WebP 解码器（bumptech）",
+      "category": "图片",
+      "score": 22,
+      "evidence_keywords": [
+        "com/bumptech/glide(+10)",
+        "glide(+6)",
+        "webpdecoder(+6)"
+      ],
+      "evidence_samples": [
+        "WebPDecodeRGB",
+        "WebPDecodeRGBA",
+        "WebPDecodeRGBAInto",
+        "WebPDecodeRGBInto",
+        "libglide-webp.so",
+        "GLIDE_WEBP",
+        "com/bumptech/glide/integration/webp/WebpImage",
+        "com/bumptech/glide/integration/webp/WebpFrame",
+        "com/bumptech/glide/integration/webp/WebpBitmapFactory",
+        "(Ljava/nio/ByteBuffer;)Lcom/bumptech/glide/integration/webp/WebpImage;",
+        "(I)Lcom/bumptech/glide/integration/webp/WebpFrame;"
+      ],
+      "string_count": 1032
+    },
+    {
+      "lib": "libgrowease.so",
+      "path": "lib/arm64-v8a/libgrowease.so",
+      "size": 1006312,
+      "size_human": "982.73 KB",
+      "sha256_prefix": "",
+      "sdk": "GrowingIO 增长分析",
+      "category": "统计/APM",
+      "score": 10,
+      "evidence_keywords": [
+        "growease(+10)"
+      ],
+      "evidence_samples": [
+        "libgrowease.so"
+      ],
+      "string_count": 577
+    },
+    {
+      "lib": "libhigh_available_android.so",
+      "path": "lib/arm64-v8a/libhigh_available_android.so",
+      "size": 10972048,
+      "size_human": "10.46 MB",
+      "sha256_prefix": "",
+      "sdk": "网易云信 NIM (NetEase IM / nos.netease.com)",
+      "category": "IM/推送",
+      "score": 48,
+      "evidence_keywords": [
+        "nos.netease.com(+10)",
+        "lbs.chatnos.com(+10)",
+        "yunxin.163.com(+10)",
+        "httpdns.yunxindns.com(+10)",
+        "chatnos(+8)"
+      ],
+      "evidence_samples": [
+        "?httpdns.yunxindns.com",
+        "https://lbs.chatnos.com/lbs/conf.jsp",
+        "https://yunxin.163.com/lbs/conf.jsp",
+        "http://nos.netease.com"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libhtpcrash.so",
+      "path": "lib/arm64-v8a/libhtpcrash.so",
+      "size": 75760,
+      "size_human": "73.98 KB",
+      "sha256_prefix": "",
+      "sdk": "网易易盾 (NetEase Yidun) 加固/风控",
+      "category": "安全/加固",
+      "score": 34,
+      "evidence_keywords": [
+        "netease(+6)",
+        "htprotect(+10)",
+        "com/netease/htprotect(+10)",
+        "necrash(+8)"
+      ],
+      "evidence_samples": [
+        "com/netease/htprotect/necrash/nis/crashreport/NativeHandler"
+      ],
+      "string_count": 446
+    },
+    {
+      "lib": "libhtpcrash_dumper.so",
+      "path": "lib/arm64-v8a/libhtpcrash_dumper.so",
+      "size": 101016,
+      "size_human": "98.65 KB",
+      "sha256_prefix": "",
+      "sdk": "xCrash 系 native 崩溃转储（爱奇艺开源）",
+      "category": "崩溃监控",
+      "score": 20,
+      "evidence_keywords": [
+        "xcrash(+10)",
+        "xcrash_dumper(+10)"
+      ],
+      "evidence_samples": [
+        "xcrash error debug:",
+        "xcrash_dumper"
+      ],
+      "string_count": 335
+    },
+    {
+      "lib": "libimage_processing_util_jni.so",
+      "path": "lib/arm64-v8a/libimage_processing_util_jni.so",
+      "size": 28944,
+      "size_human": "28.27 KB",
+      "sha256_prefix": "",
+      "sdk": "Google ML Kit 图像处理 (image_processing_util)",
+      "category": "AI/图像",
+      "score": 10,
+      "evidence_keywords": [
+        "image_processing_util_jni(+10)"
+      ],
+      "evidence_samples": [
+        "libimage_processing_util_jni.so"
+      ],
+      "string_count": 74
+    },
+    {
+      "lib": "libimagepipeline.so",
+      "path": "lib/arm64-v8a/libimagepipeline.so",
+      "size": 411344,
+      "size_human": "401.70 KB",
+      "sha256_prefix": "",
+      "sdk": "Facebook Fresco 图片库（com.facebook.imagepipeline）",
+      "category": "图片",
+      "score": 16,
+      "evidence_keywords": [
+        "com/facebook/imagepipeline(+10)",
+        "imagepipeline(+6)"
+      ],
+      "evidence_samples": [
+        "libimagepipeline.so",
+        "libimagepipeline",
+        "com/facebook/imagepipeline/nativecode/JpegTranscoder"
+      ],
+      "string_count": 542
+    },
+    {
+      "lib": "libjiagu_sdk_OSETSDKProtected.so",
+      "path": "lib/arm64-v8a/libjiagu_sdk_OSETSDKProtected.so",
+      "size": 797024,
+      "size_human": "778.34 KB",
+      "sha256_prefix": "",
+      "sdk": "OSET 加固保护（com.jiagu.sdk.OSETSDKProtected）",
+      "category": "安全/加固",
+      "score": 10,
+      "evidence_keywords": [
+        "libjiagu(+10)"
+      ],
+      "evidence_samples": [
+        "libjiagu.so"
+      ],
+      "string_count": 1626
+    },
+    {
+      "lib": "libjsengine-api.so",
+      "path": "lib/arm64-v8a/libjsengine-api.so",
+      "size": 160168,
+      "size_human": "156.41 KB",
+      "sha256_prefix": "",
+      "sdk": "LLVM libc++ 运行库（开源基础库）",
+      "category": "基础库",
+      "score": 10,
+      "evidence_keywords": [
+        "libc++_shared.so(+10)"
+      ],
+      "evidence_samples": [
+        "libc++_shared.so"
+      ],
+      "string_count": 595
+    },
+    {
+      "lib": "libjsengine-loadso.so",
+      "path": "lib/arm64-v8a/libjsengine-loadso.so",
+      "size": 26592,
+      "size_human": "25.97 KB",
+      "sha256_prefix": "",
+      "sdk": "LLVM libc++ 运行库（开源基础库）",
+      "category": "基础库",
+      "score": 10,
+      "evidence_keywords": [
+        "libc++_shared.so(+10)"
+      ],
+      "evidence_samples": [
+        "libc++_shared.so"
+      ],
+      "string_count": 86
+    },
+    {
+      "lib": "libjsengine-platform.so",
+      "path": "lib/arm64-v8a/libjsengine-platform.so",
+      "size": 97920,
+      "size_human": "95.62 KB",
+      "sha256_prefix": "",
+      "sdk": "LLVM libc++ 运行库（开源基础库）",
+      "category": "基础库",
+      "score": 10,
+      "evidence_keywords": [
+        "libc++_shared.so(+10)"
+      ],
+      "evidence_samples": [
+        "libc++_shared.so"
+      ],
+      "string_count": 152
+    },
+    {
+      "lib": "libjxad.so",
+      "path": "lib/arm64-v8a/libjxad.so",
+      "size": 223288,
+      "size_human": "218.05 KB",
+      "sha256_prefix": "",
+      "sdk": "xCrash 系 native 崩溃转储（爱奇艺开源）",
+      "category": "崩溃监控",
+      "score": 36,
+      "evidence_keywords": [
+        "xcrash(+10)",
+        "libxcrash_dumper(+10)",
+        "xcrash_dumper(+10)",
+        "jxad(+6)"
+      ],
+      "evidence_samples": [
+        "xcrash_trace_dp",
+        "Tombstone maker: 'JXAd Crash 1.0'",
+        "xcrash error:",
+        "/libxcrash_dumper.so",
+        "xcrash_crash_cb",
+        "/jxad-crash"
+      ],
+      "string_count": 740
+    },
+    {
+      "lib": "libkcbwAliAgainstId.so",
+      "path": "lib/arm64-v8a/libkcbwAliAgainstId.so",
+      "size": 290888,
+      "size_human": "284.07 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 聚安全 / 反作弊（阿里安全 SDK）",
+      "category": "安全/加固",
+      "score": 20,
+      "evidence_keywords": [
+        "aliagainstid(+10)",
+        "aliagainstcheating(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getD1",
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getD2K",
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getD2V",
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getD3",
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getD4",
+        "Java_com_kc_bw_aliagainstcheatingId_AliAgainstId_getUpdate",
+        "libkcbwAliAgainstId.so"
+      ],
+      "string_count": 916
+    },
+    {
+      "lib": "liblocSDK8b.so",
+      "path": "lib/arm64-v8a/liblocSDK8b.so",
+      "size": 368568,
+      "size_human": "359.93 KB",
+      "sha256_prefix": "",
+      "sdk": "百度定位 SDK (Baidu Location)",
+      "category": "地图",
+      "score": 16,
+      "evidence_keywords": [
+        "liblocsdk(+10)",
+        "fused_sdk(+6)"
+      ],
+      "evidence_samples": [
+        "Java_com_baidu_location_fused_sdk_Jni_b",
+        "liblocSDK8b.so"
+      ],
+      "string_count": 723
+    },
+    {
+      "lib": "liblocaljscruntime.so",
+      "path": "lib/arm64-v8a/liblocaljscruntime.so",
+      "size": 284864,
+      "size_human": "278.19 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 Weex / Windmill JS 运行时",
+      "category": "WebView/内核",
+      "score": 36,
+      "evidence_keywords": [
+        "com/taobao/weex(+10)",
+        "com/taobao/windmill(+10)",
+        "weex(+8)",
+        "wmljs(+8)"
+      ],
+      "evidence_samples": [
+        "com/taobao/windmill/bridge/DefaultWMLBridge",
+        "(Ljava/lang/String;Ljava/lang/String;[Lcom/taobao/windmill/bridge/WMLJSObject;)I",
+        "com/taobao/windmill/bridge/WMLJSObject",
+        "weex weex wson err  wson_to_js_value  unhandled type %d buffer position  %d length %d",
+        "weex wson err value type is not handled, treat as null, json value %s %d %d ",
+        "weex wson err value type is not handled, treat as null, root json value %s",
+        "com/taobao/weex/utils/WMLogUtils"
+      ],
+      "string_count": 954
+    },
+    {
+      "lib": "liblog.so",
+      "path": "lib/arm64-v8a/liblog.so",
+      "size": 9448,
+      "size_human": "9.23 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 19
+    },
+    {
+      "lib": "libltmb.so",
+      "path": "lib/arm64-v8a/libltmb.so",
+      "size": 338784,
+      "size_human": "330.84 KB",
+      "sha256_prefix": "",
+      "sdk": "ltmb / ltsdk 广告与安全模块",
+      "category": "广告/安全",
+      "score": 22,
+      "evidence_keywords": [
+        "ltsdk(+8)",
+        "aesgcm(+4)",
+        "libltmb(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_ltmb_ltsdk_core_kat_util_DeviceUtils_getNativeUpdateMark",
+        "Java_com_ltmb_ltsdk_core_kat_util_DeviceUtils_getNativeBootMark",
+        "Java_com_ltmb_ltsdk_core_kat_database_DatabaseHelper_getSecretKey",
+        "Java_com_ltmb_ltsdk_core_kat_util_AESGCM_getTestSecretKey",
+        "Java_com_ltmb_ltsdk_core_kat_util_AESGCM_getSecretKey",
+        "libltmb.so"
+      ],
+      "string_count": 919
+    },
+    {
+      "lib": "libltmbaf.so",
+      "path": "lib/arm64-v8a/libltmbaf.so",
+      "size": 215096,
+      "size_human": "210.05 KB",
+      "sha256_prefix": "",
+      "sdk": "ltmb / ltsdk 广告与安全模块",
+      "category": "广告/安全",
+      "score": 18,
+      "evidence_keywords": [
+        "ltsdk(+8)",
+        "libltmb(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_ltmb_ltsdk_core_blk_base_x_X_x",
+        "libltmbaf.so"
+      ],
+      "string_count": 693
+    },
+    {
+      "lib": "liblywmAliAgainstId.so",
+      "path": "lib/arm64-v8a/liblywmAliAgainstId.so",
+      "size": 257144,
+      "size_human": "251.12 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 聚安全 / 反作弊（阿里安全 SDK）",
+      "category": "安全/加固",
+      "score": 20,
+      "evidence_keywords": [
+        "aliagainstid(+10)",
+        "aliagainstcheating(+10)"
+      ],
+      "evidence_samples": [
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD1V2",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD2V2",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD3",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD3V2",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD4V2",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getD5",
+        "Java_cj_mobile_wm_aliagainstcheatingId_AliAgainstId_getUpdateV2",
+        "liblywmAliAgainstId.so"
+      ],
+      "string_count": 501
+    },
+    {
+      "lib": "libmemchunk.so",
+      "path": "lib/arm64-v8a/libmemchunk.so",
+      "size": 5736,
+      "size_human": "5.60 KB",
+      "sha256_prefix": "",
+      "sdk": "Facebook Fresco 图片库（com.facebook.imagepipeline）",
+      "category": "图片",
+      "score": 16,
+      "evidence_keywords": [
+        "com/facebook/imagepipeline(+10)",
+        "imagepipeline(+6)"
+      ],
+      "evidence_samples": [
+        "com/facebook/imagepipeline/memory/NativeMemoryChunk"
+      ],
+      "string_count": 42
+    },
+    {
+      "lib": "libmmkv.so",
+      "path": "lib/arm64-v8a/libmmkv.so",
+      "size": 597000,
+      "size_human": "583.01 KB",
+      "sha256_prefix": "",
+      "sdk": "腾讯 MMKV 键值存储",
+      "category": "基础库",
+      "score": 28,
+      "evidence_keywords": [
+        "libmmkv(+10)",
+        "mmkv(+8)",
+        "com/tencent/mmkv(+10)"
+      ],
+      "evidence_samples": [
+        "mmkvInitialize_v1",
+        "mmkvInitialize",
+        "getMMKVWithID",
+        "getDefaultMMKV",
+        "mmkvSync",
+        "mmkvClose",
+        "mmkvMemcpy",
+        "libmmkv.so",
+        "finish restore one mmkv[%s], ret: %d",
+        "getMMKVWithAshmemFD",
+        "mmkvWithID",
+        "deleting expired key [%s] in mmkv [%s], due date %u"
+      ],
+      "string_count": 1476
+    },
+    {
+      "lib": "libne_audio.so",
+      "path": "lib/arm64-v8a/libne_audio.so",
+      "size": 1273784,
+      "size_human": "1.21 MB",
+      "sha256_prefix": "",
+      "sdk": "网易易盾 音频风控 (ne_audio)",
+      "category": "安全/加固",
+      "score": 18,
+      "evidence_keywords": [
+        "libne_audio(+10)",
+        "netease(+8)"
+      ],
+      "evidence_samples": [
+        "Java_com_netease_share_media_internal_audio_AudioProcessModule_Process",
+        "Java_com_netease_share_media_internal_audio_AudioProcessModule_Create",
+        "Java_com_netease_share_media_internal_audio_AudioProcessModule_Free",
+        "libne_audio.so"
+      ],
+      "string_count": 2328
+    },
+    {
+      "lib": "libnesec-x86.so",
+      "path": "lib/arm64-v8a/libnesec-x86.so",
+      "size": 1234656,
+      "size_human": "1.18 MB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 1024
+    },
+    {
+      "lib": "libnesec.so",
+      "path": "lib/arm64-v8a/libnesec.so",
+      "size": 1066616,
+      "size_human": "1.02 MB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 964
+    },
+    {
+      "lib": "libnexus-kit.so",
+      "path": "lib/arm64-v8a/libnexus-kit.so",
+      "size": 40872,
+      "size_human": "39.91 KB",
+      "sha256_prefix": "",
+      "sdk": "快手 OpenSet / Nexus Deeplink 归因 SDK",
+      "category": "广告/归因",
+      "score": 27,
+      "evidence_keywords": [
+        "nexussdk(+10)",
+        "openset(+8)",
+        "activateSession(+3)",
+        "deeplink(+6)"
+      ],
+      "evidence_samples": [
+        "Java_com_kc_openset_plugin_opt_NexusSdk_getVersion",
+        "Java_com_kc_openset_plugin_opt_NexusSdk_buildSessionId",
+        "Java_com_kc_openset_plugin_opt_NexusSdk_activateSession",
+        "BSI_ERR_NULL_DEEPLINK",
+        "NexusSDK"
+      ],
+      "string_count": 63
+    },
+    {
+      "lib": "liboctopus.so",
+      "path": "lib/arm64-v8a/liboctopus.so",
+      "size": 339456,
+      "size_human": "331.50 KB",
+      "sha256_prefix": "",
+      "sdk": "xCrash 系 native 崩溃转储（爱奇艺开源）",
+      "category": "崩溃监控",
+      "score": 30,
+      "evidence_keywords": [
+        "xcrash(+10)",
+        "libxcrash_dumper(+10)",
+        "xcrash_dumper(+10)"
+      ],
+      "evidence_samples": [
+        "xcrash_trace_dp",
+        "xcrash error:",
+        "/libxcrash_dumper.so",
+        "xcrash_crash_cb"
+      ],
+      "string_count": 815
+    },
+    {
+      "lib": "liboset-pine-lib.so",
+      "path": "lib/arm64-v8a/liboset-pine-lib.so",
+      "size": 239424,
+      "size_human": "233.81 KB",
+      "sha256_prefix": "",
+      "sdk": "OSET 加固保护（com.jiagu.sdk.OSETSDKProtected）",
+      "category": "安全/加固",
+      "score": 10,
+      "evidence_keywords": [
+        "oset-pine(+10)"
+      ],
+      "evidence_samples": [
+        "liboset-pine-lib.so"
+      ],
+      "string_count": 508
+    },
+    {
+      "lib": "libosetutil.so",
+      "path": "lib/arm64-v8a/libosetutil.so",
+      "size": 138696,
+      "size_human": "135.45 KB",
+      "sha256_prefix": "",
+      "sdk": "OSET 加固保护（com.jiagu.sdk.OSETSDKProtected）",
+      "category": "安全/加固",
+      "score": 10,
+      "evidence_keywords": [
+        "osetutil(+10)"
+      ],
+      "evidence_samples": [
+        "libosetutil.so"
+      ],
+      "string_count": 280
+    },
+    {
+      "lib": "libosmss3rd-0.0.4.so",
+      "path": "lib/arm64-v8a/libosmss3rd-0.0.4.so",
+      "size": 3097336,
+      "size_human": "2.95 MB",
+      "sha256_prefix": "",
+      "sdk": "运营商 SS3RD 三方登录聚合",
+      "category": "登录/认证",
+      "score": 28,
+      "evidence_keywords": [
+        "osmss3rd(+10)",
+        "libosmss3rd(+10)",
+        "ss3rd(+8)"
+      ],
+      "evidence_samples": [
+        "libosmss3rdc-0.0.1.so",
+        "libosmss3rd-0.0.4.so"
+      ],
+      "string_count": 365
+    },
+    {
+      "lib": "libosmss3rdc-0.0.1.so",
+      "path": "lib/arm64-v8a/libosmss3rdc-0.0.1.so",
+      "size": 4833640,
+      "size_human": "4.61 MB",
+      "sha256_prefix": "",
+      "sdk": "运营商 SS3RD 三方登录聚合",
+      "category": "登录/认证",
+      "score": 28,
+      "evidence_keywords": [
+        "osmss3rd(+10)",
+        "libosmss3rd(+10)",
+        "ss3rd(+8)"
+      ],
+      "evidence_samples": [
+        "libosmss3rdc-0.0.1.so"
+      ],
+      "string_count": 500
+    },
+    {
+      "lib": "libpanglearmor.so",
+      "path": "lib/arm64-v8a/libpanglearmor.so",
+      "size": 264720,
+      "size_human": "258.52 KB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 穿山甲 Pangle 广告 SDK",
+      "category": "广告",
+      "score": 20,
+      "evidence_keywords": [
+        "pangle(+10)",
+        "libpangle(+10)"
+      ],
+      "evidence_samples": [
+        "libpanglearmor.so"
+      ],
+      "string_count": 127
+    },
+    {
+      "lib": "libpangleflipped.so",
+      "path": "lib/arm64-v8a/libpangleflipped.so",
+      "size": 7384,
+      "size_human": "7.21 KB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 穿山甲 Pangle 广告 SDK",
+      "category": "广告",
+      "score": 10,
+      "evidence_keywords": [
+        "com/byakv(+10)"
+      ],
+      "evidence_samples": [
+        "com/byakv/f/FlippedV2Impl"
+      ],
+      "string_count": 55
+    },
+    {
+      "lib": "libphonemark.so",
+      "path": "lib/arm64-v8a/libphonemark.so",
+      "size": 5824,
+      "size_human": "5.69 KB",
+      "sha256_prefix": "",
+      "sdk": "zm/wfsdk PhoneMark 设备指纹",
+      "category": "安全/设备指纹",
+      "score": 30,
+      "evidence_keywords": [
+        "phonemark(+10)",
+        "nativegetbootmark(+10)",
+        "nativegetupdatemark(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_zm_wfsdk_phonemark_PhoneMarkHelper_nativeGetBootMark",
+        "Java_com_zm_wfsdk_phonemark_PhoneMarkHelper_nativeGetUpdateMark",
+        "libphonemark.so"
+      ],
+      "string_count": 39
+    },
+    {
+      "lib": "libplt-base.so",
+      "path": "lib/arm64-v8a/libplt-base.so",
+      "size": 376632,
+      "size_human": "367.80 KB",
+      "sha256_prefix": "",
+      "sdk": "快手（Kwai/Kuaishou）native 安全与性能组件",
+      "category": "性能/安全",
+      "score": 36,
+      "evidence_keywords": [
+        "kuaishou(+10)",
+        "kwai(+8)",
+        "libplt-base(+10)",
+        "xhook(+8)"
+      ],
+      "evidence_samples": [
+        "Java_com_kwai_performance_overhead_base_NativeHandler_test",
+        "kwai_process_vm_readv",
+        "kwai_process_vm_writev",
+        "Java_com_kuaishou_xhook_NativeHandler_clear",
+        "Java_com_kuaishou_xhook_NativeHandler_enableDebug",
+        "Java_com_kuaishou_xhook_NativeHandler_enableSigSegvProtection",
+        "Java_com_kuaishou_xhook_NativeHandler_refresh",
+        "xhook_clear",
+        "xhook_enable_debug",
+        "xhook_enable_sigsegv_protection",
+        "xhook_refresh",
+        "xhook_ignore"
+      ],
+      "string_count": 972
+    },
+    {
+      "lib": "libqiyuhigh_available_android.so",
+      "path": "lib/arm64-v8a/libqiyuhigh_available_android.so",
+      "size": 1608072,
+      "size_human": "1.53 MB",
+      "sha256_prefix": "",
+      "sdk": "网易云信 NIM (NetEase IM / nos.netease.com)",
+      "category": "IM/推送",
+      "score": 48,
+      "evidence_keywords": [
+        "nos.netease.com(+10)",
+        "lbs.chatnos.com(+10)",
+        "yunxin.163.com(+10)",
+        "httpdns.yunxindns.com(+10)",
+        "chatnos(+8)"
+      ],
+      "evidence_samples": [
+        "?httpdns.yunxindns.com",
+        "https://lbs.chatnos.com/lbs/conf.jsp",
+        "https://yunxin.163.com/lbs/conf.jsp",
+        "http://nos.netease.com"
+      ],
+      "string_count": 1618
+    },
+    {
+      "lib": "libqiyune_audio.so",
+      "path": "lib/arm64-v8a/libqiyune_audio.so",
+      "size": 1620960,
+      "size_human": "1.55 MB",
+      "sha256_prefix": "",
+      "sdk": "网易易盾 音频风控 (ne_audio)",
+      "category": "安全/加固",
+      "score": 10,
+      "evidence_keywords": [
+        "libne_audio(+10)"
+      ],
+      "evidence_samples": [
+        "libne_audio.so"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libqiyutraceroute.so",
+      "path": "lib/arm64-v8a/libqiyutraceroute.so",
+      "size": 101248,
+      "size_human": "98.88 KB",
+      "sha256_prefix": "",
+      "sdk": "网络诊断 / traceroute",
+      "category": "网络工具",
+      "score": 24,
+      "evidence_keywords": [
+        "traceroute(+10)",
+        "whois.radb.net(+10)",
+        "icmp(+4)"
+      ],
+      "evidence_samples": [
+        "parse_icmp_res",
+        "Java_com_qiyukf_nimlib_net_trace_TraceRoute_execute",
+        "libtraceroute.so",
+        "whois.radb.net",
+        "You do not have enough privileges to use this traceroute method.",
+        "Unknown traceroute module %s",
+        "Use ICMP ECHO for tracerouting",
+        "Set the destination port to use. It is either initial udp port value for \"default\" method (incremented by each probe, default is 33434), or initial seq for \"icmp\" (incremented as well, default from 1)",
+        "Show ICMP extensions (if present), including MPLS",
+        "Use specified module (either builtin or external) for traceroute operations. Most methods have their shortcuts (`-I' means `-M icmp' etc.)",
+        "Use module-specific option %s for the traceroute module. Several %s allowed, separated by comma. If %s is \"help\", print info about available options",
+        "The host to traceroute to"
+      ],
+      "string_count": 357
+    },
+    {
+      "lib": "libqmcheat.so",
+      "path": "lib/arm64-v8a/libqmcheat.so",
+      "size": 10008,
+      "size_human": "9.77 KB",
+      "sha256_prefix": "",
+      "sdk": "海量广告 advlib（com.hailiang.advlib）",
+      "category": "广告",
+      "score": 44,
+      "evidence_keywords": [
+        "com/hailiang/advlib(+10)",
+        "hailiang(+10)",
+        "advlib(+6)",
+        "alicheatparams(+8)",
+        "libqmcheat(+10)"
+      ],
+      "evidence_samples": [
+        "libqmcheat.so",
+        "com/hailiang/advlib/open/AliCheatParams"
+      ],
+      "string_count": 65
+    },
+    {
+      "lib": "libqysdk_simd.so",
+      "path": "lib/arm64-v8a/libqysdk_simd.so",
+      "size": 10184,
+      "size_human": "9.95 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 55
+    },
+    {
+      "lib": "libsaas.so",
+      "path": "lib/arm64-v8a/libsaas.so",
+      "size": 44368,
+      "size_human": "43.33 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 6,
+      "evidence_keywords": [
+        "addoplusflags(+6)"
+      ],
+      "evidence_samples": [
+        "addOplusFlags"
+      ],
+      "string_count": 204
+    },
+    {
+      "lib": "libsecsdk.so",
+      "path": "lib/arm64-v8a/libsecsdk.so",
+      "size": 349040,
+      "size_human": "340.86 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 627
+    },
+    {
+      "lib": "libsgcore.so",
+      "path": "lib/arm64-v8a/libsgcore.so",
+      "size": 88264,
+      "size_human": "86.20 KB",
+      "sha256_prefix": "",
+      "sdk": "快手（Kwai/Kuaishou）native 安全与性能组件",
+      "category": "性能/安全",
+      "score": 16,
+      "evidence_keywords": [
+        "kwai(+8)",
+        "sgcore(+8)"
+      ],
+      "evidence_samples": [
+        "Java_com_kwai_sgcore_SGCore_getClock",
+        "Java_com_kwai_sgcore_SGCore_getMagic",
+        "libsgcore.so"
+      ],
+      "string_count": 146
+    },
+    {
+      "lib": "libshenshi.so",
+      "path": "lib/arm64-v8a/libshenshi.so",
+      "size": 227496,
+      "size_human": "222.16 KB",
+      "sha256_prefix": "",
+      "sdk": "xCrash 系 native 崩溃转储（爱奇艺开源）",
+      "category": "崩溃监控",
+      "score": 30,
+      "evidence_keywords": [
+        "xcrash(+10)",
+        "libxcrash_dumper(+10)",
+        "xcrash_dumper(+10)"
+      ],
+      "evidence_samples": [
+        "xcrash_trace_dp",
+        "xcrash error:",
+        "/libxcrash_dumper.so",
+        "xcrash_crash_cb"
+      ],
+      "string_count": 759
+    },
+    {
+      "lib": "libsls_producer.so",
+      "path": "lib/arm64-v8a/libsls_producer.so",
+      "size": 825280,
+      "size_human": "805.94 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里云日志服务 SLS",
+      "category": "日志",
+      "score": 34,
+      "evidence_keywords": [
+        "libsls_producer(+10)",
+        "com/aliyun/sls(+10)",
+        "sls_producer(+10)",
+        "aliyun(+4)"
+      ],
+      "evidence_samples": [
+        "Java_com_aliyun_sls_android_producer_LogProducerClient_create_1log_1producer",
+        "Java_com_aliyun_sls_android_producer_LogProducerClient_destroy_1log_1producer",
+        "Java_com_aliyun_sls_android_producer_LogProducerClient_get_1log_1producer_1client",
+        "Java_com_aliyun_sls_android_producer_LogProducerClient_log_1producer_1client_1add_1log_1with_1len",
+        "Java_com_aliyun_sls_android_producer_LogProducerClient_log_1producer_1client_1add_1log_1with_1len_1time_1int32",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_create_1log_1producer_1config",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1add_1tag",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1is_1valid",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1reset_1security_1token",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1set_1access_1id",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1set_1access_1key",
+        "Java_com_aliyun_sls_android_producer_LogProducerConfig_log_1producer_1config_1set_1callback_1from_1sender_1thread"
+      ],
+      "string_count": 1160
+    },
+    {
+      "lib": "libsoundtouch.so",
+      "path": "lib/arm64-v8a/libsoundtouch.so",
+      "size": 501520,
+      "size_human": "489.77 KB",
+      "sha256_prefix": "",
+      "sdk": "SoundTouch 音频变速/变调（开源，Olli Parviainen）",
+      "category": "音频",
+      "score": 18,
+      "evidence_keywords": [
+        "soundtouch(+10)",
+        "soundtouch::(+8)"
+      ],
+      "evidence_samples": [
+        "Java_net_surina_soundtouch_SoundTouch_getVersionString",
+        "Java_net_surina_soundtouch_SoundTouch_newInstance",
+        "Java_net_surina_soundtouch_SoundTouch_deleteInstance",
+        "Java_net_surina_soundtouch_SoundTouch_setTempo",
+        "Java_net_surina_soundtouch_SoundTouch_setPitchSemiTones",
+        "Java_net_surina_soundtouch_SoundTouch_setSpeed",
+        "Java_net_surina_soundtouch_SoundTouch_getErrorString",
+        "Java_net_surina_soundtouch_SoundTouch_processFile",
+        "libsoundtouch.so",
+        "SOUNDTOUCH",
+        "JNI call SoundTouch.getVersionString",
+        "JNI exception in SoundTouch::processFile: %s"
+      ],
+      "string_count": 1309
+    },
+    {
+      "lib": "libssplayer.so",
+      "path": "lib/arm64-v8a/libssplayer.so",
+      "size": 248464,
+      "size_human": "242.64 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 6,
+      "evidence_keywords": [
+        "libc++abi(+6)"
+      ],
+      "evidence_samples": [
+        "libc++abi",
+        "libc++abi: "
+      ],
+      "string_count": 488
+    },
+    {
+      "lib": "libtaobaoplayer.so",
+      "path": "lib/arm64-v8a/libtaobaoplayer.so",
+      "size": 1010464,
+      "size_human": "986.78 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 淘宝播放器 / taobao player",
+      "category": "播放器",
+      "score": 30,
+      "evidence_keywords": [
+        "libtaobaoplayer(+10)",
+        "taobaoplayer(+10)",
+        "libtbffmpeg(+10)"
+      ],
+      "evidence_samples": [
+        "libtbffmpeg.so",
+        "libtaobaoplayer.so"
+      ],
+      "string_count": 1935
+    },
+    {
+      "lib": "libtbffmpeg.so",
+      "path": "lib/arm64-v8a/libtbffmpeg.so",
+      "size": 6976584,
+      "size_human": "6.65 MB",
+      "sha256_prefix": "",
+      "sdk": "HTTPDNS / 网络加速",
+      "category": "网络",
+      "score": 10,
+      "evidence_keywords": [
+        "httpdns(+10)"
+      ],
+      "evidence_samples": [
+        "get_httpdns_ip",
+        "set_httpdns_ip"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libtbplayer.so",
+      "path": "lib/arm64-v8a/libtbplayer.so",
+      "size": 275056,
+      "size_human": "268.61 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 淘宝播放器 / taobao player",
+      "category": "播放器",
+      "score": 30,
+      "evidence_keywords": [
+        "libtbplayer(+10)",
+        "libtbffmpeg(+10)",
+        "tbplayer(+10)"
+      ],
+      "evidence_samples": [
+        "libtbffmpeg.so",
+        "libtbplayer.so"
+      ],
+      "string_count": 1183
+    },
+    {
+      "lib": "libtbsdl.so",
+      "path": "lib/arm64-v8a/libtbsdl.so",
+      "size": 366912,
+      "size_human": "358.31 KB",
+      "sha256_prefix": "",
+      "sdk": "腾讯 X5/TBS 浏览服务",
+      "category": "WebView/内核",
+      "score": 23,
+      "evidence_keywords": [
+        "libtbsdl(+10)",
+        "tbsdl(+10)",
+        "tbs(+3)"
+      ],
+      "evidence_samples": [
+        "libtbsdl.so"
+      ],
+      "string_count": 1420
+    },
+    {
+      "lib": "libtensorflowlite_gpu_jni.so",
+      "path": "lib/arm64-v8a/libtensorflowlite_gpu_jni.so",
+      "size": 3030640,
+      "size_human": "2.89 MB",
+      "sha256_prefix": "",
+      "sdk": "TensorFlow Lite (Google)",
+      "category": "AI/推理",
+      "score": 26,
+      "evidence_keywords": [
+        "tensorflowlite(+10)",
+        "tensorflow(+8)",
+        "tflite(+8)"
+      ],
+      "evidence_samples": [
+        "Java_org_tensorflow_lite_gpu_CompatibilityList_createCompatibilityList",
+        "Java_org_tensorflow_lite_gpu_CompatibilityList_deleteCompatibilityList",
+        "Java_org_tensorflow_lite_gpu_CompatibilityList_nativeIsDelegateSupportedOnThisDevice",
+        "Java_org_tensorflow_lite_gpu_GpuDelegate_createDelegate",
+        "Java_org_tensorflow_lite_gpu_GpuDelegate_deleteDelegate",
+        "TfLiteGpuDelegateOptionsV2Default",
+        "TfLiteGpuDelegateV2Create",
+        "TfLiteGpuDelegateV2Delete",
+        "libtensorflowlite_gpu_jni.so",
+        "tflite.android_sdk_version",
+        "tflite.device_model",
+        "tflite.device_name"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libtensorflowlite_jni.so",
+      "path": "lib/arm64-v8a/libtensorflowlite_jni.so",
+      "size": 3779304,
+      "size_human": "3.60 MB",
+      "sha256_prefix": "",
+      "sdk": "TensorFlow Lite (Google)",
+      "category": "AI/推理",
+      "score": 26,
+      "evidence_keywords": [
+        "tensorflowlite(+10)",
+        "tensorflow(+8)",
+        "tflite(+8)"
+      ],
+      "evidence_samples": [
+        "TfLiteInterpreterCreateWithSelectedOps",
+        "TfLiteInterpreterGetInputTensorIndex",
+        "TfLiteInterpreterGetOutputTensorIndex",
+        "TfLiteInterpreterGetSignatureCount",
+        "TfLiteInterpreterGetSignatureKey",
+        "TfLiteInterpreterGetSignatureRunner",
+        "TfLiteInterpreterModifyGraphWithDelegate",
+        "TfLiteInterpreterOptionsAddBuiltinOp",
+        "TfLiteInterpreterOptionsAddCustomOp",
+        "TfLiteInterpreterOptionsSetEnableDelegateFallback",
+        "TfLiteInterpreterOptionsSetOpResolver",
+        "TfLiteInterpreterOptionsSetOpResolverExternal"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libti-monitor.so",
+      "path": "lib/arm64-v8a/libti-monitor.so",
+      "size": 115872,
+      "size_human": "113.16 KB",
+      "sha256_prefix": "",
+      "sdk": "快手（Kwai/Kuaishou）native 安全与性能组件",
+      "category": "性能/安全",
+      "score": 56,
+      "evidence_keywords": [
+        "com/kwai/(+10)",
+        "kwai(+8)",
+        "libplt-base(+10)",
+        "xhook(+8)",
+        "ti-monitor(+10)",
+        "com/kwai/performance(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_kwai_performance_stability_artti_monitor_JvmtiHelper_avoidDeoptForReleaseBuild",
+        "Java_com_kwai_performance_stability_artti_monitor_JvmtiHelper_disableJdwp",
+        "Java_com_kwai_performance_stability_artti_monitor_JvmtiHelper_enableJdwp",
+        "Java_com_kwai_performance_stability_artti_monitor_JvmtiHelper_unloadAgent",
+        "xhook_clear",
+        "xhook_enable_sigsegv_protection",
+        "xhook_refresh",
+        "xhook_register",
+        "libplt-base.so",
+        "libti-monitor.so",
+        "com/kwai/performance/stability/artti/monitor/JvmtiHelper"
+      ],
+      "string_count": 213
+    },
+    {
+      "lib": "libtiny_magic.so",
+      "path": "lib/arm64-v8a/libtiny_magic.so",
+      "size": 84168,
+      "size_human": "82.20 KB",
+      "sha256_prefix": "",
+      "sdk": "百度 mshield 安全 SDK / 设备指纹 gdid",
+      "category": "安全/加固",
+      "score": 54,
+      "evidence_keywords": [
+        "com/baidu/mshield(+10)",
+        "mshield(+10)",
+        "com/baidu/xclient/gdid(+10)",
+        "gdid(+8)",
+        "libtiny_magic(+10)",
+        "daemonsu(+6)"
+      ],
+      "evidence_samples": [
+        "libtiny_magic.so",
+        "daemonsu",
+        "com/baidu/xclient/gdid/jni/Native",
+        "com/baidu/mshield/x0/jni/Native"
+      ],
+      "string_count": 227
+    },
+    {
+      "lib": "libtobEmbedEncrypt.so",
+      "path": "lib/arm64-v8a/libtobEmbedEncrypt.so",
+      "size": 51576,
+      "size_human": "50.37 KB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 穿山甲 Pangle 广告 SDK",
+      "category": "广告",
+      "score": 10,
+      "evidence_keywords": [
+        "ttencryptutils(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_byakv_z_TTEncryptUtils_clientPackedBase64",
+        "Java_com_byakv_z_TTEncryptUtils_clientUnpackedBase64",
+        "Java_com_byakv_z_TTEncryptUtils_getDA0Result",
+        "Java_com_byakv_z_TTEncryptUtils_getDI0Result",
+        "Java_com_byakv_z_TTEncryptUtils_ttDecrypt",
+        "Java_com_byakv_z_TTEncryptUtils_ttEncrypt"
+      ],
+      "string_count": 161
+    },
+    {
+      "lib": "libtraceroute.so",
+      "path": "lib/arm64-v8a/libtraceroute.so",
+      "size": 93016,
+      "size_human": "90.84 KB",
+      "sha256_prefix": "",
+      "sdk": "网络诊断 / traceroute",
+      "category": "网络工具",
+      "score": 24,
+      "evidence_keywords": [
+        "traceroute(+10)",
+        "whois.radb.net(+10)",
+        "icmp(+4)"
+      ],
+      "evidence_samples": [
+        "parse_icmp_res",
+        "Java_com_netease_nimlib_net_trace_TraceRoute_execute",
+        "libtraceroute.so",
+        "whois.radb.net",
+        ".Atraceroute-jni",
+        "traceroute error message(fprintf): %s",
+        "traceroute error message(vfprintf): %s",
+        "traceroute error message(perror): %s",
+        "traceroute error to exit program, status:%d",
+        "start traceroute",
+        "finish traceroute, status:%d",
+        "You do not have enough privileges to use this traceroute method."
+      ],
+      "string_count": 344
+    },
+    {
+      "lib": "libtt_ugen_layout.so",
+      "path": "lib/arm64-v8a/libtt_ugen_layout.so",
+      "size": 440672,
+      "size_human": "430.34 KB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 穿山甲 Pangle 广告 SDK",
+      "category": "广告",
+      "score": 28,
+      "evidence_keywords": [
+        "com/byakv(+10)",
+        "tt_ugen(+8)",
+        "libtt_ugen_layout(+10)"
+      ],
+      "evidence_samples": [
+        "libtt_ugen_layout.so",
+        "(Lcom/byakv/q/YogaLogLevel",
+        "com/byakv/q/YogaNative",
+        "com/byakv/q/YogaLogLevel",
+        "(JLcom/byakv/q/YogaLogger;)V",
+        "(I)Lcom/byakv/q/YogaLogLevel;",
+        "(JFF[J[Lcom/byakv/q/YogaNodeJNIBase;)V"
+      ],
+      "string_count": 1309
+    },
+    {
+      "lib": "libttmplayer_lite.so",
+      "path": "lib/arm64-v8a/libttmplayer_lite.so",
+      "size": 1502480,
+      "size_human": "1.43 MB",
+      "sha256_prefix": "",
+      "sdk": "字节跳动 抖动播放器 (ttmplayer)",
+      "category": "播放器",
+      "score": 20,
+      "evidence_keywords": [
+        "libttmplayer(+10)",
+        "ttmplayer(+10)"
+      ],
+      "evidence_samples": [
+        "libttmplayer_lite.so"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libucrash-core.so",
+      "path": "lib/arm64-v8a/libucrash-core.so",
+      "size": 97280,
+      "size_human": "95.00 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 UC / 友盟 crashsdk native 崩溃采集",
+      "category": "崩溃监控",
+      "score": 8,
+      "evidence_keywords": [
+        "ucrash(+8)"
+      ],
+      "evidence_samples": [
+        "ucrash error debug:",
+        "ucrash-core"
+      ],
+      "string_count": 273
+    },
+    {
+      "lib": "libucrash.so",
+      "path": "lib/arm64-v8a/libucrash.so",
+      "size": 51648,
+      "size_human": "50.44 KB",
+      "sha256_prefix": "",
+      "sdk": "友盟+ (Umeng) 统计 / U-APM",
+      "category": "统计/APM",
+      "score": 28,
+      "evidence_keywords": [
+        "umeng(+10)",
+        "com/umeng/crash(+10)",
+        "u-apm(+8)"
+      ],
+      "evidence_samples": [
+        "u-apm jni",
+        "u-apm cb",
+        "com/umeng/crash/UCrashJNI",
+        "u-apm anr",
+        "u-apm hk"
+      ],
+      "string_count": 219
+    },
+    {
+      "lib": "libumeng-spy.so",
+      "path": "lib/arm64-v8a/libumeng-spy.so",
+      "size": 463848,
+      "size_human": "452.98 KB",
+      "sha256_prefix": "",
+      "sdk": "友盟+ (Umeng) 统计 / U-APM",
+      "category": "统计/APM",
+      "score": 20,
+      "evidence_keywords": [
+        "libumeng-spy(+10)",
+        "umeng(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_umeng_umzid_Spy_getNativeID",
+        "Java_com_umeng_umzid_Spy_getNativeLibraryVersion",
+        "Java_com_umeng_umzid_Spy_getNativeTag",
+        "libumeng-spy.so"
+      ],
+      "string_count": 648
+    },
+    {
+      "lib": "libumonitor.so",
+      "path": "lib/arm64-v8a/libumonitor.so",
+      "size": 247352,
+      "size_human": "241.55 KB",
+      "sha256_prefix": "",
+      "sdk": "友盟+ (Umeng) 统计 / U-APM",
+      "category": "统计/APM",
+      "score": 38,
+      "evidence_keywords": [
+        "umeng(+10)",
+        "com/efs/sdk(+10)",
+        "com/efs/sdk/memleaksdk(+10)",
+        "umonitor(+8)"
+      ],
+      "evidence_samples": [
+        "libumonitor.so",
+        "/Users/zft/dev/workspaces/umeng/apm/efs-sdk/memleaksdk/src/main/cpp/base/async_safe/async_safe_log.cpp",
+        "com/efs/sdk/memleaksdk/monitor/UMonitorJNI",
+        "/Users/zft/dev/workspaces/umeng/apm/efs-sdk/memleaksdk/src/main/cpp/base/kwai_linker/kwai_dlfcn.cpp",
+        "/Users/zft/dev/workspaces/umeng/apm/efs-sdk/memleaksdk/src/main/cpp/fastdump/hprof_dump.cpp"
+      ],
+      "string_count": 516
+    },
+    {
+      "lib": "libv8worker-native.so",
+      "path": "lib/arm64-v8a/libv8worker-native.so",
+      "size": 100488,
+      "size_human": "98.13 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 mPaaS / Alipay H5 容器 与 JS 引擎",
+      "category": "WebView/内核",
+      "score": 20,
+      "evidence_keywords": [
+        "ariver(+10)",
+        "v8worker(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_alibaba_ariver_v8worker_V8Worker__1dispatchPluginEvent",
+        "Java_com_alibaba_ariver_v8worker_V8Worker__1loadV8Plugins",
+        "libv8worker-native.so",
+        "V8Worker_JSI_Native"
+      ],
+      "string_count": 197
+    },
+    {
+      "lib": "libwcdb.so",
+      "path": "lib/arm64-v8a/libwcdb.so",
+      "size": 1886968,
+      "size_human": "1.80 MB",
+      "sha256_prefix": "",
+      "sdk": "腾讯 WCDB 数据库",
+      "category": "数据库",
+      "score": 28,
+      "evidence_keywords": [
+        "libwcdb(+10)",
+        "wcdb(+8)",
+        "com/tencent/wcdb(+10)"
+      ],
+      "evidence_samples": [
+        "libwcdb.so",
+        "WCDB.CursorWindow",
+        "WCDB.JNIHelp",
+        "com/tencent/wcdb/database/SQLiteDiskIOException",
+        "com/tencent/wcdb/database/SQLiteDatabaseCorruptException",
+        "com/tencent/wcdb/database/SQLiteConstraintException",
+        "com/tencent/wcdb/database/SQLiteAbortException",
+        "com/tencent/wcdb/database/SQLiteException",
+        "com/tencent/wcdb/database/SQLiteFullException",
+        "com/tencent/wcdb/database/SQLiteMisuseException",
+        "com/tencent/wcdb/database/SQLiteAccessPermException",
+        "com/tencent/wcdb/database/SQLiteDatabaseLockedException"
+      ],
+      "string_count": 4000
+    },
+    {
+      "lib": "libweibosdkcore.so",
+      "path": "lib/arm64-v8a/libweibosdkcore.so",
+      "size": 26136,
+      "size_human": "25.52 KB",
+      "sha256_prefix": "",
+      "sdk": "新浪微博 SDK",
+      "category": "登录/分享",
+      "score": 30,
+      "evidence_keywords": [
+        "libweibosdkcore(+10)",
+        "weibosdk(+10)",
+        "com/sina/weibo(+10)"
+      ],
+      "evidence_samples": [
+        "libweibosdkcore.so",
+        "com/sina/weibo/sdk/utils/JniUtils"
+      ],
+      "string_count": 136
+    },
+    {
+      "lib": "liby.so",
+      "path": "lib/arm64-v8a/liby.so",
+      "size": 458584,
+      "size_human": "447.84 KB",
+      "sha256_prefix": "",
+      "sdk": "未确定",
+      "category": "未确定",
+      "score": 0,
+      "evidence_keywords": [],
+      "evidence_samples": [],
+      "string_count": 454
+    },
+    {
+      "lib": "libzjAliAgainstId.so",
+      "path": "lib/arm64-v8a/libzjAliAgainstId.so",
+      "size": 257128,
+      "size_human": "251.10 KB",
+      "sha256_prefix": "",
+      "sdk": "阿里 聚安全 / 反作弊（阿里安全 SDK）",
+      "category": "安全/加固",
+      "score": 20,
+      "evidence_keywords": [
+        "aliagainstid(+10)",
+        "aliagainstcheating(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD1V2",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD2V2",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD3",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD3V2",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD4V2",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getD5",
+        "Java_com_zj_zk_aliagainstcheatingId_AliAgainstId_getUpdateV2",
+        "libzjAliAgainstId.so"
+      ],
+      "string_count": 501
+    },
+    {
+      "lib": "libzjadso.so",
+      "path": "lib/arm64-v8a/libzjadso.so",
+      "size": 267360,
+      "size_human": "261.09 KB",
+      "sha256_prefix": "",
+      "sdk": "zj 广告联盟 SDK（com.zj.*）",
+      "category": "广告",
+      "score": 10,
+      "evidence_keywords": [
+        "zjadso(+10)"
+      ],
+      "evidence_samples": [
+        "libzjadso.so"
+      ],
+      "string_count": 800
+    },
+    {
+      "lib": "libzjplayer.so",
+      "path": "lib/arm64-v8a/libzjplayer.so",
+      "size": 51840,
+      "size_human": "50.62 KB",
+      "sha256_prefix": "",
+      "sdk": "zj 广告联盟 SDK（com.zj.*）",
+      "category": "广告",
+      "score": 20,
+      "evidence_keywords": [
+        "com/zj/ad(+10)",
+        "zjplayer(+10)"
+      ],
+      "evidence_samples": [
+        "libzjplayer.so",
+        "com/zj/adsdk/lib/doodle/Doodle"
+      ],
+      "string_count": 190
+    },
+    {
+      "lib": "libzxprotect.so",
+      "path": "lib/arm64-v8a/libzxprotect.so",
+      "size": 221104,
+      "size_human": "215.92 KB",
+      "sha256_prefix": "",
+      "sdk": "运营商一键登录 / UAID 取号 SDK（com.zx.sdk）",
+      "category": "登录/认证",
+      "score": 70,
+      "evidence_keywords": [
+        "com/zx/sdk(+10)",
+        "zxid-m.mobileservice.cn(+10)",
+        "msg.cmpassport.com(+10)",
+        "id6.me(+10)",
+        "nisportal.10010.com(+10)",
+        "saidcallback(+10)",
+        "libzxprotect(+10)"
+      ],
+      "evidence_samples": [
+        "Java_com_zx_a_I8b7_h3_a__Ljava_lang_String_2Ljava_lang_String_2Ljava_lang_String_2Ljava_lang_String_2Ljava_lang_String_2Ljava_lang_String_2Lcom_zx_sdk_api_SAIDCallback_2",
+        "libzxprotect.so",
+        "(Lcom/zx/a/I8b7/h3;Lcom/zx/sdk/api/Callback;)V",
+        "(Lcom/zx/a/I8b7/h3;Lcom/zx/sdk/api/SAIDCallback;)V",
+        "https://zxid-m.mobileservice.cn/sdk/said/ping",
+        "https://id6.me/gw/preuniq.do",
+        "https://msg.cmpassport.com/h5/getMobile",
+        "https://nisportal.10010.com:9001"
+      ],
+      "string_count": 677
+    }
+  ]
+}

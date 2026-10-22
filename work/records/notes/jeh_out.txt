@@ -1,0 +1,6 @@
+[*] spawned pid=29691
+[js] [*] libart 含 StaticVoid 的导出 0 个: 
+[js] [*] jni_exit_hook.js 装载完成
+[*] script loaded
+[!] 进程已退出
+[*] 等待结束

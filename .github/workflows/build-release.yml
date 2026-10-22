@@ -20,10 +20,15 @@ env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
 
+
 jobs:
   build:
     name: build · ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # 应用在 projects/desktop 下，仓库根只是工作区
+        working-directory: projects/desktop
     strategy:
       fail-fast: false
       matrix:
@@ -61,13 +66,13 @@ jobs:
       - name: 整理产物（校验和带上平台后缀，避免两个平台同名）
         shell: bash
         run: |
-          mv dist/SHA256SUMS "dist/SHA256SUMS-${{ matrix.label }}"
+          mv projects/desktop/dist/SHA256SUMS "projects/desktop/dist/SHA256SUMS-${{ matrix.label }}"
           ls -lh dist/
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/*
+          path: projects/desktop/dist/*
           if-no-files-found: error
 
   release:
@@ -89,6 +94,7 @@ jobs:
           cat SHA256SUMS
 
       - name: 创建 / 更新 Release
+        working-directory: .
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}   # 这层没有 checkout，gh 找不到 .git，必须显式给仓库

@@ -1,0 +1,18 @@
+package com.byazt.gr;
+
+import android.view.View;
+import com.byazt.an.ViewPager;
+import com.bykv.vk.component.ttvideo.player.MediaPlayer;
+
+/* JADX INFO: loaded from: /home/ylxc/Projects/lib/ShanDong/work/APP_ALL/classes_11_8719cls.dex */
+@com.byazt.zqa.c(c = {0, 1, MediaPlayer.MEDIA_PLAYER_OPTION_PRE_DECODE_AUTO_PAUSE, 20})
+public class c implements ViewPager.n {
+    @Override // com.byazt.an.ViewPager.n
+    public void c(View view, float f) {
+        float width = f < 0.0f ? view.getWidth() : 0.0f;
+        float height = view.getHeight() * 0.5f;
+        view.setPivotX(width);
+        view.setPivotY(height);
+        view.setRotationY(f * 90.0f);
+    }
+}
