@@ -125,6 +125,9 @@ class ShandongClient:
             "schoolName": str(merged.get("schoolName", "") or ""),
             "userName": str(merged.get("userName", "") or ""),
             "loginName": str(merged.get("loginName", "") or ""),
+            # 登录时用户实际输入的手机号/学号（明文）：loginName 会被服务端回包的脱敏值覆盖，
+            # 历史账号下拉要显示完整号码就得单独存一份
+            "_account_name": str(merged.get("_account_name", "") or ""),
             "userType": merged.get("userType", 1),
             "deviceId": self.transport.device_id,
             "loginAt": (int(time.time() * 1000) if touch
@@ -290,6 +293,7 @@ class ShandongClient:
         res = self.transport.post("login_password", payload)
         if res.get("code") == CODE_OK and res.get("data"):
             res["data"]["loginName"] = phone
+            res["data"]["_account_name"] = str(phone)   # 明文手机号/学号：历史账号下拉用
             self._save_session(res["data"], touch=True)
             self._remember_account()
             # 登录后立即校准时钟（原版在隐私协议同意时就已跑 SyncTimeIntentService，

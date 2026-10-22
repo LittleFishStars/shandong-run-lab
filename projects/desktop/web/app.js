@@ -176,9 +176,11 @@ function renderStatus(st) {
   const accounts = st.accounts || [];
   const accSel = $('in-account');
   const keepUid = accSel.value || (accounts.find(a => a.current) || {}).userId || '';
+  // 选项只显示手机号 / 学号：_account_name 是登录时输入的明文，旧条目回退 loginName（服务端脱敏），
+  // 绝不拿 userName（服务端加密串）当标题
   accSel.innerHTML = accounts.length
-    ? accounts.map(a => `<option value="${a.userId}">${esc(a.userName || a.loginName || a.userId)}`
-        + `${a.schoolName ? ' · ' + esc(a.schoolName) : ''}${a.current ? '（当前）' : ''}</option>`).join('')
+    ? accounts.map(a => `<option value="${a.userId}">${esc(a._account_name || a.loginName || a.userId)}`
+        + `${a.current ? '（当前）' : ''}</option>`).join('')
     : '<option value="">（本机登录过的账号会出现在这里）</option>';
   if (keepUid && accounts.some(a => a.userId === keepUid)) accSel.value = keepUid;
   const hasAcc = !!accSel.value && accounts.length > 0;
@@ -1367,7 +1369,7 @@ $('btn-login').addEventListener('click', async () => {
     if (!uid) return;
     const r = await Bridge.call('switch_account', uid);
     if (r && r.code === 0) {
-      toast('已切换账号：' + ((r.data && r.data.userName) || '该账号'), 'ok');
+      toast('已切换账号：' + ((r.data && (r.data._account_name || r.data.loginName || r.data.userName)) || '该账号'), 'ok');
       await refreshStatus();
       await autoPrepare('切换账号后');
     } else toast('切换失败：' + ((r && r.message) || '未知错误'), 'err');

@@ -112,7 +112,9 @@ class 登录持久化测试(unittest.TestCase):
         self.assertEqual(len(lst), 2)
         self.assertEqual(lst[0]["userId"], uid2)        # 最近登录的在前
         self.assertTrue(lst[0]["current"])
-        self.assertIn("****", lst[0]["loginName"])     # 手机号脱敏
+        # 历史账号下拉要显示手机号 / 学号：列表里给的是登录时的明文，不再脱敏
+        self.assertEqual(lst[0]["loginName"], "13800138002")
+        self.assertEqual(lst[0]["_account_name"], "13800138002")
 
         r = self.app.switch_account(uid1)              # 不重新输密码
         self.assertEqual(r.get("code"), 0, r)

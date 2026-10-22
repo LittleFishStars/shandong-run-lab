@@ -391,7 +391,9 @@ class App:
                 "userId": uid,
                 "userName": str(a.get("userName") or ""),
                 "schoolName": str(a.get("schoolName") or ""),
-                "loginName": _mask_login(a.get("loginName") or uid),
+                # 历史账号下拉要显示手机号/学号：本地存的 loginName 就是登录时的明文
+                "loginName": str(a.get("loginName") or ""),
+                "_account_name": str(a.get("_account_name") or a.get("loginName") or ""),
                 "loginAt": int(a.get("loginAt") or 0),
                 "current": uid == cur,
             })
@@ -907,8 +909,3 @@ def _version() -> str:
     from .constants import APP_VERSION
     return APP_VERSION
 
-
-def _mask_login(name: Any) -> str:
-    """手机号/学号脱敏：138****8000；短账号原样返回"""
-    s = str(name or "")
-    return s[:3] + "****" + s[-4:] if len(s) >= 7 else s
