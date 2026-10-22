@@ -53,7 +53,7 @@
 .\shandong-school_cracked-<版本>-windows-x64.exe --mode mock gui
 ```
 
-自己构建看 [`docs/打包与发布.md`](docs/打包与发布.md)：`python scripts/build_bin.py --zip`
+自己构建看 [`docs/打包与发布.md`](../../docs/desktop/打包与发布.md)：`python scripts/build_bin.py --zip`
 一条命令出本平台单文件。
 
 > 单文件启动时会先解压到临时目录（首次 1-2 秒），属正常现象。
@@ -153,19 +153,19 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 反编译 `com/huachenjie/**/*Api.java` 的结果：**上传/结算四个接口是 JSON，而登录/围栏/规则/榜单是表单（`@FormUrlEncoded`）**。实测 JSON 文体也能被接受，所以本项目统一用 JSON；需要时可在 `constants.EP` 的 `Endpoint` 上加 `content_type` 单独覆盖。
 ### 界面速览
 
-![桌面工作台](docs/screenshots/gui-2-running.png)
+![桌面工作台](../../docs/desktop/screenshots/gui-2-running.png)
 
 > 上图是**高级 / 调试**里「一键跑」进行中的实拍（开启实时仿真，20 倍速）：中栏是**真实地图底图**（高德瓦片，
 > 与记录坐标同为 GCJ-02，无需纠偏），围栏多边形、紫色编号打卡点与轨迹都叠加在底图之上，
 > 轨迹按上传状态着色（已上传=绿、失败=红、待传=蓝），轨迹正一笔笔画出来；地图卡左上角就是
 > 主流程四个按钮（拉取配置 / 选择起始点 / 开始跑步 / 结束跑步）。
 >
-> ![拉取配置后：地图上只有围栏](docs/screenshots/gui-3-fence-only.png)
+> ![拉取配置后：地图上只有围栏](../../docs/desktop/screenshots/gui-3-fence-only.png)
 >
 > 这张是点「① 拉取配置」之后的样子：地图自动移到围栏处，**地图上只有围栏、没有打卡点**——
 > 围栏数据里只有打卡点的**数量**，坐标要等开跑时由服务端下发（见「协议说明」§5.1.1），与原版一致。
 >
-> ![摇杆实走](docs/screenshots/gui-4-walk.png)
+> ![摇杆实走](../../docs/desktop/screenshots/gui-4-walk.png)
 >
 > 这张是**摇杆干跑**的实拍（摇杆就钉在地图右下角，随手就能推）：拖动摇杆（或按方向键）自己控制方向，轨迹实时长出来，
 > 右栏事件流同步打印「实走中：X 米 / Y 步 / Z 打卡」；干跑全程**不升跑、不落库、不上传**。
@@ -175,17 +175,17 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 > 界面上的「到达目标自动结算」开关，默认开）。若关掉这个开关，就只停不结，
 > 之后仍可点「④ 结束跑步」或「上传结算」手动补。
 >
-> ![图上选起点](docs/screenshots/gui-3-start-point.png)
+> ![图上选起点](../../docs/desktop/screenshots/gui-3-start-point.png)
 >
 > 这张是**图上选跑步起点**的实拍：点「② 选择起始点」后在地图上点一下，青色「起」标就是起点
 > （落在围栏外会自动吸附进围栏，与边界留 10 米）；拿到电子围栏那一下镜头会自动飞到围栏上（
 > 之后自己拖过镜头就不再抢镜，换围栏才会再飞一次）。同一个坐标同时决定开跑报文的 `lat`/`lng`、
 > 实走轨迹的起点与路径规划的起点，并写进本地库，重启仍然生效。
 >
-> 另几张：`docs/screenshots/gui-1-init.png`（首屏——主流程 4 个按钮，地图右下角常驻摇杆与「手动（摇杆）」）、
-> `docs/screenshots/gui-3-done.png`（跑完结算）。
+> 另几张：`docs/desktop/screenshots/gui-1-init.png`（首屏——主流程 4 个按钮，地图右下角常驻摇杆与「手动（摇杆）」）、
+> `docs/desktop/screenshots/gui-3-done.png`（跑完结算）。
 >
-> ![实跑边跑边落库](docs/screenshots/gui-5-walk-real.png)
+> ![实跑边跑边落库](../../docs/desktop/screenshots/gui-5-walk-real.png)
 >
 > 这张是**实跑**（③ 开始跑步）的实拍：点③升跑拿到 `runRecordCode`，服务端**在响应里**才下发本次打卡点
 > （`targetPoints`），地图随即画出紫色编号点与路线；这里点了一下右下角的「自动跑」，于是沿路线自动巡航、
@@ -352,13 +352,17 @@ shandong-school_cracked/
 │   ├── launcher.py         #   打包入口（绝对导入）
 │   ├── make_icon.py        #   图标生成脚本
 │   └── icon.png, icon.ico
-├── .github/workflows/
-│   └── build-release.yml   # 打 tag 自动双平台构建 + 发 Release
-├── tests/                  # 单元测试（crypto/protocol/simulator/store/walker/e2e）
-└── docs/
-    ├── 协议说明.md          # 协议与逆向要点
-    └── 打包与发布.md        # 打包、发版、常见问题
+└── tests/                  # 单元测试（crypto/protocol/simulator/store/walker/e2e）
 ```
+
+仓库根还放着与本工程配套的东西（不属于应用代码）：
+
+| 路径 | 内容 |
+|---|---|
+| `.github/workflows/build-release.yml` | 打 tag 自动双平台构建 + 发 Release |
+| `docs/desktop/协议说明.md` | 协议与逆向要点 |
+| `docs/desktop/打包与发布.md` | 打包、发版、常见问题 |
+| `docs/desktop/screenshots/` | README 用到的截图 |
 
 ---
 

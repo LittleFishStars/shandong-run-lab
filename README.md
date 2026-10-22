@@ -7,7 +7,7 @@
 ShanDong/
 ├── samples/        原始样本（唯一的 APK，勿改）
 ├── report/         分析报告 01–24（逆向结论的唯一出处）
-├── docs/           整理记录（每轮删了什么、怎么复原）
+├── docs/           整理记录（`docs/desktop/` 放桌面工程的协议说明、打包文档与截图）
 ├── reference/      签名算法的参考实现 + 外部规格（spec-b18）
 ├── scripts/        逆向脚本（dump / 脱壳 / 签名 / 核对，共 120 个）
 ├── work/           逆向工作区：dex/ native/ evidence/ dumps/ records/ meta/ toolchain/
