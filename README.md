@@ -44,10 +44,10 @@
 命令行和界面是同一个程序：不带参数双击 = 开界面；在终端里带参数 = CLI。
 
 ```bash
-./sdlab-1.0.0-linux-x86_64 --help          # 全部命令
-./sdlab-1.0.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
+./sdlab-1.1.0-linux-x86_64 --help          # 全部命令
+./sdlab-1.1.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
 # Windows（PowerShell）
-.\sdlab-1.0.0-windows-x64.exe --mode mock gui
+.\sdlab-1.1.0-windows-x64.exe --mode mock gui
 ```
 
 自己构建看 [`docs/打包与发布.md`](docs/打包与发布.md)：`python scripts/build_bin.py --zip`
