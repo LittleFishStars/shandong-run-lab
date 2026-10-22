@@ -85,10 +85,12 @@ export default function App() {
   const autoPrepare = useCallback(async () => {
     try {
       const st = await Bridge.call('status');
-      if (st && st.logged_in && !(st.fences || []).length) {
-        await Bridge.call('prepare');
-        await refreshStatus();
-      }
+      if (!st || !st.logged_in) return;
+      const needFence = !(st.fences || []).length;
+      const needRule = !String(st.rule_source || '').trim();   // 默认 RuleSet 的来源是空串，说明还没从服务端拉到真实规则
+      if (needFence) await Bridge.call('prepare');
+      if (needRule) await Bridge.call('reload_rule');   // 规则没拉到就补一次，目标距离选项才有正确区间
+      if (needFence || needRule) await refreshStatus();
     } catch (_) { /* 忽略 */ }
   }, [refreshStatus]);
 
@@ -420,10 +422,16 @@ export default function App() {
   /* 目标距离选项：规则单次区间内、从高到低每 1 km */
   const distanceOptions = useMemo(() => {
     const r = (status && status.rule) || {};
-    const hi = Math.max(1, Math.floor((Number(r.singleMaxDistance) || 10000) / 1000));
-    const lo = Math.max(1, Math.ceil((Number(r.singleMinDistance) || 1000) / 1000));
+    const ruleReady = !!(status && String(status.rule_source || '').trim());
+    const maxM = Number(r.singleMaxDistance) || 0;
+    const minM = Number(r.singleMinDistance) || 0;
     const vals = [];
-    for (let km = hi; km >= lo; km -= 1) vals.push(km * 1000);
+    if (ruleReady && maxM > 0 && minM > 0) {
+      // 按学校规则的单次距离区间，从高到低每 1 km 一项（真实规则 2000–3000 → 3 km、2 km）
+      const hi = Math.floor(maxM / 1000);
+      const lo = Math.ceil(minM / 1000);
+      for (let km = hi; km >= lo; km -= 1) vals.push(km * 1000);
+    }
     if (params.distance && !vals.includes(params.distance)) {
       vals.push(params.distance);
       vals.sort((a, b) => b - a);

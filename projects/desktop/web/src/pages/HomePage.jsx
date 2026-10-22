@@ -18,6 +18,7 @@ export default function HomePage({ mapProps, params, distanceOptions, busy, acti
             options={distanceOptions}
             onChange={actions.setDistance}
             bordered={false}
+            listHeight={400}
           />
         </div>
         <div className="side-actions">
