@@ -183,13 +183,26 @@ function renderStatus(st) {
   $('btn-account-use').disabled = !hasAcc;
   $('btn-account-del').disabled = !hasAcc;
 
-  // 规则
+  // 规则（单次/每日上限按原版规则页 dw7.a 的语义：都以 km 显示）
   const r = st.rule || {};
+  // 打卡点数量在 GeoFenceDetail 上（围栏字段），不是 SchoolRule；优先取当前围栏，回退到规则
+  const curFence = st.fence || (st.fences || [])[0] || {};
+  const pointCount = Number(curFence.requiredPointCounts ?? r.requiredPointCounts ?? 0);
+  const km = (m) => {
+    const v = Number(m || 0) / 1000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  };
+  const paceText = (sec) => {
+    const s = Math.round(Number(sec) || 0);
+    return s ? `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"` : '--';
+  };
   $('rule-info').innerHTML = r.singleMinDistance !== undefined ? kv({
-    '单次距离': `${r.singleMinDistance} – ${r.singleMaxDistance} 米`,
-    '配速区间': `${Math.round(r.minPace)} – ${Math.round(r.maxPace)} 秒/公里`,
+    '单次距离': `${km(r.singleMinDistance)} – ${km(r.singleMaxDistance)} km`,
+    '配速区间': `${paceText(r.minPace)} – ${paceText(r.maxPace)}`,
     '步幅基准': `${r.segmentStrideAvg} 米（异常段上限 ${r.segmentStrideExceptionNum}）`,
-    '必经点': `${r.requiredPointCounts} 个`,
+    '打卡点': `${pointCount} 个`,
+    '每日上限': Number(r.dayMaxDistance) > 0
+      ? `${km(r.dayMaxDistance)} km（超过部分不计成绩）` : '未限制',
   }) : '尚未加载';
 
   // 围栏下拉
