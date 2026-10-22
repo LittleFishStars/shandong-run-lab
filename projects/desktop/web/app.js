@@ -612,7 +612,7 @@ function setTiles(m) {
 // 重画叠加层；forceFit=true 或内容变化时才移动镜头（否则会抢用户的拖动）
 function drawMap(forceFit) {
   // 地图只在首页/跑步页可见；在登录/更多页时不画（容器尺寸为 0，Leaflet 会异常）
-  if (S.view !== 'home' && S.view !== 'run') return;
+  if (S.view !== 'home' && S.view !== 'run' && S.view !== 'pick') return;
   const m = ensureMap();
   if (!m) return;
   // 切换记录时重置“用户已手动移动”标记，否则新记录不会自动定位
@@ -926,6 +926,27 @@ function syncStartUi() {
   syncFlowInfo();                      // 起点变了，主流程状态行也要跟着变
 }
 
+// 「① 选择起始点」：进入独立的选点页（全屏地图 + 顶部标题/确认）
+function openPickView() {
+  S.pickStart = true;
+  if (S.pickMode) {                       // 与「点选路点」互斥
+    S.pickMode = false;
+    if ($('btn-pick')) { $('btn-pick').textContent = '点选路点'; $('btn-pick').classList.remove('primary'); }
+  }
+  showView('pick');
+  syncStartUi();
+  toast('在地图上点一下选择起点，然后点「确认」', 'ok');
+}
+
+function closePickView() {
+  S.pickStart = false;
+  syncStartUi();
+  showView('home');
+  drawMap(true);
+  if (S.startPoint) toast('起点已确认', 'ok');
+  else toast('未选择起点：仍使用围栏中心', '');
+}
+
 function togglePickStart() {
   S.pickStart = !S.pickStart;
   if (S.pickStart && S.pickMode) {     // 两种点选互斥：免得一次点击既加路点又设起点
@@ -946,7 +967,8 @@ async function setStartPoint(lat, lng) {
     return;
   }
   S.startPoint = ((r.data || {}).start_point) || null;
-  S.pickStart = false;
+  // 选点页里保持选点态，方便连续点几下调整；其它入口点一次就退出
+  S.pickStart = S.view === 'pick';
   S.fit = true;                        // 镜头跟到新起点上，好确认选对没有
   syncStartUi();
   drawMap(true);
@@ -1010,7 +1032,7 @@ function showView(name) {
   const target = 'view-' + name;
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === target));
   S.view = name;
-  if (name === 'home' || name === 'run') {
+  if (name === 'home' || name === 'run' || name === 'pick') {
     mountMap(name);
     drawMap();
   }
@@ -1487,7 +1509,8 @@ $('btn-login').addEventListener('click', async () => {
   $('in-show-state').addEventListener('change', (e) => { S.showState = e.target.checked; drawMap(); });
   $('btn-fit').addEventListener('click', () => { S.fit = true; drawMap(true); });
   // 跑步起点：点“设置起点”后在图上点一下，或点“清除起点”回到围栏中心
-  $('btn-pick-start').addEventListener('click', togglePickStart);
+  $('btn-pick-start').addEventListener('click', openPickView);
+  $('btn-pick-confirm').addEventListener('click', closePickView);
   $('btn-clear-start').addEventListener('click', clearStartPoint);
   // 摇杆与「自动跑」：常驻右下角，默认手动
   $('btn-auto-run').addEventListener('click', toggleAutoRun);

@@ -251,6 +251,18 @@ h1, h2 { margin: 0; }
 }
 .btn-end:disabled { opacity: .45; cursor: not-allowed; }
 
+/* ── 选起始点页 ── */
+#view-pick.active { display: flex; flex-direction: column; }
+.pick-head {
+  height: 64px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px;
+}
+.pick-title { font-size: 16px; font-weight: 600; color: var(--text); }
+.pick-map {
+  position: relative; flex: 1 1 auto; margin: 0 18px 18px;
+  border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); background: #e7ebf1;
+}
+
 /* ── 更多页 ── */
 .more-head {
   height: 64px; display: flex; align-items: center; justify-content: space-between;
