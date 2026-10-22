@@ -154,6 +154,11 @@ class App:
             self._last_result = _payload
         elif ev.get("kind") == "log" and ev.get("level") == "error":
             self._progress = {**self._progress, "running": False}
+        elif ev.get("kind") == "walk_arrived":
+            # 到达目标里程 = 自动结束；接下来该做的事是「上传 + 结算」。
+            # 以前这里什么都不做，于是 run 在 local 里停在「已结束未上传」，
+            # 服务端也永远收不到 finishSunRun_v2。
+            self._auto_settle_walk()
 
     @property
     def is_local(self) -> bool:
@@ -572,6 +577,10 @@ class App:
         rc = self.walk.run_code
         if not rc:
             return {"code": -1, "message": "没有实跑记录可上传（干跑模式不落库）", "data": None}
+        # 到达目标已经自动结算过的话，用户在界面上再点一次「结束跑步」会把同一趟
+        # 重复提交一遍（服务端只会回错误），这里直接挡掉。
+        if (self.store.get_run(rc) or {}).get("uploaded"):
+            return {"code": 0, "message": "该记录已结算，无需重复上传", "data": {"run_code": rc}}
         if not self.client.logged_in:
             return {"code": -1, "message": "请先登录", "data": None}
 
@@ -596,6 +605,30 @@ class App:
         self._thread = threading.Thread(target=_work, name="walk-upload", daemon=True)
         self._thread.start()
         return {"code": 0, "message": f"已开始上传结算：{rc}", "data": {"run_code": rc}}
+
+    def _auto_settle_walk(self) -> None:
+        """到达目标里程自动结束后，直接补传 + 结算（可用 walk.auto_settle 关掉）
+
+        与手动点「结束跑步」走同一条链路（walk_upload：engine.upload → engine.finish），
+        不另写一份结算，否则报文两套口径早晚会漂。
+        """
+        if self.walk.mode != "real":
+            return                      # 干跑不落库，没什么可结算的
+        if not bool((self.cfg.get("walk") or {}).get("auto_settle", True)):
+            self.bus.emit("log", "已达目标，自动结算已关闭（walk.auto_settle=false）", level="warn")
+            return
+        rc = str(self.walk.run_code or "")
+        if not rc:
+            return
+        if (self.store.get_run(rc) or {}).get("uploaded"):
+            return
+        if not self.client.logged_in:
+            self.bus.emit("log", "✗ 已达目标，但未登录，无法自动结算", level="error")
+            return
+        res = self.walk_upload(True)
+        self.bus.emit("state" if res.get("code") == 0 else "log",
+                      f"已达目标，自动结算：{res.get('message')}",
+                      run_code=rc, level="info" if res.get("code") == 0 else "error")
 
     def walk_save(self, name: str = "", polygon: Optional[List[Any]] = None) -> Dict[str, Any]:
         """把本次手动路径存成库里的草稿记录（不升跑、不上传，供反复调试）"""

@@ -78,6 +78,9 @@ class WalkSession:
         self._stored = 0                     # 已落库的点数（= _points 的前缀长度）
         self._last_emit = 0.0                # 事件限频
         self._last_emit_m = 0.0
+        # 尾段只会封一次：到达目标自动结束会调一次，用户随后再点停止又会调一次，
+        # 不设闸门的话步频尾段会被 add 两遍（内存里的 steps_total 也会翻倍）
+        self._tail_drained = False
 
     # ══════════════════ 配置读取 ══════════════════
     def _wcfg(self, key: str, default: Any) -> Any:
@@ -181,6 +184,7 @@ class WalkSession:
             self._step_segments = []
             self._pace_segments = []
             self._stride_segments = []
+            self._tail_drained = False     # 新的一趟重新允许封尾段
             # 倍速只认 walk.speed；传 0 表示“按配置”，而配置默认就是 1.0（真实时间）
             self.speed = max(0.1, float(speed if speed else self._wcfg("speed", 1.0) or 1.0))
             self.state = w.state()
@@ -248,6 +252,11 @@ class WalkSession:
                 self.state = self.walker.state()
             self.stopped_at = self.stopped_at or time.time()
             if self.state.arrived:
+                # 到达目标里程是「自动结束」：与手动 stop() 走同一套收尾，
+                # 否则 runs 表里距离/时长/步数全是 0，结算上去就是一趟废记录。
+                # 尾段：不满一个 interval 的步频段 + 尚未封口的配速段都要带上。
+                self._drain_tail_segments()
+                self._persist_run_summary()
                 self._emit("walk_arrived", f"手动实走结束：{self.state.arrived}",
                            run_code=self.run_code, state=self.state.to_dict())
 
@@ -591,8 +600,9 @@ class WalkSession:
         · 配速尾段 = run_pace 里最后一段尚未封口的（原版若 !isValid 就直接带上）
         """
         w = self.walker
-        if w is None:
+        if w is None or self._tail_drained:
             return
+        self._tail_drained = True
         self._store_segments(w)
         tail_step = w.tail_step_data()
         if tail_step is not None and int(tail_step.step) > 0:

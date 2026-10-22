@@ -317,6 +317,57 @@ class 手动实走测试(unittest.TestCase):
         self.assertEqual((last.get("upload") or {}).get("points", {}).get("code"), C.CODE_OK)
         self.assertEqual((last.get("finish") or {}).get("code"), C.CODE_OK)
 
+    def test_到达目标里程自动结算(self):
+        """跑到 target_m 会自己停；停下来之后必须自己上传 + 结算
+
+        以前的坑：到达目标只在 _loop 的 finally 里发一个 walk_arrived 就结束，
+        既没过尾段、没写汇总，也没结算——run 留在「已结束未上传」。
+        """
+        r = self.app.walk_start("real", target_m=60, fence_index=0,
+                                speed_mps=0.0, auto_route=True,
+                                auto_start=True, speed=30.0)
+        self.assertEqual(r["code"], C.CODE_OK)
+        rc = r["data"]["run_code"]
+        t0 = time.time()
+        while time.time() - t0 < 60:
+            st = self.app.walk_status(0)
+            if (st.get("state") or {}).get("arrived"):
+                break
+            time.sleep(0.2)
+        self.assertTrue((self.app.walk_status(0).get("state") or {}).get("arrived"),
+                        "没自动停在目标里程")
+        # arrived 标志是 tick 里置的，收尾（过尾段 + 写汇总 + 发事件）在循环 finally：
+        # 等实走线程真正退出，再读库
+        t0 = time.time()
+        while self.app.walk.running() and time.time() - t0 < 20:
+            time.sleep(0.1)
+        # 停止当下就必须把汇总写进库，不能等手动 stop
+        run = self.app.store.get_run(rc)
+        self.assertGreater(float(run.get("distance_m") or 0), 0)
+        self.assertGreater(int(run.get("total_step") or 0), 0)
+        # 自动结算走后台线程
+        t0 = time.time()
+        while self.app.running() and time.time() - t0 < 60:
+            time.sleep(0.2)
+        run = self.app.store.get_run(rc)
+        self.assertTrue(run.get("uploaded"), "到达目标后没有自动结算")
+        eps = {e["endpoint"] for e in self.app.run_detail(rc)["upload_log"]}
+        self.assertIn("run/finishSunRun_v2", eps)
+        self.assertIn("run/uploadRunRecord", eps)
+        # 已经自动结算过，用户再点「结束跑步」不能把同一趟重复提交
+        again = self.app.walk_upload(True)
+        self.assertEqual(again.get("code"), 0)
+        self.assertIn("已结算", str(again.get("message")))
+        n_finish = sum(1 for e in self.app.run_detail(rc)["upload_log"]
+                       if e["endpoint"] == "run/finishSunRun_v2")
+        self.assertEqual(n_finish, 1)
+        # 再点一次停止（界面上很多人会这么做）：尾段不能重复封，汇总不能被改写
+        step_before = int((self.app.store.get_run(rc) or {}).get("total_step") or 0)
+        self.app.walk_stop()
+        run2 = self.app.store.get_run(rc)
+        self.assertEqual(int(run2.get("total_step") or 0), step_before)
+        self.assertTrue(run2.get("uploaded"))
+
 
 class 错误处理测试(unittest.TestCase):
     """不依赖前置跑步：只验证异常输入不会把程序带崩"""

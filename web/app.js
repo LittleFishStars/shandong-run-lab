@@ -212,6 +212,8 @@ function renderStatus(st) {
     if (sc.speed) $('in-speed').value = sc.speed;
     // 摇杆速度（m/s）：从 walk 段回填，否则界面上的值只是默认值、与后端不一致
     if (wc.speed_mps && $('in-walk-speed')) $('in-walk-speed').value = wc.speed_mps;
+    // 到达目标自动结算（后端 walk.auto_settle，默认开）
+    if ($('in-auto-settle')) $('in-auto-settle').checked = (wc.auto_settle !== false);
     S.paramsLoaded = true;
   }
 
@@ -1113,8 +1115,15 @@ async function pumpWalk() {
     S.walkMsg = '';
     syncFlowInfo();
     if (st.arrived) {
-      toast('实走结束：' + st.arrived, 'ok');
+      // 到达目标里程 = 自动结束。后端收到 walk_arrived 会自己走「上传 + 结算」
+      // （walk.auto_settle，默认开），这里只负责把结果刷出来：
+      // 结算线程要跑几秒，所以隔一段时间补两次刷新。
+      toast('实走结束：' + st.arrived + (r.mode === 'real' ? '，正在自动上传结算…' : ''), 'ok');
       refreshRuns();
+      if (r.mode === 'real') {
+        setTimeout(() => { refreshRuns(); refreshStatus(); }, 3000);
+        setTimeout(() => { refreshRuns(); refreshStatus(); }, 9000);
+      }
     }
   }
 }
@@ -1339,6 +1348,7 @@ async function saveParams(silent) {
     walk: {
       // 摇杆推满时的速度（m/s）；实走倍速固定 1，不在这里暴露
       speed_mps: Number($('in-walk-speed') && $('in-walk-speed').value) || 2.5,
+      auto_settle: $('in-auto-settle') ? $('in-auto-settle').checked : true,
     },
     mock_fail_rate: Number($('in-failrate').value),
   };
