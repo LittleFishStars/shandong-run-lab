@@ -66,13 +66,13 @@
 # 依赖（大多数系统已自带 requests/cryptography/Pillow）
 sudo pacman -S --needed python-requests python-cryptography python-pillow
 
-cd shandong-school_cracked
+cd projects/desktop
 python3 -m venv --system-site-packages .venv       # 继承系统包，省一次下载
 .venv/bin/pip install pywebview                    # 桌面窗口（可选，缺了就自动走浏览器）
 .venv/bin/pip install pycryptodome                 # 可选，密码学后端更快（没有则用 cryptography）
 ```
 
-`pycryptodome` / `cryptography` / 纯标准库三种密码学后端会自动择优（见 `shandong-school_cracked/ciphers.py`），
+`pycryptodome` / `cryptography` / 纯标准库三种密码学后端会自动择优（见 `ciphers.py`），
 **全部缺失也能跑**（内置纯 Python AES）。
 
 ## 三、运行
