@@ -83,11 +83,11 @@ button { font-family: inherit; }
 .side-panel {
   background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
   padding: 28px 24px; display: flex; flex-direction: column; align-items: center;
-  gap: 20px; min-height: 0;
+  justify-content: center; gap: 20px; min-height: 0;
 }
 .side-brand { display: flex; justify-content: center; padding-top: 6px; }
 .side-brand .app-icon { width: 96px; height: 96px; border-radius: 0; }
-.side-actions { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: auto; }
+.side-actions { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 0; }
 .btn-start {
   width: 148px; height: 148px !important; border-radius: 50% !important;
   font-size: 24px !important; font-weight: 600; letter-spacing: 2px;
