@@ -179,14 +179,15 @@ function renderStatus(st) {
   const keepUid = accSel.value || (accounts.find(a => a.current) || {}).userId || '';
   // 选项只显示手机号 / 学号：_account_name 是登录时输入的明文，旧条目回退 loginName（服务端脱敏），
   // 绝不拿 userName（服务端加密串）当标题
-  accSel.innerHTML = accounts.length
-    ? accounts.map(a => `<option value="${a.userId}">${esc(a._account_name || a.loginName || a.userId)}`
-        + `${a.current ? '（当前）' : ''}</option>`).join('')
-    : '<option value="">（本机登录过的账号会出现在这里）</option>';
-  if (keepUid && accounts.some(a => a.userId === keepUid)) accSel.value = keepUid;
+  const prevSel = accSel.value;   // 只保留用户自己选中的账号，不替用户自动选
+  accSel.innerHTML = '<option value="">请选择</option>' + accounts.map(a =>
+    `<option value="${a.userId}">${esc(a._account_name || a.loginName || a.userId)}`
+    + `${a.current ? '（当前）' : ''}</option>`).join('');
+  if (prevSel && accounts.some(a => a.userId === prevSel)) accSel.value = prevSel;
   const hasAcc = !!accSel.value && accounts.length > 0;
   $('btn-account-use').disabled = !hasAcc;
   $('btn-account-del').disabled = !hasAcc;
+  $('btn-account-del').hidden = !hasAcc;
 
   // 规则（单次/每日上限按原版规则页 dw7.a 的语义：都以 km 显示）
   const r = st.rule || {};
@@ -265,8 +266,8 @@ function renderStatus(st) {
   //   重绘本身有围栏指纹 + 用户手动的双重护栏，不会每秒抢镜头。
   // 页面：首次按登录态定；之后只在登录态变化时切（不打断用户在「更多」页）
   const logged = !!st.logged_in;
-  if (!S.view) showView(logged ? 'home' : 'login');
-  else if (!logged && S.view !== 'login') showView('login');
+  if (!S.view) { showView(logged ? 'home' : 'login'); if (!logged) showLoginForm('new'); }
+  else if (!logged && S.view !== 'login') { showView('login'); showLoginForm('new'); }
   else if (logged && S.view === 'login') showView('home');
   drawMap();
 }
@@ -422,8 +423,10 @@ async function refreshRuns(autoOpen = false, page = null) {
   S.serverPoints = null;      // 列表一变，重新取一次最近记录的打卡点数
   S.runsHasNext = !!r.has_next;
   if (!runs.length) {
+    const logged = !!(S.status && S.status.logged_in);
     box.innerHTML = `<div class="hint">${S.runsPage > 1 ? '这一页没有记录了'
-      : '服务器上暂无记录：先登录，再完成一次跑步'}</div>`;
+      : (logged ? '服务器上暂无记录（完成一次跑步后会出现在这里）'
+                : '未登录：登录后才会显示账号下的记录')}</div>`;
     syncRunsPager(r);
     return;
   }
@@ -1362,12 +1365,13 @@ $('btn-login').addEventListener('click', async () => {
     return;
   }
   try {
-    const res = await Bridge.call('login', phone, password, $('in-captcha').checked);
+    const res = await Bridge.call('login', phone, password, true);
     if (res && res.code === 0) {
       toast('登录成功', 'ok');
       await refreshStatus();
       await autoPrepare('登录后');     // 原来要手动点「① 拉取配置」，现在登录后自动拉
       showView('home');
+      refreshRuns();
     } else {
       toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
     }
@@ -1376,7 +1380,16 @@ $('btn-login').addEventListener('click', async () => {
   $('btn-logout').addEventListener('click', async () => {
     await Bridge.call('logout'); toast('已退出登录'); refreshStatus();
     showView('login');
+    showLoginForm('new');
   });
+
+  // 登录页两种形态：新账号（手机号+密码） / 已有账号（下拉选一个，免密）
+  $('btn-switch-account').addEventListener('click', () => {
+    const accs = (S.status && S.status.accounts) || [];
+    if (!accs.length) { toast('本机还没有登录过的账号', 'err'); return; }
+    showLoginForm('account');
+  });
+  $('btn-switch-new').addEventListener('click', () => showLoginForm('new'));
 
   // 历史账号：不重新输密码，直接换 token 开工
   $('in-account').addEventListener('change', () => {
@@ -1392,6 +1405,7 @@ $('btn-login').addEventListener('click', async () => {
       toast('已切换账号：' + ((r.data && (r.data._account_name || r.data.loginName || r.data.userName)) || '该账号'), 'ok');
       await refreshStatus();
       await autoPrepare('切换账号后');
+      refreshRuns();
     } else toast('切换失败：' + ((r && r.message) || '未知错误'), 'err');
   });
   $('btn-account-del').addEventListener('click', async () => {
@@ -1536,6 +1550,15 @@ async function saveParams(silent) {
   };
   await Bridge.call('patch_config', JSON.stringify(patch));
   if (!silent) refreshStatus();
+}
+
+// 登录页表单：new = 手机号+密码；account = 历史账号下拉（参考图的「选择已有账号」）
+function showLoginForm(mode) {
+  const a = $('login-form-new'), b = $('login-form-account');
+  if (!a || !b) return;
+  a.hidden = mode !== 'new';
+  b.hidden = mode !== 'account';
+  S.loginForm = mode;
 }
 
 async function refreshStatus() {

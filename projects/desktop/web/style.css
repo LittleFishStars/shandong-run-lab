@@ -84,10 +84,40 @@ h1, h2 { margin: 0; }
 .login-brand-name { font-size: 34px; font-weight: 800; letter-spacing: 2px; margin-top: 14px; }
 .login-brand-sub { font-size: 13px; color: var(--text-faint); letter-spacing: 1px; }
 .login-card {
-  background: #fff; border-radius: 26px; padding: 30px 28px;
+  width: 360px; justify-self: center; position: relative;
+  background: #fff; border-radius: 26px; padding: 26px 24px;
   box-shadow: var(--shadow); border: 1px solid #eef2f8;
 }
-.login-card .hint { display: block; margin-top: 10px; text-align: center; }
+/* 右上角很淡的登录方式切换（参考图里没有，但真实/本地 Mock 必须能选） */
+.login-mode {
+  position: absolute; top: 12px; right: 14px; width: 100px;
+  padding: 2px 18px 2px 8px; font-size: 10.5px; color: #a6b1c2;
+  background-color: transparent; border: 1px solid transparent; border-radius: 8px;
+}
+.login-mode:hover { border-color: #e9eef6; color: #7b8798; }
+.login-form .field { margin-bottom: 18px; }
+.login-form .field > span { font-size: 12px; color: #7b8798; }
+.login-form input, .login-form select {
+  background: #f4f6fa; border: 1px solid transparent; border-radius: 10px;
+  padding: 12px 14px; font-size: 13.5px;
+}
+.login-form input:focus, .login-form select:focus {
+  background: #fff; border-color: #b9d7f8; box-shadow: 0 0 0 3px #6aa9ea1a;
+}
+.login-actions { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+.login-btn {
+  padding: 10px 26px; border-radius: 12px; border: none; cursor: pointer;
+  background: #a9d3ff; color: #fff; font-size: 14px; font-weight: 500;
+}
+.login-btn:hover { background: #98c8ff; }
+.login-btn:disabled { opacity: .5; cursor: not-allowed; }
+.login-link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: #7b8798; font-size: 12.5px;
+}
+.login-link:hover { color: #2e5f93; }
+.login-hint { margin-top: 18px; font-size: 11px; color: #a6b1c2; text-align: center; }
+.login-remove { margin-top: 12px; font-size: 11px; color: #b0bac8; }
 
 /* ── 首页 / 跑步页布局 ── */
 .run-layout {
@@ -230,8 +260,12 @@ h1, h2 { margin: 0; }
 .more-grid {
   height: calc(100% - 64px); overflow: auto; padding: 0 18px 18px;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
-  align-content: start;
+  align-content: start; align-items: start; grid-auto-rows: max-content;
 }
+/* 普通卡片按内容撑开（不随行高拉伸/裁切）；记录与事件流仍固定高度、内部滚动 */
+.more-grid > .card > .card-body { overflow: visible; }
+.more-grid > .records-card > .card-body,
+.more-grid > .log-card > .card-body { overflow: hidden; }
 .more-grid > .card { background: #fff; border-radius: 18px; border: 1px solid #eef2f8; box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 0; }
 .records-card, .log-card { grid-column: span 3; }
 .records-card { min-height: 260px; }

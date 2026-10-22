@@ -35,39 +35,39 @@
         <div class="login-brand-sub">阳光跑 · 桌面工作台</div>
       </div>
       <div class="login-card">
-        <label class="field">
-          <span>登录方式</span>
-          <select id="in-login-mode">
-            <option value="real">真实登录（api.huachenjie.com）</option>
-            <option value="mock">本地登录（离线调试，不联网）</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>手机号 / 学号</span>
-          <input id="in-phone" type="text" value="13800138000" placeholder="手机号 / 学号" autocomplete="off">
-        </label>
-        <label class="field">
-          <span>密码</span>
-          <input id="in-password" type="password" placeholder="账号密码（Mock 模式任意）">
-        </label>
-        <label class="check">
-          <input type="checkbox" id="in-captcha" checked>
-          <span>走滑块验证码流程（可关闭以加速调试）</span>
-        </label>
-        <div class="row">
-          <button class="btn primary" id="btn-login">登录</button>
-          <button class="btn ghost" id="btn-logout">退出</button>
+        <select id="in-login-mode" class="login-mode" title="登录方式">
+          <option value="real">真实服务端</option>
+          <option value="mock">本地 Mock</option>
+        </select>
+
+        <div class="login-form" id="login-form-new">
+          <label class="field">
+            <span>手机号</span>
+            <input id="in-phone" type="text" value="13800138000" placeholder="手机号 / 学号" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>密码</span>
+            <input id="in-password" type="password" placeholder="账号密码">
+          </label>
+          <div class="login-actions">
+            <button class="login-btn" id="btn-login">登录</button>
+            <button class="login-link" id="btn-switch-account">选择已有账号</button>
+          </div>
         </div>
-        <label class="field">
-          <span>历史账号</span>
-          <select id="in-account"><option value="">（本机登录过的账号会出现在这里）</option></select>
-        </label>
-        <div class="row">
-          <button class="btn small" id="btn-account-use" disabled>使用该账号</button>
-          <button class="btn ghost small" id="btn-account-del" disabled>移除</button>
+
+        <div class="login-form" id="login-form-account" hidden>
+          <label class="field">
+            <span>选择账号</span>
+            <select id="in-account"><option value="">请选择</option></select>
+          </label>
+          <div class="login-actions">
+            <button class="login-btn" id="btn-account-use" disabled>登录</button>
+            <button class="login-link" id="btn-switch-new">登录新账号</button>
+          </div>
+          <button class="login-link login-remove" id="btn-account-del" hidden>移除该账号</button>
         </div>
-        <div class="kv" id="user-info"></div>
-        <div class="hint" id="login-hint">真实服务端登录</div>
+
+        <div class="login-hint" id="login-hint">真实服务端</div>
       </div>
     </div>
   </section>
@@ -223,6 +223,14 @@
           <button class="btn ghost small" id="btn-load-rule">刷新</button>
         </div>
         <div class="card-body"><div class="kv" id="rule-info">尚未加载</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>账号</h2></div>
+        <div class="card-body">
+          <div class="kv" id="user-info"></div>
+          <div class="row"><button class="btn ghost small" id="btn-logout">退出登录</button></div>
+        </div>
       </div>
 
       <div class="card run-now">
