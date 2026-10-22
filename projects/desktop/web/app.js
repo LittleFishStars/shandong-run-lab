@@ -97,6 +97,7 @@ const S = {
   pickedRecord: null,    // 用户点选/自动选中的服务端记录（非空时左卡不被“最近一次”覆盖）
   serverPoints: null,     // 最近一条服务端记录的打卡点数（targetPoints）
   autoPreparing: false,   // 登录后自动拉取配置是否进行中（决定状态行文案与防重入）
+  view: '',                // 当前页面：login / home / run / more
 };
 const $ = (id) => document.getElementById(id);
 
@@ -262,6 +263,11 @@ function renderStatus(st) {
   //   不在这里重画的话，围栏要等到下一次别的 drawMap 触发（规划/摇杆/详情）才出现，
   //   镜头也就不会在拿到围栏的当下就飞过去。
   //   重绘本身有围栏指纹 + 用户手动的双重护栏，不会每秒抢镜头。
+  // 页面：首次按登录态定；之后只在登录态变化时切（不打断用户在「更多」页）
+  const logged = !!st.logged_in;
+  if (!S.view) showView(logged ? 'home' : 'login');
+  else if (!logged && S.view !== 'login') showView('login');
+  else if (logged && S.view === 'login') showView('home');
   drawMap();
 }
 
@@ -366,6 +372,14 @@ function renderRunInfo(last) {
     },
     '计时': fmtDur(last.elapsed_s || last.total_elapsed_s || 0),
   });
+  // 跑步页的大字距离/配速（与「本次跑步」卡同一份数据）
+  if ($('live-distance')) {
+    const dm = Number(last.distance_m);
+    $('live-distance').textContent = Number.isFinite(dm) ? `${dm.toFixed(0)} m` : '--';
+  }
+  if ($('live-pace')) {
+    $('live-pace').textContent = last.pace_s_per_km ? fmtPaceShort(last.pace_s_per_km) : '--';
+  }
   drawMap();
 }
 
@@ -594,6 +608,8 @@ function setTiles(m) {
 
 // 重画叠加层；forceFit=true 或内容变化时才移动镜头（否则会抢用户的拖动）
 function drawMap(forceFit) {
+  // 地图只在首页/跑步页可见；在登录/更多页时不画（容器尺寸为 0，Leaflet 会异常）
+  if (S.view !== 'home' && S.view !== 'run') return;
   const m = ensureMap();
   if (!m) return;
   // 切换记录时重置“用户已手动移动”标记，否则新记录不会自动定位
@@ -962,7 +978,7 @@ function flowInfoText() {
   else if (!((st.fences || []).length)) base = S.autoPreparing
     ? '正在自动拉取围栏与学校规则…'
     : '配置未就绪（自动拉取失败时，点「学校规则」卡右上角的刷新重试）';
-  else base = `已就绪｜${startPointText()}｜点「② 开始跑步」`;
+  else base = `已就绪｜${startPointText()}｜点「开始」`;
   // 动作回执（规划结果、跑步实时数据）永远拼在后面：「起点 / 下一步该点哪个」不能被它顶掉
   return S.walkMsg ? `${base}｜${S.walkMsg}` : base;
 }
@@ -980,40 +996,34 @@ function syncFlowInfo() {
 // 都能把地图区压扁，绝对定位的摇杆会被地图区 overflow:hidden 整块裁掉。
 // 这里无论布局怎么变都把摇杆夹回卡片可见区（必要时整体缩一档），并把 card/body/ctl 的实测矩形发去存档。
 function reportGeometry(tag) {
-  const card = document.querySelector('.map-card');
-  const body = document.querySelector('.map-body');
-  const ctl = $('run-ctl');
-  const joy = $('joy');
-  if (!card || !ctl) return null;
-  const R = (e) => {
-    if (!e) return null;
-    const r = e.getBoundingClientRect();
-    return { top: Math.round(r.top), bottom: Math.round(r.bottom),
-             left: Math.round(r.left), right: Math.round(r.right),
-             w: Math.round(r.width), h: Math.round(r.height) };
-  };
-  ctl.style.transform = '';
-  const a = R(card), c = R(ctl);
-  let dx = 0, dy = 0, scale = 1;
-  if (c.bottom > a.bottom - 4) dy = a.bottom - 4 - c.bottom;       // 越出卡片下边 → 上移
-  if (c.top + dy < a.top + 4) dy = a.top + 4 - c.top;              // 越出上边 → 下移
-  if (c.right > a.right - 4) dx = a.right - 4 - c.right;
-  if (c.left + dx < a.left + 4) dx = a.left + 4 - c.left;
-  if (c.h > a.h - 8) scale = Math.max(0.55, (a.h - 8) / c.h);      // 卡片太矮 → 整体缩一档
-  if (dx || dy || scale !== 1) {
-    ctl.style.transformOrigin = 'bottom right';
-    ctl.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${scale.toFixed(3)})`;
+  // 浅色多页面布局：摇杆在跑步页侧栏（不在卡片里），不再有越界裁切问题；
+  // 保留函数给初始化/开跑后的自检调用，直接返回即可。
+  return null;
+}
+
+// ── 页面切换：登录 / 首页 / 跑步 / 更多 ──
+// 地图在首页与跑步页之间复用同一个 Leaflet 实例：切页时把 #map 挪到当前页的槽位并 invalidateSize。
+function showView(name) {
+  const target = 'view-' + name;
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === target));
+  S.view = name;
+  if (name === 'home' || name === 'run') {
+    mountMap(name);
+    drawMap();
   }
-  const info = {
-    tag: tag || '', vw: innerWidth, vh: innerHeight, dpr: window.devicePixelRatio,
-    card: a, body: R(body), ctl: R(ctl),
-    joyVisible: !!(joy && joy.offsetParent),
-    autoBtnVisible: !!($('btn-auto-run') && $('btn-auto-run').offsetParent),
-    advOpen: !!($('adv-tools') && $('adv-tools').open),
-    fixed: !!(dx || dy || scale !== 1),
-  };
-  try { Bridge.call('ui_report', JSON.stringify(info)); } catch (e) { /* 桥未就绪就算了 */ }
-  return info;
+  syncFlowInfo();
+}
+
+function mountMap(name) {
+  const slot = document.getElementById('slot-' + name);
+  const mapEl = document.getElementById('map');
+  if (!slot || !mapEl) return;
+  if (mapEl.parentElement !== slot) slot.appendChild(mapEl);
+  if (MAP.obj) {
+    setTimeout(() => {
+      try { MAP.obj.invalidateSize(); } catch (_) { /* 容器刚挂上，下一帧再试也行 */ }
+    }, 40);
+  }
 }
 
 // 「自动跑」按钮：手动（默认）↔ 自动沿规划路线走。开跑后点也能切（后端 walk_auto 立即生效）
@@ -1073,6 +1083,7 @@ async function walkStart(mode) {
     syncFlowInfo();
     toast(mode === 'real' ? '已开跑，轨迹实时入库（结束跑步会顺带上传结算）' : '干跑已开始（不落库、不上传）', 'ok');
     startWalkTimer();
+    showView('run');
     refreshStatus();                       // 开跑后后端才拿到真实打卡点，status 立刻跟上
   } finally {
     busy($('btn-walk-dry'), false); busy($('btn-walk-real'), false);
@@ -1104,6 +1115,7 @@ async function walkStop() {
   toast(`已停止：${Number(st.dist_m || 0).toFixed(0)} 米 / ${st.steps || 0} 步`
     + `（本地已落库 ${r && r.stored || 0} 点）`, 'ok');
   refreshRuns();
+  showView('home');
 }
 
 async function walkUpload() {
@@ -1131,7 +1143,7 @@ async function startRun() {
       return;
     }
   }
-  if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「③ 结束跑步」', 'err'); return; }
+  if (S.walk && S.walk.running) { toast('已经在跑了：等它跑完，或点「结束」', 'err'); return; }
   await saveParams(true);
   // 先清掉图上画过的旧路线，让这次开跑按服务端下发的真实打卡点重算路线
   S.previewPoints = [];
@@ -1162,6 +1174,7 @@ async function walkEnd() {
       + ((up && up.message) || '已提交上传结算'), (up && up.code === 0) ? 'ok' : 'err');
     refreshRuns();
     refreshStatus();
+    showView('home');
   } finally {
     busy(b, false);
     syncFlowInfo();                   // 能不能再点，由真实运行态决定
@@ -1242,6 +1255,7 @@ async function pumpWalk() {
         setTimeout(() => { refreshRuns(); refreshStatus(); }, 9000);
       }
     }
+    showView('home');
   }
 }
 // 登录面板两个模式长相不同：真实登录要密码、提示说明验证码；本地登录随便填
@@ -1318,6 +1332,10 @@ async function init() {
     toast('数据目录：' + (r.path || ''), 'ok');
   });
 
+  // 首页的「更多」与更多页的「返回」
+  $('btn-more').addEventListener('click', () => showView('more'));
+  $('btn-more-back').addEventListener('click', () => showView((S.walk && S.walk.running) ? 'run' : 'home'));
+
 
 $('in-login-mode').addEventListener('change', async () => {
   const sel = $('in-login-mode');
@@ -1349,6 +1367,7 @@ $('btn-login').addEventListener('click', async () => {
       toast('登录成功', 'ok');
       await refreshStatus();
       await autoPrepare('登录后');     // 原来要手动点「① 拉取配置」，现在登录后自动拉
+      showView('home');
     } else {
       toast('登录失败：' + ((res && res.message) || '未知错误'), 'err');
     }
@@ -1356,6 +1375,7 @@ $('btn-login').addEventListener('click', async () => {
 });
   $('btn-logout').addEventListener('click', async () => {
     await Bridge.call('logout'); toast('已退出登录'); refreshStatus();
+    showView('login');
   });
 
   // 历史账号：不重新输密码，直接换 token 开工

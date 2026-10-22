@@ -10,7 +10,7 @@
 <body>
 <header class="topbar">
   <div class="brand">
-    <span class="logo">SD</span>
+    <span class="logo">⚡</span>
     <div>
       <div class="title">闪动校园 · 阳光跑工作台</div>
       <div class="subtitle">协议复原版 · 登录 → 阳光跑 → 数据记录 → 数据上传</div>
@@ -21,33 +21,34 @@
     <span class="pill" id="pill-login" title="登录状态">未登录</span>
     <span class="pill mono" id="pill-device" title="deviceId">设备：--</span>
     <span class="pill mono" id="pill-version">v--</span>
-    <button class="btn ghost" id="btn-data-dir">数据目录</button>
+    <button class="btn ghost small" id="btn-data-dir">数据目录</button>
   </div>
 </header>
 
-<main class="layout">
-  <!-- ═══════════ 左栏：登录与跑步 ═══════════ -->
-  <section class="col col-left">
-    <div class="card">
-      <div class="card-head">
-        <h2>登录</h2>
-        <span class="hint" id="login-hint">真实服务端登录</span>
+<main id="views">
+  <!-- ═══════════ 登录页 ═══════════ -->
+  <section class="view" id="view-login">
+    <div class="login-layout">
+      <div class="login-brand">
+        <div class="logo-badge">⚡</div>
+        <div class="login-brand-name">闪动校园</div>
+        <div class="login-brand-sub">阳光跑 · 桌面工作台</div>
       </div>
-      <div class="card-body">
+      <div class="login-card">
         <label class="field">
           <span>登录方式</span>
-          <select id="in-login-mode" class="mini">
+          <select id="in-login-mode">
             <option value="real">真实登录（api.huachenjie.com）</option>
             <option value="mock">本地登录（离线调试，不联网）</option>
           </select>
         </label>
         <label class="field">
           <span>手机号 / 学号</span>
-          <input id="in-phone" type="text" value="13800138000" placeholder="13800138000" autocomplete="off">
+          <input id="in-phone" type="text" value="13800138000" placeholder="手机号 / 学号" autocomplete="off">
         </label>
         <label class="field">
           <span>密码</span>
-          <input id="in-password" type="password" placeholder="任意（Mock 模式不校验）">
+          <input id="in-password" type="password" placeholder="账号密码（Mock 模式任意）">
         </label>
         <label class="check">
           <input type="checkbox" id="in-captcha" checked>
@@ -55,100 +56,33 @@
         </label>
         <div class="row">
           <button class="btn primary" id="btn-login">登录</button>
-          <button class="btn" id="btn-logout">退出</button>
+          <button class="btn ghost" id="btn-logout">退出</button>
         </div>
         <label class="field">
           <span>历史账号</span>
-          <select id="in-account" class="mini">
-            <option value="">（本机登录过的账号会出现在这里）</option>
-          </select>
+          <select id="in-account"><option value="">（本机登录过的账号会出现在这里）</option></select>
         </label>
         <div class="row">
-          <button class="btn" id="btn-account-use" disabled>使用该账号</button>
-          <button class="btn" id="btn-account-del" disabled>移除</button>
+          <button class="btn small" id="btn-account-use" disabled>使用该账号</button>
+          <button class="btn ghost small" id="btn-account-del" disabled>移除</button>
         </div>
         <div class="kv" id="user-info"></div>
+        <div class="hint" id="login-hint">真实服务端登录</div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2>阳光跑</h2>
-        <span class="hint">跑步参数</span>
-      </div>
-      <div class="card-body">
-        <div class="row2">
-          <label class="field">
-            <span>目标距离</span>
-            <select id="in-distance" title="目标距离：按学校规则的单次距离区间，从高到低每 1 km 一个选项"></select>
-          </label>
-          <label class="field">
-            <span>围栏</span>
-            <select id="in-fence"><option value="0">默认（第 1 个）</option></select>
-          </label>
-        </div>
-        <div class="row2">
-          <label class="field" title="平均步频：每分钟步数；后端按“平均 ± 波动”生成每段步频">
-            <span>平均步频（步/分）</span>
-            <input id="in-cad-avg" type="number" value="177" min="120" max="240" step="1">
-          </label>
-          <label class="field" title="波动：每段步频在平均值上下随机浮动 ±N 步/分">
-            <span>波动（± 步/分）</span>
-            <input id="in-cad-var" type="number" value="5" min="0" max="30" step="1">
-          </label>
-        </div>
-        <div class="row2">
-          <label class="field">
-            <span>步幅（米）</span>
-            <input id="in-stride" type="number" value="0.85" step="0.01">
-          </label>
-          <label class="field" title="摇杆推满时的配速，格式 6'40&quot; 或 6:40（也可直接填秒/公里）">
-            <span>配速（分'秒&quot;/公里）</span>
-            <input id="in-walk-pace" type="text" value="6'40&quot;" placeholder="6'40&quot;" autocomplete="off">
-          </label>
-        </div>
-        <div class="row2">
-          <label class="check" title="到达目标里程自动结束后，直接补传轨迹并提交结算（不开则只停不结）">
-            <input id="in-auto-settle" type="checkbox" checked> 到达目标自动结算
-          </label>
-        </div>
-        <div class="row">
-          <span class="hint">② 开始跑步 · ③ 结束跑步 在中间地图卡上方；整场仿真在「高级 / 调试」里</span>
-        </div>
-        <div class="progress">
-          <div class="progress-bar"><i id="progress-fill" style="width:0%"></i></div>
-          <div class="progress-text" id="progress-text">就绪</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2>学校规则</h2>
-        <button class="btn ghost small" id="btn-load-rule">刷新</button>
-      </div>
-      <div class="card-body"><div class="kv" id="rule-info">尚未加载</div></div>
     </div>
   </section>
 
-  <!-- ═══════════ 中栏：地图与事件流 ═══════════ -->
-  <section class="col col-mid">
-    <div class="card map-card">
-      <div class="card-head">
-        <h2>轨迹与围栏</h2>
-        <span class="hint" id="map-hint">高德路网 · GCJ-02</span>
-      </div>
-      <div class="map-bar flow-bar" id="flow-bar">
-        <button class="btn small" id="btn-pick-start"
-                title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">① 选择起始点</button>
-        <button class="btn small primary" id="btn-walk-real"
-                title="在地图上画出打卡路径，然后升跑并开始记录轨迹（实时写入本地库）">② 开始跑步</button>
-        <button class="btn small" id="btn-flow-end" disabled
-                title="停止记录，并把本次轨迹上传结算">③ 结束跑步</button>
-        <span class="hint" id="flow-info">登录后自动拉取围栏与学校规则</span>
-      </div>
-      <div class="card-body map-body">
-        <div id="map"></div>
+  <!-- ═══════════ 首页（未开跑） ═══════════ -->
+  <section class="view" id="view-home">
+    <div class="run-layout">
+      <div class="map-card">
+        <div class="map-slot" id="slot-home"><div id="map"></div></div>
+        <span class="map-hint" id="map-hint">高德路网 · GCJ-02</span>
+        <div class="flow-bar" id="flow-bar">
+          <button class="btn ghost small" id="btn-pick-start"
+                  title="在地图上点一下就是跑步起点（落在围栏外会自动吸附进围栏）；不选则用围栏中心">① 选择起始点</button>
+          <span class="hint" id="flow-info">登录后自动拉取围栏与学校规则</span>
+        </div>
         <details class="adv" id="adv-tools">
           <summary>高级 / 调试</summary>
           <div class="adv-body">
@@ -169,10 +103,6 @@
             <div class="adv-row">
               <button class="btn small" id="btn-run" title="不用在地图上走，直接按仿真参数跑完一整场并上传">一键跑完整链路</button>
               <button class="btn small" id="btn-resume">断点续传</button>
-              <button class="btn small" id="btn-save-cfg">保存参数</button>
-              <button class="btn ghost small" id="btn-reset-device">换 deviceId</button>
-            </div>
-            <div class="adv-row">
               <select id="in-tiles" class="mini" title="底图瓦片源（记录坐标是 GCJ-02，高德瓦片同为 GCJ-02）">
                 <option value="amap">高德路网</option>
                 <option value="amap-sat">高德卫星</option>
@@ -195,54 +125,139 @@
           <span><i class="sw succ"></i>已上传</span>
         </div>
       </div>
-      <!-- 摇杆与「自动跑」常驻地图卡右下角：默认手动，点了「自动跑」才沿路线自动走。
-           注意它挂在卡片上（不在 .map-body 里）——地图区 overflow:hidden，
-           窗口一矮/提示行变长就会把绝对定位的摇杆整块裁掉（2026-10-18 实测）。 -->
-      <div class="run-ctl" id="run-ctl">
-        <button class="btn small" id="btn-auto-run"
-                title="默认手动：用右下角摇杆控制方向。点这里切到自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
-        <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键（自动跑时推杆即接管）">
-          <div class="joy-ring"></div>
-          <div class="joy-knob" id="joy-knob"></div>
-        </div>
-      </div>
-    </div>
 
-    <div class="card log-card">
-      <div class="card-head">
-        <h2>事件流</h2>
-        <div class="head-tools">
-          <label class="check small"><input type="checkbox" id="in-autoscroll" checked>
-            <span>自动滚动</span></label>
-          <button class="btn ghost small" id="btn-clear-log">清屏</button>
+      <aside class="side-panel">
+        <div class="side-brand">
+          <div class="logo-badge">⚡</div>
+          <div class="side-brand-name">闪动校园</div>
         </div>
-      </div>
-      <div class="card-body log-body"><div class="log" id="log"></div></div>
+        <label class="target-pill">
+          <span>目标距离</span>
+          <select id="in-distance" title="目标距离：按学校规则的单次距离区间，从高到低每 1 km 一个选项"></select>
+        </label>
+        <div class="side-actions">
+          <button class="btn-start" id="btn-walk-real"
+                  title="在地图上画出打卡路径，然后升跑并开始记录轨迹">开始</button>
+          <button class="btn-more" id="btn-more" title="服务器记录 / 学校规则 / 跑步参数 / 事件流">更多</button>
+        </div>
+        <div class="progress">
+          <div class="progress-bar"><i id="progress-fill" style="width:0%"></i></div>
+          <div class="progress-text" id="progress-text">就绪</div>
+        </div>
+      </aside>
     </div>
   </section>
 
-  <!-- ═══════════ 右栏：本次跑步与记录 ═══════════ -->
-  <section class="col col-right">
-    <div class="card run-now">
-      <div class="card-head">
-        <h2>本次跑步</h2>
-        <span class="hint" id="run-code-label">--</span>
+  <!-- ═══════════ 跑步页 ═══════════ -->
+  <section class="view" id="view-run">
+    <div class="run-layout">
+      <div class="map-card">
+        <div class="map-slot" id="slot-run"></div>
       </div>
-      <div class="card-body"><div class="kv" id="run-info">尚未开始</div></div>
+      <aside class="side-panel">
+        <div class="live-stats">
+          <div class="live-line"><span>距离</span><b id="live-distance">--</b></div>
+          <div class="live-line"><span>配速</span><b id="live-pace">--</b></div>
+        </div>
+        <div class="run-ctl" id="run-ctl">
+          <button class="btn ghost small" id="btn-auto-run"
+                  title="默认手动：用摇杆控制方向。点这里切到自动沿规划路线跑，再点一次交回摇杆">手动（摇杆）</button>
+          <div class="joy" id="joy" title="拖动控制方向；松手即停；也可用方向键（自动跑时推杆即接管）">
+            <div class="joy-ring"></div>
+            <div class="joy-knob" id="joy-knob"></div>
+          </div>
+        </div>
+        <button class="btn-end" id="btn-flow-end" disabled
+                title="停止记录，并把本次轨迹上传结算">结束</button>
+      </aside>
     </div>
+  </section>
 
-    <div class="card server-records">
-      <div class="card-head">
-        <h2>服务器记录</h2>
-        <div class="head-tools">
-          <span class="hint" id="runs-page">第 1 页</span>
-          <button class="btn ghost small" id="btn-runs-prev" disabled title="上一页（服务端分页）">上一页</button>
-          <button class="btn ghost small" id="btn-runs-next" disabled title="下一页（服务端分页）">下一页</button>
-          <button class="btn ghost small" id="btn-refresh-runs" title="重新从服务端拉取当前页">刷新</button>
+  <!-- ═══════════ 更多页 ═══════════ -->
+  <section class="view" id="view-more">
+    <div class="more-head">
+      <h1>更多</h1>
+      <button class="btn ghost small" id="btn-more-back">返回</button>
+    </div>
+    <div class="more-grid">
+      <div class="card">
+        <div class="card-head"><h2>跑步参数</h2></div>
+        <div class="card-body">
+          <label class="field">
+            <span>围栏</span>
+            <select id="in-fence"><option value="0">默认（第 1 个）</option></select>
+          </label>
+          <div class="row2">
+            <label class="field" title="平均步频：每分钟步数；后端按“平均 ± 波动”生成每段步频">
+              <span>平均步频（步/分）</span>
+              <input id="in-cad-avg" type="number" value="177" min="120" max="240" step="1">
+            </label>
+            <label class="field" title="波动：每段步频在平均值上下随机浮动 ±N 步/分">
+              <span>波动（± 步/分）</span>
+              <input id="in-cad-var" type="number" value="5" min="0" max="30" step="1">
+            </label>
+          </div>
+          <div class="row2">
+            <label class="field">
+              <span>步幅（米）</span>
+              <input id="in-stride" type="number" value="0.85" step="0.01">
+            </label>
+            <label class="field" title="摇杆推满时的配速，格式 6'40&quot; 或 6:40（也可直接填秒/公里）">
+              <span>配速（分'秒&quot;/公里）</span>
+              <input id="in-walk-pace" type="text" value="6'40&quot;" placeholder="6'40&quot;" autocomplete="off">
+            </label>
+          </div>
+          <label class="check" title="到达目标里程自动结束后，直接补传轨迹并提交结算（不开则只停不结）">
+            <input id="in-auto-settle" type="checkbox" checked> 到达目标自动结算
+          </label>
+          <div class="row">
+            <button class="btn small" id="btn-save-cfg">保存参数</button>
+            <button class="btn ghost small" id="btn-reset-device">换 deviceId</button>
+          </div>
         </div>
       </div>
-      <div class="card-body list-body">
-        <div class="runs" id="runs"></div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>学校规则</h2>
+          <button class="btn ghost small" id="btn-load-rule">刷新</button>
+        </div>
+        <div class="card-body"><div class="kv" id="rule-info">尚未加载</div></div>
+      </div>
+
+      <div class="card run-now">
+        <div class="card-head">
+          <h2>本次跑步</h2>
+          <span class="hint" id="run-code-label">--</span>
+        </div>
+        <div class="card-body"><div class="kv" id="run-info">尚未开始</div></div>
+      </div>
+
+      <div class="card records-card">
+        <div class="card-head">
+          <h2>服务器记录</h2>
+          <div class="head-tools">
+            <span class="hint" id="runs-page">第 1 页</span>
+            <button class="btn ghost small" id="btn-runs-prev" disabled title="上一页（服务端分页）">上一页</button>
+            <button class="btn ghost small" id="btn-runs-next" disabled title="下一页（服务端分页）">下一页</button>
+            <button class="btn ghost small" id="btn-refresh-runs" title="重新从服务端拉取当前页">刷新</button>
+          </div>
+        </div>
+        <div class="card-body list-body">
+          <div class="runs" id="runs"></div>
+        </div>
+      </div>
+
+      <div class="card log-card">
+        <div class="card-head">
+          <h2>事件流</h2>
+          <div class="head-tools">
+            <label class="check small"><input type="checkbox" id="in-autoscroll" checked>
+              <span>自动滚动</span></label>
+            <button class="btn ghost small" id="btn-clear-log">清屏</button>
+          </div>
+        </div>
+        <div class="card-body log-body"><div class="log" id="log"></div></div>
       </div>
     </div>
   </section>
