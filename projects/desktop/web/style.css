@@ -83,7 +83,7 @@ button { font-family: inherit; }
 .side-panel {
   background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
   padding: 28px 24px; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 20px; min-height: 0;
+  justify-content: center; gap: 40px; min-height: 0;
 }
 .side-brand { display: flex; justify-content: center; padding-top: 6px; }
 .side-brand .app-icon { width: 96px; height: 96px; border-radius: 0; }
@@ -95,7 +95,7 @@ button { font-family: inherit; }
 }
 .btn-more {
   width: 56px; height: 56px !important; padding: 0 !important; font-size: 13px;
-  align-self: flex-end; margin-right: 8px; margin-top: -24px;
+  align-self: flex-end; margin-right: -52px; margin-top: 16px;
 }
 
 .progress { margin-top: 4px; }
