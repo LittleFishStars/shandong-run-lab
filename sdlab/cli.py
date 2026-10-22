@@ -330,8 +330,13 @@ def _print_summary(last: Dict[str, Any]) -> None:
           f"（{int(last.get('points') or 0)} 个轨迹点）")
     print(f"  时长     {int(last.get('duration_s') or 0)} 秒，配速 "
           f"{float(last.get('pace_s_per_km') or 0):.0f} 秒/公里")
-    print(f"  步数     {int(last.get('total_step') or 0)}（步幅 "
-          f"{float(last.get('stride_m') or 0):.3f} 米）")
+    # 步幅：引擎/实跑摘要里有 stride_m 就直接用；从本地库读出来的 run 没有这一列，
+    # 用 距离/步数 现算（否则 records show 永远显示 0.000）
+    _steps = int(last.get("total_step") or 0)
+    _stride = float(last.get("stride_m") or 0)
+    if not _stride and _steps > 0:
+        _stride = float(last.get("distance_m") or 0) / _steps
+    print(f"  步数     {_steps}（步幅 {_stride:.3f} 米）")
     print(f"  打卡     {last.get('checkpoints_done', '?')} / {last.get('checkpoints_total', '?')}")
     valid = last.get("valid")
     if isinstance(valid, dict):
