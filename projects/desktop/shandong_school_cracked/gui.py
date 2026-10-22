@@ -88,6 +88,9 @@ class JsApi:
     def prepare(self) -> Dict[str, Any]:
         return self.app.run_prepare()
 
+    def reload_rule(self) -> Dict[str, Any]:
+        return self.app.reload_rule()
+
     def run_auto(self, target_m: float = 2000, fence_index: int = 0,
                  do_upload: bool = True, do_finish: bool = True,
                  sport_type: int = 1) -> Dict[str, Any]:

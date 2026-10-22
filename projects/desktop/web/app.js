@@ -188,21 +188,17 @@ function renderStatus(st) {
   // 打卡点数量在 GeoFenceDetail 上（围栏字段），不是 SchoolRule；优先取当前围栏，回退到规则
   const curFence = st.fence || (st.fences || [])[0] || {};
   const pointCount = Number(curFence.requiredPointCounts ?? r.requiredPointCounts ?? 0);
-  const km = (m) => {
-    const v = Number(m || 0) / 1000;
-    return Number.isInteger(v) ? String(v) : v.toFixed(1);
-  };
-  const paceText = (sec) => {
-    const s = Math.round(Number(sec) || 0);
-    return s ? `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"` : '--';
-  };
+  // “更新于”：每次重新拉规则都会变，用来判断拉取到底有没有生效
+  const ruleTime = st.rule_loaded_at
+    ? new Date(Number(st.rule_loaded_at)).toLocaleTimeString('zh-CN', { hour12: false }) : '--';
   $('rule-info').innerHTML = r.singleMinDistance !== undefined ? kv({
-    '单次距离': `${km(r.singleMinDistance)} – ${km(r.singleMaxDistance)} km`,
-    '配速区间': `${paceText(r.minPace)} – ${paceText(r.maxPace)}`,
+    '单次距离': `${fmtKm(r.singleMinDistance)} – ${fmtKm(r.singleMaxDistance)} km`,
+    '配速区间': `${fmtPaceShort(r.minPace)} – ${fmtPaceShort(r.maxPace)}`,
     '步幅基准': `${r.segmentStrideAvg} 米（异常段上限 ${r.segmentStrideExceptionNum}）`,
     '打卡点': `${pointCount} 个`,
     '每日上限': Number(r.dayMaxDistance) > 0
-      ? `${km(r.dayMaxDistance)} km（超过部分不计成绩）` : '未限制',
+      ? `${fmtKm(r.dayMaxDistance)} km（超过部分不计成绩）` : '未限制',
+    '更新于': ruleTime,
   }) : '尚未加载';
 
   // 围栏下拉
@@ -279,6 +275,18 @@ function fmtPace(secPerKm) {
   if (!v) return '--';
   const s = Math.round(v);
   return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"/公里`;
+}
+
+// 秒/公里 → m'ss"（规则卡用，不带“/公里”）
+function fmtPaceShort(secPerKm) {
+  const s = Math.round(Number(secPerKm) || 0);
+  return s ? `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"` : '--';
+}
+
+// 米 → km 文本（1000→1、10000→10、1500→1.5）
+function fmtKm(m) {
+  const v = Number(m || 0) / 1000;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
 // 配速输入框 ↔ 数值：接受 6'40" / 6:40 / 纯秒数（秒/公里）
@@ -1315,8 +1323,20 @@ $('btn-login').addEventListener('click', async () => {
     toast('新 deviceId：' + (r.device_id || ''), 'ok');
     refreshStatus();
   });
+  // 规则卡「刷新」：只重新拉一次 SchoolRule（不跑整套 prepare），成功与否都给提示
   $('btn-load-rule').addEventListener('click', async () => {
-    await Bridge.call('prepare'); refreshStatus();
+    const b = $('btn-load-rule'); busy(b, true);
+    try {
+      const r = await Bridge.call('reload_rule');
+      const q = (r && r.data && r.data.rule) || {};
+      if (r && r.code === 0 && q.singleMinDistance !== undefined) {
+        toast(`规则已更新：单次 ${fmtKm(q.singleMinDistance)}–${fmtKm(q.singleMaxDistance)} km，`
+              + `配速 ${fmtPaceShort(q.minPace)}–${fmtPaceShort(q.maxPace)}`, 'ok');
+      } else {
+        toast('规则更新失败：' + ((r && r.message) || '未知错误'), 'err');
+      }
+      refreshStatus();
+    } finally { busy(b, false); }
   });
 
   // 路径规划 / 摇杆实走（这一块全部不依赖登录状态，先接上，免得按钮点了没反应）

@@ -331,6 +331,8 @@ class App:
             "start_point_custom": bool(self._start_point),
             "fence_polygon": c.fence_polygon(),
             "rule": c.rule.to_dict(),
+            "rule_loaded_at": int(getattr(c, "rule_loaded_at", 0) or 0),
+            "rule_source": str(getattr(c, "rule_source", "") or ""),
             # 打卡点只在开跑之后有值（服务端 targetPoints）：开跑前地图上不该有它，
             # 所以既不回落上一趟记录的打卡点，也不下发围栏预估点。
             "checkpoints": (self.engine.checkpoints if self.engine else []),
@@ -451,6 +453,24 @@ class App:
         except Exception as e:  # noqa: BLE001
             self.bus.emit("log", f"✗ 准备失败：{e}", level="error")
             return {"code": -1, "message": str(e), "data": None}
+
+    def reload_rule(self) -> Dict[str, Any]:
+        """只重新拉一次 SchoolRule（规则卡「刷新」专用，不跑整套 prepare）"""
+        if not getattr(self.client, "logged_in", False):
+            return {"code": -1, "message": "未登录", "data": None}
+        try:
+            res = self.client.load_rule()
+        except Exception as e:  # noqa: BLE001
+            self.bus.emit("log", f"✗ 规则拉取异常：{e}", level="error")
+            return {"code": -1, "message": f"{type(e).__name__}: {e}", "data": None}
+        return {
+            "code": int(res.get("code") or 0),
+            "message": str(res.get("message") or ""),
+            "data": {
+                "rule": self.client.rule.to_dict(),
+                "rule_loaded_at": int(getattr(self.client, "rule_loaded_at", 0) or 0),
+            },
+        }
 
     def resume(self, run_code: str = "") -> Dict[str, Any]:
         code = run_code or self._last_code()

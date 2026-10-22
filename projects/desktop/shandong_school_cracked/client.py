@@ -70,6 +70,9 @@ class ShandongClient:
         self.transport = Transport(config, bus=bus, store=self.store, base_url=base_url)
         self.captcha = CaptchaSolver(self.transport, bus=bus)
         self.rule = RuleSet()
+        # 规则从哪里来 / 什么时候拉的：规则卡上显示“更新于”，也是判断“拉取有没有生效”的依据
+        self.rule_loaded_at = 0
+        self.rule_source = ""
         self.fence: Dict[str, Any] = {}
         self.fences: List[Dict[str, Any]] = []
         self.semesters: List[Dict[str, Any]] = []
@@ -185,6 +188,8 @@ class ShandongClient:
         self.abstract = {}
         self.common = {}
         self.rule = RuleSet()
+        self.rule_loaded_at = 0
+        self.rule_source = ""
 
     def switch_account(self, user_id: str) -> Dict[str, Any]:
         """切换到本机登录过的账号：换 token → 刷新用户信息 → 记为当前会话
@@ -355,9 +360,29 @@ class ShandongClient:
             "fenceCode": fence_code or self.fence.get("fenceCode", ""),
             "sportType": sport_type,
         }))
-        data = res.get("data") or {}
-        rule = data.get("schoolRule") if isinstance(data.get("schoolRule"), dict) else data
+        data = res.get("data") if isinstance(res.get("data"), dict) else {}
+        code = int(res.get("code") or 0)
+        # 失败或空响应时**保留上一次规则**：以前会静默用 RuleSet 默认值覆盖，
+        # 界面上的单次/配速/打卡点看上去“永远不更新”就是这个原因。
+        if code != 0 or not data:
+            if self.bus:
+                self.bus.emit("log", f"⚠ 学校规则拉取失败（code={code}）"
+                                     f"：{res.get('message') or '响应为空'}，保留上一次规则",
+                              level="warn")
+            return res
+        rule = data.get("schoolRule") if isinstance(data.get("schoolRule"), dict) else None
+        if not rule:
+            # 兼容：有些部署直接返回规则本体，而不包一层 schoolRule
+            if "singleMinDistance" in data or "singleMaxDistance" in data:
+                rule = data
+        if not rule:
+            if self.bus:
+                self.bus.emit("log", "⚠ checkSunRunConfig 响应里没有 schoolRule，"
+                                     "保留上一次规则", level="warn")
+            return res
         self.rule = RuleSet.from_rule(rule)
+        self.rule_loaded_at = int(time.time() * 1000)
+        self.rule_source = "run/checkSunRunConfig"
         if isinstance(data.get("geoFenceDetail"), dict) and data["geoFenceDetail"]:
             self.fence = data["geoFenceDetail"]
         if self.bus:
@@ -365,7 +390,8 @@ class ShandongClient:
                           f"单次 {self.rule.single_min_distance:.0f}–"
                           f"{self.rule.single_max_distance:.0f} 米，"
                           f"配速 {self.rule.min_pace:.0f}–{self.rule.max_pace:.0f} 秒/公里，"
-                          f"必经点 {self.rule.required_point_counts} 个")
+                          f"每日上限 {self.rule.day_max_distance:.0f} 米，"
+                          f"打卡点 {self.rule.required_point_counts} 个")
         return res
 
     def load_sunrun_rule(self, run_plan_code: str = "", semester_code: str = "") -> Dict[str, Any]:
