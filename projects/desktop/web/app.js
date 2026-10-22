@@ -94,6 +94,7 @@ const S = {
   // 服务器记录分页（数据源：run/pageSunRunRecord）
   runsPage: 1,
   runsHasNext: false,
+  pickedRecord: null,    // 用户点选/自动选中的服务端记录（非空时左卡不被“最近一次”覆盖）
 };
 const $ = (id) => document.getElementById(id);
 
@@ -221,10 +222,10 @@ function renderStatus(st) {
   }
 
   renderProgress(st.progress || {});
-  if (st.last && st.last.run_code && st.last.run_code !== S.currentRun) {
+  // 只有用户没在查看某条服务器记录时，才用「最近一次跑步」刷新左卡
+  if (st.last && st.last.run_code && st.last.run_code !== S.currentRun && !S.pickedRecord) {
     S.currentRun = st.last.run_code;
     renderRunInfo(st.last);
-    refreshDetail(st.last.run_code);
   }
   // ★ 每次状态回来后重画叠加层：电子围栏是「拉取配置」的产品结果，
   //   不在这里重画的话，围栏要等到下一次别的 drawMap 触发（规划/摇杆/详情）才出现，
@@ -335,15 +336,25 @@ async function refreshRuns(autoOpen = false, page = null) {
       <div class="meta"><span>${d}</span><span>${t}</span>${when ? `<span>${when}</span>` : ''}
       <span class="badge ${esc(x.state_kind || '')}">${esc(x.state || '')}</span></div></div>`;
   }).join('');
-  box.querySelectorAll('.run-item').forEach((el) => {
+  box.querySelectorAll('.run-item').forEach((el, i) => {
     el.addEventListener('click', () => {
       box.querySelectorAll('.run-item').forEach(x => x.classList.remove('active'));
       el.classList.add('active');
-      refreshDetail(el.dataset.code, el.dataset.semester || '');
+      const x = runs[i];
+      if (!x) return;
+      S.pickedRecord = x.run_code;
+      renderServerRecord(x);
     });
   });
   syncRunsPager(r);
-  if (autoOpen && S.currentRun) refreshDetail(S.currentRun);
+  if (autoOpen) {
+    const first = runs[0];
+    if (first) {
+      S.pickedRecord = first.run_code;
+      box.querySelector('.run-item')?.classList.add('active');
+      renderServerRecord(first);
+    }
+  }
 }
 
 // 分页状态：上一页/下一页按钮与页码文案
@@ -392,49 +403,7 @@ async function refreshLiveMap(code) {
   drawMap();
 }
 
-// 服务端记录详情：只展示服务端字段，不驱动地图
-// （地图上画的是本次实跑的本地轨迹，由 refreshLiveMap 维护）
-async function refreshDetail(code, semester = '') {
-  const box = $('run-detail');
-  box.innerHTML = '<div class="hint">正在读取详情…</div>';
-  let r = null;
-  try {
-    r = await Bridge.call('server_record_detail', code, semester);
-  } catch (e) {
-    box.innerHTML = `<div class="hint">读取失败：${esc((e && e.message) || e)}</div>`;
-    return;
-  }
-  if (!r || !r.ok || !r.record) {
-    box.innerHTML = `<div class="hint">${esc((r && r.error) || '读取失败')}</div>`;
-    return;
-  }
-  const rec = r.record;
-  renderServerRecord(rec);
-  const reasons = (r.invalid_reasons || [])
-    .map(x => `<li>${esc(x.detail || ('类型 ' + x.type))}</li>`).join('');
-  const audit = (r.audit_detail || []).map(x => `<li>${esc(x)}</li>`).join('');
-  box.innerHTML = `
-    <h3>${esc(code)}</h3>
-    ${kvTable([
-      ['距离', `${Number(rec.distance_m || 0).toFixed(1)} 米`],
-      ['有效距离', `${Number(rec.valid_distance_m || 0).toFixed(1)} 米`],
-      ['时长', `${Math.floor((rec.duration_s || 0) / 60)} 分 ${(rec.duration_s || 0) % 60} 秒`],
-      ['配速', rec.pace_s_per_km ? fmtPace(rec.pace_s_per_km) : '--'],
-      ['总步数', rec.total_step || 0],
-      ['开始', fmtDateTime(rec.start_ms)],
-      ['结束', fmtDateTime(rec.end_ms)],
-      ['状态', rec.state || '--'],
-      ['轨迹点', r.point_count ? `${r.point_count} 个（服务端下发）` : '服务端未下发'],
-    ])}
-    ${reasons ? `<h3>无效原因</h3><ul class="reasons">${reasons}</ul>` : ''}
-    ${audit ? `<h3>审核说明</h3><ul class="reasons">${audit}</ul>` : ''}
-    <div class="hint" style="margin-top:8px">来源：run/pageSunRunRecord · run/runRecordDetail</div>`;
-}
 
-function kvTable(rows) {
-  return '<table>' + rows.map(([k, v]) =>
-    `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') + '</table>';
-}
 
 // ══════════════════ 地图（Leaflet 真实底图 + 矢量叠加） ══════════════════
 // 坐标系：原 APP 用百度定位 SDK，并在 com.huachenjie.base.util.ThirdUtil 里显式
@@ -980,6 +949,7 @@ async function toggleAutoRun() {
 
 // ── 实走：升跑 / 叫停 / 上传 ────────────────────────
 async function walkStart(mode) {
+  S.pickedRecord = null;      // 开跑后左卡回到实时数据，不再停在某条历史记录
   busy($('btn-walk-dry'), true); busy($('btn-walk-real'), true);
   try {
     const target = Number($('in-distance').value) || 0;
@@ -1050,6 +1020,7 @@ async function walkSave() {
 
 // ③ 开始跑步：先把打卡路径画到地图上，再升跑并开始记录（轨迹实时入库）
 async function startRun() {
+  S.pickedRecord = null;      // 开跑后左卡回到实时数据
   const st = S.status || {};
   if (!st.logged_in) { toast('请先在左栏 ① 登录', 'err'); return; }
   if (!((st.fences || []).length)) { toast('请先点「① 拉取配置」，把电子围栏拉下来', 'err'); return; }
@@ -1420,9 +1391,9 @@ async function poll() {
     const done = (r.events || []).some(e => e.kind === 'auto_done' || e.kind === 'run_finished');
     if (done) {
       S.currentRun = null;      // 让最新一条自动展开
+      S.pickedRecord = null;    // 结束跑步后回到“最新一次”的显示
       await refreshStatus();
       await refreshRuns(true);
-      if (S.currentRun) await refreshDetail(S.currentRun);
     }
   } catch (err) {
     /* 轮询失败静默重试 */

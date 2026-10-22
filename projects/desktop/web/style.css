@@ -363,11 +363,10 @@ select.mini {
 .log .lv-error .m { color: var(--err); }
 .log .lv-warn .m { color: var(--warn); }
 
-/* ── 记录列表 ── */
-.list-body { display: flex; flex-direction: column; gap: 10px; padding: 10px !important; min-height: 0; }
-/* 记录列表：以前写死 42% 高，卡片被拉高时列表不跟着长（详情独大、列表过早滚动）。
-   改成占满卡里详情之外的剩余高度，记录多时在列表内滚动；详情按内容占位、
-   最多 32%，让列表滚动区占卡片约三分之二。 */
+/* ── 记录列表（服务端记录卡）──
+   卡内只剩列表：卡片高度固定为右栏 2/3，列表吃掉全部可用高度、超出时卡内滚动。 */
+.list-body { display: flex; flex-direction: column; gap: 0; padding: 10px !important; min-height: 0; }
+.col-right > .card.server-records > .card-body { flex: 1 1 auto; min-height: 0; }
 .runs { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow: auto; }
 .run-item {
   padding: 8px 10px; border-radius: 8px; cursor: pointer;
@@ -386,15 +385,6 @@ select.mini {
 .badge.err { color: var(--err); border-color: #6b2c2c; }
 .badge.warn { color: var(--warn); border-color: #6b552c; }
 
-.detail { font-size: 12px; color: var(--text-dim); overflow: auto; flex: 0 1 auto; max-height: 32%; min-height: 0; }
-.detail h3 { margin: 8px 0 6px; font-size: 12.5px; color: var(--text); }
-.detail table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-.detail th, .detail td { padding: 3px 6px; text-align: left; border-bottom: 1px solid #ffffff0d; }
-.detail th { color: var(--text-faint); font-weight: 500; }
-.detail .mono { font-family: var(--mono); }
-/* 详情里的无效原因 / 审核说明列表 */
-.detail ul.reasons { margin: 2px 0 8px; padding-left: 16px; font-size: 11.5px; color: var(--text-dim); }
-.detail ul.reasons li { margin: 2px 0; }
 
 /* ── Toast ── */
 .toast-wrap {
