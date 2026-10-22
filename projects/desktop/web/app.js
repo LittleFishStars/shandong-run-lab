@@ -264,11 +264,11 @@ function renderStatus(st) {
   //   不在这里重画的话，围栏要等到下一次别的 drawMap 触发（规划/摇杆/详情）才出现，
   //   镜头也就不会在拿到围栏的当下就飞过去。
   //   重绘本身有围栏指纹 + 用户手动的双重护栏，不会每秒抢镜头。
-  // 页面：首次按登录态定；之后只在登录态变化时切（不打断用户在「更多」页）
+  // 页面：启动永远先进登录页（哪怕本地会话还有效——让用户自己确认用哪个账号）；
+  // 登录/切换账号成功后才显式切到首页；退出登录回到登录页。
   const logged = !!st.logged_in;
-  if (!S.view) { showView(logged ? 'home' : 'login'); if (!logged) showLoginForm('new'); }
+  if (!S.view) { showView('login'); showLoginForm('new'); }
   else if (!logged && S.view !== 'login') { showView('login'); showLoginForm('new'); }
-  else if (logged && S.view === 'login') showView('home');
   drawMap();
 }
 
@@ -1427,6 +1427,7 @@ $('btn-login').addEventListener('click', async () => {
       toast('已切换账号：' + ((r.data && (r.data._account_name || r.data.loginName || r.data.userName)) || '该账号'), 'ok');
       await refreshStatus();
       await autoPrepare('切换账号后');
+      showView('home');
       refreshRuns();
     } else toast('切换失败：' + ((r && r.message) || '未知错误'), 'err');
   });
