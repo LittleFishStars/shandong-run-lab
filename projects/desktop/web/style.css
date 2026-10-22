@@ -228,9 +228,9 @@ select option { background: #131a29; color: var(--text); }
 }
 /* 主流程工具行（① 拉取配置 / ② 选择起始点 / ③ 开始跑步 / ④ 结束跑步）右侧的状态提示 */
 .flow-bar .hint { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* ── 高级 / 调试：默认折叠，主流程之外的控件都在这里 ── */
+/* ── 高级 / 调试：默认折叠，固定在**地图区右上角**（与左上角 Leaflet 缩放控件对角），主流程之外的控件都在这里 ── */
 .adv {
-  position: absolute; left: 10px; top: 10px; z-index: 910;
+  position: absolute; right: 10px; top: 10px; z-index: 910;
   max-width: calc(100% - 20px);
 }
 .adv > summary {
