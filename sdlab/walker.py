@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """手动实走引擎：把「虚拟摇杆方向」或「手动指定的路径」变成可落库的跑步轨迹
 
-对应 Android 侧的 `archive/mini-apk/app/java/com/ylxc/shandongmini/Walker.java`（已归档），
+对应 Android 侧最小实现 `com/ylxc/shandongmini/Walker.java`（原 shandong-mini-apk 工程，已在整理中删除），
 桌面工作台需要同一套能力（自己控制路径、而不是只能一键算完），运动学与判定口径
 刻意保持一致：
 

@@ -151,7 +151,7 @@ CODE_MISSING_PARAM = 1002    # 参数缺失
 
 # ══════════════════ 接口表 ══════════════════
 # ══════════════════ 接口表 ══════════════════
-# 路径/方法均取自 v8.7.7 反编译（work/jadx_FULL/sources/com/huachenjie/**/*Api.java）
+# 路径/方法均取自 v8.7.7 反编译（work/dex/jadx_FULL/sources/com/huachenjie/**/*Api.java）
 # 而非早期报告，避免打到不存在的路由。
 #
 # 传输编码：原版源码里大量接口标了 @FormUrlEncoded，但拦截器会统一改写成 JSON 体；
