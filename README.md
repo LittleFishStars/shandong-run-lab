@@ -55,31 +55,27 @@ cd projects/desktop
 
 ## 四、版本控制
 
-本仓库（根目录）只跟踪**文本成果**，约 2 MB / 200 个文件：
+**一个仓库装下整个项目**：`github.com/LittleFishStars/shandong-school_cracked`
+（应用、报告、脚本、脱壳产物、native 证据全在里面）。
 
-| 跟踪 | 说明 |
+| 内容 | 存储方式 |
 |---|---|
-| `report/` `scripts/` `docs/` `reference/` | 报告、逆向脚本、整理记录、参考实现 |
-| `work/meta/` `work/scripts/` `work/README.md` | 盘点清单与工作区分析脚本 |
-| `projects/desktop` | **submodule**，指向独立仓库 `LittleFishStars/shandong-school_cracked` |
+| 文本：报告、脚本、版本信息、jadx 全量源码、清单 | 普通 git 对象 |
+| 二进制：`.apk` `.dex` `.so` `.bin` `.jar` `.a` `.xz` `.zip` `.png`、无扩展名的 `frida-server` | **Git LFS**（`.gitattributes`，147 个对象 / 约 550 MB） |
+| 不入库 | 虚拟环境（`.venv`、`.venv-frida`）、`node_modules`、`tmp/`、缓存、`dist/`、`build/`、签名密钥 `work/noshell.keystore` |
 
-不跟踪（`.gitignore`，均可由 `samples/` 的 APK 重新生成，且单文件超过 GitHub 100 MB 上限）：
-`samples/`、`work/{dex,native,evidence,dumps,records,toolchain}/`、`tmp/`、签名密钥 `work/noshell.keystore`。
-
-远程：**`github.com/LittleFishStars/shandong-school_cracked-workspace`**（私有）。
-本机推送（`/etc/ssh` 配置属主异常，需要脚本包一层空配置）：
+仓库结构：应用在 `projects/desktop/`（Python 包 `shandong_school_cracked`，发布产物仍叫
+`shandong-school_cracked-<版本>-<平台>`），其余目录是逆向工作区，见上面的目录树。
+CI 工作流在仓库根 `.github/workflows/build-release.yml`，构建时进入 `projects/desktop`。
 
 ```bash
+# 首次克隆（需要 git-lfs）
+git lfs install
+git clone ssh://git@ssh.github.com:443/LittleFishStars/shandong-school_cracked.git
+cd shandong-school_cracked && git lfs pull     # 拉取大文件（约 550 MB）
+
+# 本机推送：/etc/ssh 配置属主异常，用仓库里的包装脚本
 GIT_SSH_COMMAND="$PWD/scripts/git-ssh-wrap.sh" git push origin main
-```
-
-```bash
-# 首次克隆：连子工程一起
-git clone --recurse-submodules <本仓库地址>
-# 已克隆但没初始化子工程
-git submodule update --init --recursive
-# 更新子工程到它自己的最新提交
-git -C projects/desktop pull && git add projects/desktop && git commit -m "bump desktop"
 ```
 
 ## 五、整理记录
