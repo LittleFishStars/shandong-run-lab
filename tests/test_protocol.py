@@ -9,8 +9,8 @@
 import math
 import unittest
 
-from sdlab import constants as C
-from sdlab.protocol import (SNAP_MARGIN_M, RunLatLng, RuleSet, TrackGenerator,
+from shandong_school_cracked import constants as C
+from shandong_school_cracked.protocol import (SNAP_MARGIN_M, RunLatLng, RuleSet, TrackGenerator,
                             build_pace_list, build_step_list, build_stride_list,
                             build_target_points, build_upload_pois,
                             closest_point_on_polygon, evaluate_run, haversine,
@@ -161,7 +161,7 @@ class 报文构造测试(unittest.TestCase):
         self.assertLessEqual(steps[0]["startStep"], steps[0]["endStep"])
 
     def test_步幅段按米数切且每次只发一段(self):
-        from sdlab.protocol import build_stride_entry
+        from shandong_school_cracked.protocol import build_stride_entry
         timeline = [(0, 0), (20000, 60), (40000, 120)]
         strides = self.gen.build_strides(timeline, interval_m=100)
         self.assertGreater(len(strides), 0, "至少切出一段步幅")

@@ -3,7 +3,7 @@
 
 由 `scripts/build_bin.py` 调用：
 
-    pyinstaller packaging/sdlab.spec --distpath dist --workpath build/pyi --noconfirm
+    pyinstaller packaging/shandong-school_cracked.spec --distpath dist --workpath build/pyi --noconfirm
 
 要点：
   · web/ 与两个自检脚本作为「数据文件」塞进包内（运行期通过 sys._MEIPASS 找）；
@@ -48,7 +48,7 @@ if IS_WIN:
     except Exception:                                # noqa: BLE001
         pass
 
-# ── 瘦身：这些模块 sdlab 用不到，却常被第三方包连带拖进来 ─────
+# ── 瘦身：这些模块 shandong-school_cracked 用不到，却常被第三方包连带拖进来 ─────
 excludes = [
     "tkinter", "unittest", "pydoc_data", "pytest", "test",
     "PyQt5", "PyQt6", "PySide2", "PySide6", "matplotlib", "numpy", "pandas",
@@ -79,7 +79,7 @@ pyz = PYZ(a.pure)
 
 version_file = HERE / "version_info.txt"
 exe_kwargs = dict(
-    name="sdlab",
+    name="shandong-school_cracked",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -102,6 +102,6 @@ elif sys.platform.startswith("linux") and (HERE / "icon.png").exists():
 
 if ONEDIR:
     exe = EXE(pyz, a.scripts, [], exclude_binaries=True, **exe_kwargs)
-    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="sdlab")
+    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="shandong-school_cracked")
 else:
     exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], **exe_kwargs)

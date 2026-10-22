@@ -32,8 +32,8 @@ except Exception as exc:  # pragma: no cover - 环境缺 pywebview 时直接说�
     print(f"[×] 无法导入 pywebview：{exc}")
     raise SystemExit(2)
 
-from sdlab.app import App                      # noqa: E402
-from sdlab.gui import INDEX, JsApi             # noqa: E402
+from shandong_school_cracked.app import App                      # noqa: E402
+from shandong_school_cracked.gui import INDEX, JsApi             # noqa: E402
 
 FAILS: list = []
 

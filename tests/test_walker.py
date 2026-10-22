@@ -12,14 +12,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdlab import constants as C
-from sdlab.protocol import EARTH_M_PER_DEG_LAT
-from sdlab.store import RecordStore
-from sdlab.walk import WalkSession, build_walk_targets
-from sdlab.walker import (DEFAULT_SPEED_MPS, JOYSTICK_DEADZONE, MAX_LAPS,
+from shandong_school_cracked import constants as C
+from shandong_school_cracked.protocol import EARTH_M_PER_DEG_LAT
+from shandong_school_cracked.store import RecordStore
+from shandong_school_cracked.walk import WalkSession, build_walk_targets
+from shandong_school_cracked.walker import (DEFAULT_SPEED_MPS, JOYSTICK_DEADZONE, MAX_LAPS,
                           SAMPLE_INTERVAL_S, WAYPOINT_REACH_M, Walker,
                           route_from_checkpoints)
-from sdlab.simulator import FuckRunSim
+from shandong_school_cracked.simulator import FuckRunSim
 
 # 上海人民广场附近的合成起点（坐标系是 GCJ-02，但这里面只做相对几何，不影响断言）
 LAT0, LNG0 = 31.2304, 121.4737
@@ -416,7 +416,7 @@ class 会话落库测试(unittest.TestCase):
     def setUp(self):
         # 用临时文件而不是 :memory:——store 每次操作开一条新连接，
         # 而 :memory: 的库是连接私有的，第二条连接看不到建好的表。
-        self.tmp = tempfile.TemporaryDirectory(prefix="sdlab-walk-")
+        self.tmp = tempfile.TemporaryDirectory(prefix="shandong-school_cracked-walk-")
         self.store = RecordStore(Path(self.tmp.name) / "walk.db")
         self.store.create_run("DRY01", source="walk")
         self.store.create_run("REAL01", source="walk")
@@ -550,7 +550,7 @@ class 实时打卡与分段测试(unittest.TestCase):
     """实跑必须边跑边落库：打卡命中、步频段、配速段、收尾统计都不能等到上传才算"""
 
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix="sdlab-walk-rt-")
+        self.tmp = tempfile.TemporaryDirectory(prefix="shandong-school_cracked-walk-rt-")
         self.store = RecordStore(Path(self.tmp.name) / "rt.db")
         self.store.create_run("REAL01", source="walk")
         self.store.create_run("DRY01", source="walk")

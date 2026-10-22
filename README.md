@@ -1,4 +1,4 @@
-# 闪动校园·阳光跑 桌面工作台（shandong-run-lab）
+# 闪动校园·阳光跑 桌面工作台（shandong-school_cracked）
 
 一个用 Python 重写的**桌面程序**，把「闪动校园」（`com.huachenjie.shandong_school`）阳光跑的整条链路
 从 App 里搬出来：**登录 → 选围栏/规则 → 开跑 → 轨迹与步频记录 → 分批上传 → 结算**，
@@ -34,20 +34,20 @@
 
 ### 方式 A：直接下载可执行文件（不用装 Python）
 
-到 [Releases](https://github.com/LittleFishStars/shandong-run-lab/releases) 下对应平台的那一个，双击即用：
+到 [Releases](https://github.com/LittleFishStars/shandong-school_cracked/releases) 下对应平台的那一个，双击即用：
 
 | 平台 | 文件 | 启动 |
 |---|---|---|
-| Linux x86_64 | `sdlab-<版本>-linux-x86_64`（或 `.zip`） | `chmod +x` 后双击，或终端 `./sdlab-… ` |
-| Windows x64 | `sdlab-<版本>-windows-x64.exe`（或 `.zip`） | 双击；命令行用法见下文 |
+| Linux x86_64 | `shandong-school_cracked-<版本>-linux-x86_64`（或 `.zip`） | `chmod +x` 后双击，或终端 `./shandong-school_cracked-… ` |
+| Windows x64 | `shandong-school_cracked-<版本>-windows-x64.exe`（或 `.zip`） | 双击；命令行用法见下文 |
 
 命令行和界面是同一个程序：不带参数双击 = 开界面；在终端里带参数 = CLI。
 
 ```bash
-./sdlab-1.1.0-linux-x86_64 --help          # 全部命令
-./sdlab-1.1.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
+./shandong-school_cracked-1.1.0-linux-x86_64 --help          # 全部命令
+./shandong-school_cracked-1.1.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
 # Windows（PowerShell）
-.\sdlab-1.1.0-windows-x64.exe --mode mock gui
+.\shandong-school_cracked-1.1.0-windows-x64.exe --mode mock gui
 ```
 
 自己构建看 [`docs/打包与发布.md`](docs/打包与发布.md)：`python scripts/build_bin.py --zip`
@@ -63,54 +63,54 @@
 # 依赖（大多数系统已自带 requests/cryptography/Pillow）
 sudo pacman -S --needed python-requests python-cryptography python-pillow
 
-cd shandong-run-lab
+cd shandong-school_cracked
 python3 -m venv --system-site-packages .venv       # 继承系统包，省一次下载
 .venv/bin/pip install pywebview                    # 桌面窗口（可选，缺了就自动走浏览器）
 .venv/bin/pip install pycryptodome                 # 可选，密码学后端更快（没有则用 cryptography）
 ```
 
-`pycryptodome` / `cryptography` / 纯标准库三种密码学后端会自动择优（见 `sdlab/ciphers.py`），
+`pycryptodome` / `cryptography` / 纯标准库三种密码学后端会自动择优（见 `shandong-school_cracked/ciphers.py`），
 **全部缺失也能跑**（内置纯 Python AES）。
 
 ## 三、运行
 
 ```bash
 # ① 桌面窗口（默认命令；真实模式，登录卡片里可切本地登录）
-.venv/bin/python -m sdlab
+.venv/bin/python -m shandong_school_cracked
 
 # ② 不开窗口，用浏览器（端口随机，终端会打印地址）
-.venv/bin/python -m sdlab gui --browser
+.venv/bin/python -m shandong_school_cracked gui --browser
 
 # ③ 命令行跑一次完整流程（不开界面，适合脚本化 / 排错）
-.venv/bin/python -m sdlab run -d 2000            # 2000 米
-.venv/bin/python -m sdlab run -d 1500 --no-upload --json | tail -40
+.venv/bin/python -m shandong_school_cracked run -d 2000            # 2000 米
+.venv/bin/python -m shandong_school_cracked run -d 1500 --no-upload --json | tail -40
 
 # ③′ 实时仿真：按真实时间推进数据写入，能在界面上看到轨迹一笔笔长出来（调试友好）
 #     默认关闭（瞬间算完）。倍速 8 ≈ 真实跑步耗时的 1/8。
-.venv/bin/python -m sdlab run -d 1200 --realtime --speed 8
+.venv/bin/python -m shandong_school_cracked run -d 1200 --realtime --speed 8
 # ④ 只起 Mock 服务端（给别的东西当靶子）
-.venv/bin/python -m sdlab mock --port 8899 --latency 200 --fail-rate 0.3
+.venv/bin/python -m shandong_school_cracked mock --port 8899 --latency 200 --fail-rate 0.3
 
 # ⑤ 其它
-.venv/bin/python -m sdlab info                   # 环境信息（后端、数据目录、默认目标）
-.venv/bin/python -m sdlab login --prepare        # 登录并拉围栏/规则
-.venv/bin/python -m sdlab records list           # 本地记录
-.venv/bin/python -m sdlab records show --points  # 明细（含轨迹点）
-.venv/bin/python -m sdlab records export MCKXXXX --format gpx
-.venv/bin/python -m sdlab records resume MCKXXXX # 断点续传
-.venv/bin/python -m sdlab start-point          # 看当前跑步起点（围栏中心 / 图上选的）
-.venv/bin/python -m sdlab start-point --lat 36.6637 --lng 117.0265   # 设起点（围栏外自动吸附）
-.venv/bin/python -m sdlab start-point --clear  # 回围栏中心
-.venv/bin/python -m sdlab check -v               # 跑自检（等价下面两脚本）
+.venv/bin/python -m shandong_school_cracked info                   # 环境信息（后端、数据目录、默认目标）
+.venv/bin/python -m shandong_school_cracked login --prepare        # 登录并拉围栏/规则
+.venv/bin/python -m shandong_school_cracked records list           # 本地记录
+.venv/bin/python -m shandong_school_cracked records show --points  # 明细（含轨迹点）
+.venv/bin/python -m shandong_school_cracked records export MCKXXXX --format gpx
+.venv/bin/python -m shandong_school_cracked records resume MCKXXXX # 断点续传
+.venv/bin/python -m shandong_school_cracked start-point          # 看当前跑步起点（围栏中心 / 图上选的）
+.venv/bin/python -m shandong_school_cracked start-point --lat 36.6637 --lng 117.0265   # 设起点（围栏外自动吸附）
+.venv/bin/python -m shandong_school_cracked start-point --clear  # 回围栏中心
+.venv/bin/python -m shandong_school_cracked check -v               # 跑自检（等价下面两脚本）
 ```
 
 ```bash
 # ③′ 默认就是真实服务端：填上账号密码就是真登录，不用额外开关
-.venv/bin/python -m sdlab -p 手机号 -w 密码 run -d 2000
+.venv/bin/python -m shandong_school_cracked -p 手机号 -w 密码 run -d 2000
 #    只想离线自己玩，显式切到本地 Mock（真接口一根毛都不会碰）：
-.venv/bin/python -m sdlab --mode mock gui
+.venv/bin/python -m shandong_school_cracked --mode mock gui
 #    临时用代理观察流量：
-.venv/bin/python -m sdlab --proxy http://127.0.0.1:8080 gui
+.venv/bin/python -m shandong_school_cracked --proxy http://127.0.0.1:8080 gui
 ```
 
 #### 登录：默认真实，本地登录是可选项
@@ -139,7 +139,7 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 - **标了 `e:1` 的接口必须真发 `e:1`，并把字段加密后再送**。登录恒定 `code=1604 密码不正确`
   （密码明明是对的）就是踩在这里：发成 `e=0` 时服务端不解密，把 Base64 密文当明文密码比对。
- 修法见 `constants.EP` 里登录四接口的 `encrypt=True` 与 `sdlab/crypto.py` 的 `encrypt_body_fields()`。
+ 修法见 `constants.EP` 里登录四接口的 `encrypt=True` 与 `shandong-school_cracked/crypto.py` 的 `encrypt_body_fields()`。
 - **`v` / `api` 请求头不能少**。少了会被当成参数不合法（`code=1002`），很容易误判成「接口不可用」。
 - **滑块 `captcha/check` 是一次性的**：调一次就消费掉该 token。所以求解失败要**重新 `captcha/get` 拿新挑战**，不能在同一个 token 上换坐标重试（早期就是在这里踩了坑，全 x 扫描零命中）。
 
@@ -262,8 +262,8 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 | 内容 | 默认路径 |
 | --- | --- |
-| 配置 | `~/.config/shandong-run-lab/config.json` |
-| 数据目录（SQLite / 导出） | `~/.local/share/shandong-run-lab/` （记录库 `records.db`） |
+| 配置 | `~/.config/shandong-school_cracked/config.json` |
+| 数据目录（SQLite / 导出） | `~/.local/share/shandong-school_cracked/` （记录库 `records.db`） |
 | 环境变量覆盖 | `SDLAB_HOME=/some/dir` 或 `--data-dir`（沙箱/便携场景用） |
 
 数据库表：`runs`（记录头）、`points`（轨迹点，带 `is_valid/is_uploaded/state`）、`steps`（步频段）、`paces`（配速段）、`strides`（步幅段）、`checkpoints`（打卡点）、
@@ -309,7 +309,7 @@ export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 # 真实服务端连通性自检（不需要账号；会真的去 api.huachenjie.com 打请求，并实测滑块验证码）
 .venv/bin/python scripts/realcheck.py --captcha-trials 5
 
-.venv/bin/python -m sdlab check      # 两个自检一起跑
+.venv/bin/python -m shandong_school_cracked check      # 两个自检一起跑
 ```
 
 ---
@@ -317,8 +317,8 @@ export SDLAB_HOME=$PWD/.run          # 沙箱内 ~/.local/share 只读时必加
 ## 六、目录结构
 
 ```
-shandong-run-lab/
-├── sdlab/                  # Python 后端（可独立当库用）
+shandong-school_cracked/
+├── shandong-school_cracked/                  # Python 后端（可独立当库用）
 │   ├── constants.py        #   全部常量/密钥/端点表的唯一出口
 │   ├── ciphers.py          #   可插拔密码学原语（pycryptodome→cryptography→纯标准库）
 │   ├── crypto.py           #   签名、字段加解密、滑块混淆、结算码、DES
@@ -345,7 +345,7 @@ shandong-run-lab/
 │   ├── gui_probe.py        #   桌面外壳冒烟（真开窗口、点按钮、断言布局）
 │   └── build_bin.py        #   打包单文件可执行程序（Linux/Windows 同一套）
 ├── packaging/              # PyInstaller 配置
-│   ├── sdlab.spec          #   打包描述（数据文件、可选 pywebview、图标、版本资源）
+│   ├── shandong-school_cracked.spec          #   打包描述（数据文件、可选 pywebview、图标、版本资源）
 │   ├── launcher.py         #   打包入口（绝对导入）
 │   ├── make_icon.py        #   图标生成脚本
 │   └── icon.png, icon.ico

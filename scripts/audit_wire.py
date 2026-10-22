@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""线缆报文审计：核对 sdlab 发出的请求是否与原版拦截器链一致
+"""线缆报文审计：核对 shandong-school_cracked 发出的请求是否与原版拦截器链一致
 
 原版规则（jadx 逐行核实，见 report/18）：
 
@@ -30,9 +30,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sdlab import App                       # noqa: E402
-from sdlab.constants import EP, Endpoint     # noqa: E402
-from sdlab.net import Transport             # noqa: E402
+from shandong_school_cracked import App                       # noqa: E402
+from shandong_school_cracked.constants import EP, Endpoint     # noqa: E402
+from shandong_school_cracked.net import Transport             # noqa: E402
 
 # 拦截器在 @FormUrlEncoded 请求上补的头
 FORM_HEADERS = {"app", "pv", "k", "e", "api", "v"}
@@ -150,7 +150,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-wire-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-wire-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         app.login("13800138000", "any-password", False)

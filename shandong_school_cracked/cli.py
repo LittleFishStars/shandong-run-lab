@@ -4,17 +4,17 @@
 
 桌面窗口只是这一层的壳，所有能力在这里都能单独调用：
 
-    python -m sdlab                       # 与 gui 等价：开桌面窗口
-    python -m sdlab gui --browser         # 无 GUI 后端时降级到浏览器
-    python -m sdlab info                  # 看环境、路径、密码学后端
-    python -m sdlab login -p 13800138000  # 登录（默认打本地 Mock 服务端）
-    python -m sdlab run -d 2000           # 跑 2 公里：轨迹→上传→结算
-    python -m sdlab records list          # 本地记录列表
-    python -m sdlab records show <记录号>  # 单条记录明细
-    python -m sdlab records export <记录号> --format gpx
-    python -m sdlab records resume <记录号>  # 断点续传未上传成功的部分
-    python -m sdlab mock --port 8899      # 只起 Mock 服务端，给别的工具联调
-    python -m sdlab check                 # 离线自检 + 前端链路自检
+    python -m shandong_school_cracked                       # 与 gui 等价：开桌面窗口
+    python -m shandong_school_cracked gui --browser         # 无 GUI 后端时降级到浏览器
+    python -m shandong_school_cracked info                  # 看环境、路径、密码学后端
+    python -m shandong_school_cracked login -p 13800138000  # 登录（默认打本地 Mock 服务端）
+    python -m shandong_school_cracked run -d 2000           # 跑 2 公里：轨迹→上传→结算
+    python -m shandong_school_cracked records list          # 本地记录列表
+    python -m shandong_school_cracked records show <记录号>  # 单条记录明细
+    python -m shandong_school_cracked records export <记录号> --format gpx
+    python -m shandong_school_cracked records resume <记录号>  # 断点续传未上传成功的部分
+    python -m shandong_school_cracked mock --port 8899      # 只起 Mock 服务端，给别的工具联调
+    python -m shandong_school_cracked check                 # 离线自检 + 前端链路自检
 
 默认走 **真实服务端**（api.huachenjie.com）：登录、开跑、上传都是真接口。
 想离线调试就加 --mode mock，一切请求改打内置 Mock 服务端（127.0.0.1 随机端口），
@@ -194,7 +194,7 @@ def cmd_accounts(args: argparse.Namespace) -> int:
         if act == "list":
             lst = app.list_accounts()
             if not lst:
-                print(dim("本机还没有登录过的账号（先 sdlab login）"))
+                print(dim("本机还没有登录过的账号（先 shandong-school_cracked login）"))
                 return 0
             for a in lst:
                 mark = "●" if a.get("current") else " "
@@ -205,7 +205,7 @@ def cmd_accounts(args: argparse.Namespace) -> int:
             return 0
         uid = str(args.uid or "")
         if not uid:
-            print(bad("请给出账号 id（先用 sdlab users 看列表）"))
+            print(bad("请给出账号 id（先用 shandong-school_cracked users 看列表）"))
             return 1
         if act in ("use", "switch"):
             r = app.switch_account(uid)
@@ -363,7 +363,7 @@ def cmd_records(args: argparse.Namespace) -> int:
     if act == "list":
         runs = app.list_runs(args.limit)
         if not runs:
-            print(dim("还没有本地记录。先跑一次：python -m sdlab run -d 2000"))
+            print(dim("还没有本地记录。先跑一次：python -m shandong_school_cracked run -d 2000"))
             app.close()
             return 0
         head = f"{'记录号':<20}{'类型':<6}{'距离(m)':>9}{'时长(s)':>8}{'步数':>7}{'上传':>6}  开始时间"
@@ -525,16 +525,16 @@ def _run_script_inproc(script: Path, verbose: bool) -> int:
 # ══════════════════ 参数解析 ══════════════════
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        prog="python -m sdlab",
+        prog="python -m shandong_school_cracked",
         description="闪动校园 · 阳光跑工作台（协议复原 + 本地仿真 + 桌面界面）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="默认全部走本地 Mock 服务端；加 --real 才会请求真实 api.huachenjie.com。")
     ap.add_argument("-V", "--version", action="version",
-                    version=f"sdlab {__version__}（复刻 App {APP_VERSION}）")
+                    version=f"shandong-school_cracked {__version__}（复刻 App {APP_VERSION}）")
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--data-dir", help="数据目录（默认 ~/.local/share/shandong-run-lab）")
-    common.add_argument("--config", help="配置文件路径（默认 ~/.config/shandong-run-lab/config.json）")
+    common.add_argument("--data-dir", help="数据目录（默认 ~/.local/share/shandong-school_cracked）")
+    common.add_argument("--config", help="配置文件路径（默认 ~/.config/shandong-school_cracked/config.json）")
     common.add_argument("--mode", choices=["real", "mock"],
                         help="运行模式：real 真实服务端（默认）/ mock 本地离线仿真")
     common.add_argument("--real", dest="mode", action="store_const", const="real",

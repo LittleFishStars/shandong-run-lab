@@ -536,7 +536,7 @@ class RunEngine:
         pts = self.store.get_points(run_code, None)
         run = self.store.get_run(run_code) or {}
         parts = ['<?xml version="1.0" encoding="UTF-8"?>',
-                 '<gpx version="1.1" creator="shandong-run-lab" '
+                 '<gpx version="1.1" creator="shandong-school_cracked" '
                  'xmlns="http://www.topografix.com/GPX/1/1">',
                  f'  <trk><name>{run_code}</name><trkseg>']
         for p in pts:

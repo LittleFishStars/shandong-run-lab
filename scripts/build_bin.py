@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""把 sdlab 打成单文件可执行程序（Linux / Windows 同一套流程）
+"""把 shandong-school_cracked 打成单文件可执行程序（Linux / Windows 同一套流程）
 
-    python scripts/build_bin.py                # 当前平台，单文件，产物 dist/sdlab-<版本>-<系统>-<架构>
+    python scripts/build_bin.py                # 当前平台，单文件，产物 dist/shandong-school_cracked-<版本>-<系统>-<架构>
     python scripts/build_bin.py --zip          # 额外压成 .zip（发布用）
     python scripts/build_bin.py --onedir       # 多文件目录（排错用，不发布）
     python scripts/build_bin.py --skip-smoke   # 跳过构建后的冒烟测试
 
 做完的事：
   1. 检查 PyInstaller（缺了直接给安装命令）；
-  2. Windows 下按 `sdlab.__version__` 生成文件属性（版本号/产品名/版权）；
-  3. 调 packaging/sdlab.spec 构建（web/ 与自检脚本会被塞进包里）；
+  2. Windows 下按 `shandong_school_cracked.__version__` 生成文件属性（版本号/产品名/版权）；
+  3. 调 packaging/shandong-school_cracked.spec 构建（web/ 与自检脚本会被塞进包里）；
   4. 产物改名成带平台/架构的名字，跑 `--version` / `info` 冒烟；
   5. 打印体积与 SHA256，`--zip` 时连同 SHA256SUMS 一起落盘。
 
@@ -39,11 +39,11 @@ for _stream in (sys.stdout, sys.stderr):
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build" / "pyinstaller"
-SPEC = ROOT / "packaging" / "sdlab.spec"
+SPEC = ROOT / "packaging" / "shandong-school_cracked.spec"
 VERSION_FILE = ROOT / "packaging" / "version_info.txt"
 
 sys.path.insert(0, str(ROOT))
-from sdlab import __version__ as VERSION  # noqa: E402
+from shandong_school_cracked import __version__ as VERSION  # noqa: E402
 
 
 # ── 平台命名 ──────────────────────────────────────────────────
@@ -61,7 +61,7 @@ def platform_tag() -> str:
 
 
 def exe_name() -> str:
-    return "sdlab.exe" if sys.platform == "win32" else "sdlab"
+    return "shandong-school_cracked.exe" if sys.platform == "win32" else "shandong-school_cracked"
 
 
 # ── Windows 文件属性 ──────────────────────────────────────────
@@ -87,10 +87,10 @@ VSVersionInfo(
         StringStruct('CompanyName', 'LittleFishStars'),
         StringStruct('FileDescription', '闪动校园·阳光跑工作台'),
         StringStruct('FileVersion', '{VERSION}'),
-        StringStruct('InternalName', 'sdlab'),
+        StringStruct('InternalName', 'shandong-school_cracked'),
         StringStruct('LegalCopyright', '个人学习与研究用途'),
-        StringStruct('OriginalFilename', 'sdlab.exe'),
-        StringStruct('ProductName', 'shandong-run-lab'),
+        StringStruct('OriginalFilename', 'shandong-school_cracked.exe'),
+        StringStruct('ProductName', 'shandong-school_cracked'),
         StringStruct('ProductVersion', '{VERSION}')
       ])
     ]),
@@ -115,7 +115,7 @@ def run_pyinstaller(clean: bool) -> None:
     from PyInstaller.__main__ import run as pyi_run
 
     if clean:
-        for p in (BUILD, DIST / "sdlab"):
+        for p in (BUILD, DIST / "shandong-school_cracked"):
             shutil.rmtree(p, ignore_errors=True)
     args = [
         str(SPEC),
@@ -130,12 +130,12 @@ def run_pyinstaller(clean: bool) -> None:
 
 
 def finalize_name() -> Path:
-    """把 dist/sdlab[.exe] 改成 dist/sdlab-<版本>-<平台>[.exe]"""
+    """把 dist/shandong-school_cracked[.exe] 改成 dist/shandong-school_cracked-<版本>-<平台>[.exe]"""
     src = DIST / exe_name()
     if not src.exists():
         raise SystemExit(f"✗ 构建没产出 {src}")
     suffix = ".exe" if sys.platform == "win32" else ""
-    dst = DIST / f"sdlab-{VERSION}-{platform_tag()}{suffix}"
+    dst = DIST / f"shandong-school_cracked-{VERSION}-{platform_tag()}{suffix}"
     dst.unlink(missing_ok=True)
     src.replace(dst)
     return dst
@@ -148,7 +148,7 @@ def smoke(binary: Path) -> bool:
     home = ROOT / "build" / "smoke-home"
     env = dict(os.environ, SDLAB_HOME=str(home))
     common = ["--data-dir", str(home), "--config", str(home / "config.json")]
-    for argv, expect in ((["--version"], "sdlab "), (["info", *common], "")):
+    for argv, expect in ((["--version"], "shandong-school_cracked "), (["info", *common], "")):
         try:
             p = subprocess.run([str(binary), *argv], capture_output=True, timeout=180,
                                env=env, encoding="utf-8", errors="replace")
@@ -179,12 +179,12 @@ def make_zip(binary: Path) -> Path:
         "\n"
         "运行方式：\n"
         "  双击      = 打开界面（本地 HTTP + 浏览器；装了 pywebview 则是原生窗口）\n"
-        "  终端里用  = sdlab(.exe) --help        看全部命令\n"
-        "              sdlab(.exe) run -d 2000   直接跑一次 2 公里\n"
-        "              sdlab(.exe) --mode mock gui  纯本地仿真，不碰真实服务端\n"
+        "  终端里用  = shandong-school_cracked(.exe) --help        看全部命令\n"
+        "              shandong-school_cracked(.exe) run -d 2000   直接跑一次 2 公里\n"
+        "              shandong-school_cracked(.exe) --mode mock gui  纯本地仿真，不碰真实服务端\n"
         "\n"
-        "数据目录：~/.local/share/shandong-run-lab（Windows: %LOCALAPPDATA%\\shandong-run-lab）\n"
-        "配置文件：~/.config/shandong-run-lab（Windows: %APPDATA%\\shandong-run-lab）\n"
+        "数据目录：~/.local/share/shandong-school_cracked（Windows: %LOCALAPPDATA%\\shandong-school_cracked）\n"
+        "配置文件：~/.config/shandong-school_cracked（Windows: %APPDATA%\\shandong-school_cracked）\n"
         "\n"
         "仅用于个人学习、协议研究与本地仿真调试。\n"
     )
@@ -198,7 +198,7 @@ def make_zip(binary: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="打包 sdlab 可执行文件")
+    ap = argparse.ArgumentParser(description="打包 shandong-school_cracked 可执行文件")
     ap.add_argument("--onedir", action="store_true", help="多文件目录模式（不发布）")
     ap.add_argument("--zip", action="store_true", help="额外生成发布用 zip")
     ap.add_argument("--no-clean", action="store_true", help="保留上次的构建缓存")
@@ -209,13 +209,13 @@ def main(argv: list[str] | None = None) -> int:
     DIST.mkdir(parents=True, exist_ok=True)
     write_version_info()
 
-    print(f"› 目标：sdlab {VERSION} / {platform_tag()} / {'onedir' if args.onedir else 'onefile'}")
+    print(f"› 目标：shandong-school_cracked {VERSION} / {platform_tag()} / {'onedir' if args.onedir else 'onefile'}")
     if args.onedir:
         os.environ["SDLAB_ONEDIR"] = "1"
     run_pyinstaller(clean=not args.no_clean)
 
     if args.onedir:
-        out = DIST / "sdlab" / exe_name()
+        out = DIST / "shandong-school_cracked" / exe_name()
         print(f"✓ 目录产物：{out.parent}（{sum(p.stat().st_size for p in out.parent.rglob('*')) / 1e6:.1f} MB）")
         return 0
 
@@ -235,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sums = DIST / "SHA256SUMS"
     old = sums.read_text(encoding="utf-8").splitlines() if sums.exists() else []
-    kept = [ln for ln in old if not ln.endswith(binary.name) and "sdlab-" not in ln]
+    kept = [ln for ln in old if not ln.endswith(binary.name) and "shandong-school_cracked-" not in ln]
     sums.write_text("\n".join(kept + lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
     return 0

@@ -316,7 +316,7 @@ class WalkSession:
         if t is not None and t.is_alive():
             return
         t = threading.Thread(target=self._upload_steps_once, daemon=True,
-                             name="sdlab-step-upload")
+                             name="shandong-school_cracked-step-upload")
         self._step_upload_thread = t
         t.start()
 
@@ -363,7 +363,7 @@ class WalkSession:
             return
         self._last_upload_at = now
         t = threading.Thread(target=self._upload_points_once, daemon=True,
-                             name="sdlab-poi-upload")
+                             name="shandong-school_cracked-poi-upload")
         self._upload_thread = t
         t.start()
 

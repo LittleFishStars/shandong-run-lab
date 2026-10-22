@@ -9,9 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sdlab import constants as C
-from sdlab.protocol import IntervalPace, IntervalStep, RunLatLng
-from sdlab.store import RecordStore
+from shandong_school_cracked import constants as C
+from shandong_school_cracked.protocol import IntervalPace, IntervalStep, RunLatLng
+from shandong_school_cracked.store import RecordStore
 
 
 def 造点(i, state=C.STATE_INIT):
@@ -22,7 +22,7 @@ def 造点(i, state=C.STATE_INIT):
 
 class 记录层测试(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix="sdlab-store-")
+        self.tmp = tempfile.TemporaryDirectory(prefix="shandong-school_cracked-store-")
         self.db = Path(self.tmp.name) / "records.db"
         self.store = RecordStore(self.db)
 

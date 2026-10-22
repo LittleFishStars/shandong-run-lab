@@ -31,11 +31,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sdlab import constants as C                          # noqa: E402
-from sdlab import crypto                                  # noqa: E402
-from sdlab.captcha import CaptchaSolver                   # noqa: E402
-from sdlab.client import ShandongClient                   # noqa: E402
-from sdlab.net import Transport                           # noqa: E402
+from shandong_school_cracked import constants as C                          # noqa: E402
+from shandong_school_cracked import crypto                                  # noqa: E402
+from shandong_school_cracked.captcha import CaptchaSolver                   # noqa: E402
+from shandong_school_cracked.client import ShandongClient                   # noqa: E402
+from shandong_school_cracked.net import Transport                           # noqa: E402
 
 OK, FAIL, SKIP = "\033[32m✓\033[0m", "\033[31m✗\033[0m", "\033[33m•\033[0m"
 _results: list[tuple[bool, str]] = []

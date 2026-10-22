@@ -10,8 +10,8 @@
 import re
 import unittest
 
-from sdlab.bus import DEFAULT_CONFIG
-from sdlab.simulator import (DEFAULT_HZ, GRAVITY, FuckRunSim, build_device_fingerprint,
+from shandong_school_cracked.bus import DEFAULT_CONFIG
+from shandong_school_cracked.simulator import (DEFAULT_HZ, GRAVITY, FuckRunSim, build_device_fingerprint,
                              random_device_id)
 
 

@@ -224,7 +224,7 @@ def _spawn_autorun(app: App, target_m: float) -> None:
         except Exception as e:  # noqa: BLE001
             app.bus.emit("state", f"✗ 自动跑失败：{e}", level="error")
 
-    threading.Thread(target=_job, name="sdlab-autorun", daemon=True).start()
+    threading.Thread(target=_job, name="shandong-school_cracked-autorun", daemon=True).start()
 
 
 def run_desktop(config_path: Optional[Path] = None, debug: bool = False,

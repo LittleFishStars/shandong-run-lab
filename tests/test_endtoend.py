@@ -12,9 +12,9 @@ import time
 import unittest
 from pathlib import Path
 
-from sdlab import constants as C
-from sdlab.app import App
-from sdlab.protocol import point_in_polygon
+from shandong_school_cracked import constants as C
+from shandong_school_cracked.app import App
+from shandong_school_cracked.protocol import point_in_polygon
 
 超时上限 = 120.0
 
@@ -22,7 +22,7 @@ from sdlab.protocol import point_in_polygon
 class 全链路测试(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-e2e-"))
         # 测试一律钉死本地 Mock：默认模式是真实服务端，单元测试不能去碰真实网络
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.错误 = []
@@ -149,7 +149,7 @@ class 全链路测试(unittest.TestCase):
         self.assertIsInstance(body["duration"], str)
         self.assertIsInstance(body["totalStep"], str)
         # 服务端（Mock）重算必须与客户端声明一致
-        from sdlab import crypto
+        from shandong_school_cracked import crypto
         self.assertEqual(
             crypto.run_img_record(body["runRecordCode"], body["timestamp"]),
             body["runImgRecord"])
@@ -243,7 +243,7 @@ class 手动实走测试(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-walk-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-e2e-walk-"))
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.app.login("13800138000", "any-password", False)
         cls.app.run_prepare()
@@ -374,7 +374,7 @@ class 错误处理测试(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-err-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-e2e-err-"))
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
 
     @classmethod
@@ -407,7 +407,7 @@ class 跑步起点测试(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-e2e-start-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-e2e-start-"))
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.app.login("13800138000", "any-password", False)
         cls.app.run_prepare()
@@ -490,7 +490,7 @@ class 打卡点下发测试(unittest.TestCase):
     """
 
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="sdlab-cp-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-cp-"))
         self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
         self.app.login("13800138000", "any-password", False)
         self.app.run_prepare()
@@ -548,7 +548,7 @@ class 时间校准测试(unittest.TestCase):
     """
 
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="sdlab-time-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-time-"))
         self.app = App(data_dir=self.tmp, config_path=self.tmp / "config.json", mode="mock")
 
     def tearDown(self):
@@ -609,7 +609,7 @@ class 结算报文路径测试(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-fin-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-fin-"))
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.app.login("13800138000", "any-password", False)
         cls.app.run_prepare()
@@ -711,7 +711,7 @@ class 结算残留点补发测试(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="sdlab-pois-"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-pois-"))
         cls.app = App(data_dir=cls.tmp, config_path=cls.tmp / "config.json", mode="mock")
         cls.app.login("13800138000", "any-password", False)
         cls.app.run_prepare()

@@ -7,8 +7,8 @@
 """
 import unittest
 
-from sdlab import constants as C
-from sdlab import crypto, ciphers
+from shandong_school_cracked import constants as C
+from shandong_school_cracked import crypto, ciphers
 
 
 class 字段加密测试(unittest.TestCase):

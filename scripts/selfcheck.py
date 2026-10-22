@@ -29,9 +29,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sdlab import App                                    # noqa: E402
-from sdlab import constants as C                         # noqa: E402
-from sdlab import crypto                                 # noqa: E402
+from shandong_school_cracked import App                                    # noqa: E402
+from shandong_school_cracked import constants as C                         # noqa: E402
+from shandong_school_cracked import crypto                                 # noqa: E402
 
 OK, FAIL = "\033[32m✓\033[0m", "\033[31m✗\033[0m"
 _results: list[tuple[bool, str]] = []
@@ -101,8 +101,8 @@ def test_crypto() -> None:
 def test_simulator() -> None:
     section("2. 模拟层（轨迹 / 步频 / 有效性）")
 
-    from sdlab.protocol import RuleSet, TrackGenerator, evaluate_run, haversine
-    from sdlab.simulator import FuckRunSim
+    from shandong_school_cracked.protocol import RuleSet, TrackGenerator, evaluate_run, haversine
+    from shandong_school_cracked.simulator import FuckRunSim
 
     gen = TrackGenerator(center_lat=36.67, center_lng=117.05,
                          target_distance_m=2000.0, target_seconds=720,
@@ -138,10 +138,10 @@ def test_simulator() -> None:
 def test_start_point() -> None:
     section("2.5 跑步起点（图上选点 → 围栏吸附 → 开跑报文 / 实走轨迹 / 路径规划）")
 
-    from sdlab.protocol import (SNAP_MARGIN_M, closest_point_on_polygon,
+    from shandong_school_cracked.protocol import (SNAP_MARGIN_M, closest_point_on_polygon,
                                 point_in_polygon)
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-start-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-start-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         app.login("13800138000", "any-password", False)
@@ -212,7 +212,7 @@ def test_start_point() -> None:
 def test_checkpoints_source() -> None:
     section("2.6 打卡点来源（拉取配置只有围栏与计数，开跑才下发打卡点）")
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-cp-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-cp-"))
     apps: list = []
     try:
         app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
@@ -264,7 +264,7 @@ def test_checkpoints_source() -> None:
 
 def test_auto_run() -> None:
     section("2.7 自动跑 / 手动摇杆（默认手动，点了「自动跑」才跟路线）")
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         app.login("13800138000", "any-password", False)
@@ -298,7 +298,7 @@ def test_auto_run() -> None:
 
 def test_elapsed_no_freeze() -> None:
     section("2.8 停下来时间照走（时长/配速不冻住，原版 Q0() 口径）")
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         app.login("13800138000", "any-password", False)
@@ -339,7 +339,7 @@ def test_elapsed_no_freeze() -> None:
 def test_point_wire_fields() -> None:
     section("2.9 轨迹点报文口径（runTime 整数秒 / createTime 非零 / 跑中增量上传）")
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-wire-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-wire-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         app.login("13800138000", "any-password", False)
@@ -394,7 +394,7 @@ def test_point_wire_fields() -> None:
 def test_full_chain(verbose: bool = False, fail_rate: float = 0.0) -> dict:
     section(f"3~5. 全链路（Mock 模式，注入失败率 {fail_rate:.0%}）")
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-"))
     app = App(data_dir=tmp, config_path=tmp / "config.yaml", mode="mock")
     if fail_rate:
         app.cfg["mock_fail_rate"] = fail_rate
@@ -472,9 +472,9 @@ def test_full_chain(verbose: bool = False, fail_rate: float = 0.0) -> dict:
 
 def test_resume() -> None:
     section("6. 失败注入 → 断点续传")
-    from sdlab import App as _App
+    from shandong_school_cracked import App as _App
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-resume-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-resume-"))
     app = _App(data_dir=tmp, config_path=tmp / "config.yaml", mode="mock")
     try:
         app.login("13800138000", "any", do_captcha=False)
@@ -510,7 +510,7 @@ def test_resume() -> None:
 def test_time_offset() -> None:
     section("2.10 时间校准（原版 SyncTimeIntentService → r90.D()）")
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-check-time-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-check-time-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     try:
         tr = app.client.transport
@@ -554,7 +554,7 @@ def main() -> int:
 
     print("\033[1m闪动校园 · 阳光跑工作台 —— 端到端自检\033[0m")
     print(f"Python {sys.version.split()[0]} | 工程 {ROOT}")
-    from sdlab.ciphers import backend_info
+    from shandong_school_cracked.ciphers import backend_info
     name, desc = backend_info()
     print(f"密码学后端：{name}（{desc}）")
 

@@ -125,7 +125,7 @@ class App:
                 c.logout(remote=False)
                 self.bus.emit("log", "登录已过期，请重新登录", level="warn")
 
-        threading.Thread(target=work, daemon=True, name="sdlab-session-restore").start()
+        threading.Thread(target=work, daemon=True, name="shandong-school_cracked-session-restore").start()
 
     def _on_event(self, ev: Dict[str, Any]) -> None:
         # 任何事件只要带着 run_code，就记下来：界面跑步中要靠它拉轨迹画地图。

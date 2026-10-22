@@ -7,11 +7,11 @@
 // ── 全局错误可见化（界面里直接能看到哪里炸了，不用开 devtools）────
 window.addEventListener('unhandledrejection', (e) => {
   const msg = (e.reason && (e.reason.message || e.reason)) || '未知错误';
-  console.error('[sdlab] 未处理的 Promise 异常：', e.reason);
+  console.error('[shandong-school_cracked] 未处理的 Promise 异常：', e.reason);
   try { toast('内部错误：' + msg, 'err'); } catch (_) { /* 界面还没建好 */ }
 });
 window.addEventListener('error', (e) => {
-  console.error('[sdlab] JS 错误：', e.message);
+  console.error('[shandong-school_cracked] JS 错误：', e.message);
   try { toast('脚本错误：' + e.message, 'err'); } catch (_) { /* 同上 */ }
 });
 
@@ -427,7 +427,7 @@ const MAP = { obj: null, tile: null, layers: {}, bounds: null, fitKey: '', tileE
               userMoved: false, runId: '' };
 
 function tileSetting() {
-  try { return localStorage.getItem('sdlab.tiles') || 'amap'; } catch (e) { return 'amap'; }
+  try { return localStorage.getItem('shandong_school_cracked.tiles') || 'amap'; } catch (e) { return 'amap'; }
 }
 
 // 幂等建图：容器尺寸由卡片决定，瓦片负责“真实地图”，轨迹/围栏/打卡点都是叠加层
@@ -1310,7 +1310,7 @@ $('btn-login').addEventListener('click', async () => {
   syncAutoUi();
   $('in-tiles').addEventListener('change', (e) => {
     S.tiles = e.target.value;
-    try { localStorage.setItem('sdlab.tiles', S.tiles); } catch (err) { /* 隐私模式等 */ }
+    try { localStorage.setItem('shandong_school_cracked.tiles', S.tiles); } catch (err) { /* 隐私模式等 */ }
     setTiles(MAP.obj);
   });
   $('btn-clear-log').addEventListener('click', () => { $('log').innerHTML = ''; S.logCount = 0; });

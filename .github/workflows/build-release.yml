@@ -30,10 +30,10 @@ jobs:
         include:
           - os: ubuntu-22.04        # 老一点的 glibc（2.35），兼容面更宽
             label: linux-x86_64
-            artifact: sdlab-linux
+            artifact: shandong-school_cracked-linux
           - os: windows-latest
             label: windows-x64
-            artifact: sdlab-windows
+            artifact: shandong-school_cracked-windows
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +85,7 @@ jobs:
         working-directory: artifacts
         run: |
           rm -f SHA256SUMS-*
-          sha256sum sdlab-* > SHA256SUMS
+          sha256sum shandong-school_cracked-* > SHA256SUMS
           cat SHA256SUMS
 
       - name: 创建 / 更新 Release
@@ -98,7 +98,7 @@ jobs:
             gh release upload "$TAG" artifacts/* --clobber
           else
             gh release create "$TAG" artifacts/* \
-              --title "sdlab ${TAG#v}" \
+              --title "shandong-school_cracked ${TAG#v}" \
               --notes "Linux / Windows 单文件可执行程序。校验和见 SHA256SUMS。" \
               --generate-notes
           fi

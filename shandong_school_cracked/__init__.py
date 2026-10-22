@@ -1,7 +1,7 @@
-"""闪动校园 · 阳光跑工作台（sdlab）。
+"""闪动校园 · 阳光跑工作台（shandong-school_cracked）。
 
 一个完整的协议复原实现：登录 → 阳光跑 → 数据记录 → 数据上传。
-所有网络行为都被收敛在 :class:`sdlab.client.ShanDongClient` 之后，默认运行在
+所有网络行为都被收敛在 :class:`shandong_school_cracked.client.ShanDongClient` 之后，默认运行在
 **本地 Mock 模式**下，不接触任何真实服务端。
 
 包内模块一览::
@@ -24,7 +24,7 @@
 
 典型的库用法::
 
-    from sdlab.app import App
+    from shandong_school_cracked.app import App
 
     app = App()
     app.start_mock()                      # 本地 Mock 服务端
@@ -42,7 +42,7 @@ __all__ = ["APP_VERSION", "__version__", "App", "ShanDongClient", "RunEngine"]
 
 
 def __getattr__(name: str):
-    """按需导入重型子模块，避免 `import sdlab` 时加载网络/图形依赖。"""
+    """按需导入重型子模块，避免 `import shandong_school_cracked` 时加载网络/图形依赖。"""
     if name == "App":
         from .app import App
         return App
@@ -52,4 +52,4 @@ def __getattr__(name: str):
     if name == "RunEngine":
         from .engine import RunEngine
         return RunEngine
-    raise AttributeError(f"module 'sdlab' has no attribute {name!r}")
+    raise AttributeError(f"module 'shandong-school_cracked' has no attribute {name!r}")

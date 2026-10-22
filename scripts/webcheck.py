@@ -76,10 +76,10 @@ def main() -> int:
     ap.add_argument("--keep", action="store_true", help="保留临时数据目录")
     args = ap.parse_args()
 
-    from sdlab.app import App
-    from sdlab.gui import build_http_server
+    from shandong_school_cracked.app import App
+    from shandong_school_cracked.gui import build_http_server
 
-    tmp = Path(tempfile.mkdtemp(prefix="sdlab-webcheck-"))
+    tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-webcheck-"))
     app = App(data_dir=tmp, config_path=tmp / "config.json", mode="mock")
     events: list[dict] = []
     app.bus.subscribe(lambda ev: events.append(ev))
@@ -154,7 +154,7 @@ def main() -> int:
 
         # ── 3′. 跑步起点（等价于界面上点「设置起点」再点地图）──
         section("3′. 跑步起点（选点 → 围栏吸附 → 规划与开跑都跟着走）")
-        from sdlab.protocol import point_in_polygon
+        from shandong_school_cracked.protocol import point_in_polygon
 
         st0 = post_api(api_url, "status") or {}
         poly = [tuple(p) for p in (st0.get("fence_polygon") or [])]

@@ -10,13 +10,13 @@ import time
 import unittest
 from pathlib import Path
 
-from sdlab.app import App
-from sdlab.constants import CODE_NEED_LOGIN
+from shandong_school_cracked.app import App
+from shandong_school_cracked.constants import CODE_NEED_LOGIN
 
 
 class 登录持久化测试(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="sdlab-sess-"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="shandong-school_cracked-sess-"))
         self.cfg = self.tmp / "config.json"
         self.app = App(data_dir=self.tmp, config_path=self.cfg, mode="mock")
 

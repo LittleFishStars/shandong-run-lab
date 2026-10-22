@@ -161,7 +161,7 @@ def _deep_merge(base: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
 
 
 class ConfigStore:
-    """JSON 配置文件（默认 ~/.config/shandong-run-lab/config.json）"""
+    """JSON 配置文件（默认 ~/.config/shandong-school_cracked/config.json）"""
 
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path) if path else default_config_path()
@@ -221,15 +221,15 @@ def default_config_path() -> Path:
     """配置文件位置。
 
     优先级：环境变量 SDLAB_HOME（与数据目录同一个开关，整个工作台指哪写哪，
-    沙箱/便携场景只设这一个变量）→ $XDG_CONFIG_HOME/shandong-run-lab →
-    ~/.config/shandong-run-lab。
+    沙箱/便携场景只设这一个变量）→ $XDG_CONFIG_HOME/shandong-school_cracked →
+    ~/.config/shandong-school_cracked。
     """
     home = os.environ.get("SDLAB_HOME")
     if home:
         return Path(home).expanduser() / "config.json"
     xdg = os.environ.get("XDG_CONFIG_HOME")
     base = Path(xdg) if xdg else Path.home() / ".config"
-    return base / "shandong-run-lab" / "config.json"
+    return base / "shandong-school_cracked" / "config.json"
 
 
 def default_data_dir() -> Path:
@@ -239,4 +239,4 @@ def default_data_dir() -> Path:
         return Path(home).expanduser()
     xdg = os.environ.get("XDG_DATA_HOME")
     base = Path(xdg) if xdg else Path.home() / ".local" / "share"
-    return base / "shandong-run-lab"
+    return base / "shandong-school_cracked"
