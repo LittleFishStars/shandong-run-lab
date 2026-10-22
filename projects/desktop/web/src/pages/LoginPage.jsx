@@ -51,10 +51,10 @@ export default function LoginPage({ accountMode, accounts, account, phone, passw
             <div className="login-actions">
               <Button type="primary" loading={busy} disabled={!account} onClick={actions.loginAccount}>登录</Button>
               <Button type="link" onClick={actions.toNew}>登录新账号</Button>
+              {account ? (
+                <Button type="primary" danger className="login-remove" onClick={actions.removeAccount}>移除该账号</Button>
+              ) : null}
             </div>
-            {account ? (
-              <Button type="link" className="login-remove" onClick={actions.removeAccount}>移除该账号</Button>
-            ) : null}
           </>
         )}
       </Card>

@@ -30,9 +30,9 @@ button { font-family: inherit; }
 .login-brand-name { font-size: 30px; font-weight: 600; letter-spacing: 2px; }
 .login-card { border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .08); }
 .login-card .ant-card-body { padding: 32px; }
-.login-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.login-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .login-actions .ant-btn { height: 38px; padding: 0 22px; }
-.login-remove { padding: 0; margin-top: 12px; height: auto; }
+.login-remove { height: 38px !important; padding: 0 14px !important; }
 
 /* ── 表单 ── */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
