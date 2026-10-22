@@ -702,6 +702,119 @@ class App:
             },
         }
 
+    # ══════════════════ 服务端记录（记录页的数据源） ══════════════════
+    def _server_record_item(self, x: Dict[str, Any]) -> Dict[str, Any]:
+        """把服务端 SportRecord 规整成界面结构
+
+        字段名取自反编译 com.huachenjie.common.bean.SportRecord：runRecordCode /
+        sportType / distance（米）/ validDistance / duration（秒）/ pace（秒每公里）/
+        totalStep / calorie / startTime / endTime / status / sunRunRecordStatus /
+        recheckStatus。列表与详情共用这一份映射，避免两处各写一遍。
+        """
+        st = int(x.get("status") or 0)
+        sun = int(x.get("sunRunRecordStatus") or 0)
+        recheck = int(x.get("recheckStatus") or 0)
+        sport = int(x.get("sportType") or 1)
+        # 状态文案与优先级照抄 RunDetailEntity.formatRecordStatus()
+        if recheck == 2:
+            state, kind = "复核中", "warn"
+        elif sport == 2:
+            state, kind = (("目标达成" if st == 1 else "目标失败"),
+                           ("ok" if st == 1 else "err"))
+        elif sun in (2, 3, 4, 5):
+            state, kind = "无效", "err"
+        elif sun == 10:
+            state, kind = "未计入", "warn"
+        else:
+            state, kind = (("计入成绩" if st == 1 else "无效"),
+                           ("ok" if st == 1 else "err"))
+        return {
+            "run_code": str(x.get("runRecordCode") or ""),
+            "sport_type": sport,
+            "distance_m": float(x.get("distance") or 0),
+            "valid_distance_m": float(x.get("validDistance") or 0),
+            "duration_s": int(x.get("duration") or 0),
+            "pace_s_per_km": float(x.get("pace") or 0),
+            "total_step": int(x.get("totalStep") or 0),
+            "calorie": int(x.get("calorie") or 0),
+            "start_ms": int(x.get("startTime") or 0),
+            "end_ms": int(x.get("endTime") or 0),
+            "semester_code": str(x.get("semesterCode") or ""),
+            "status": st,
+            "sun_status": sun,
+            "recheck_status": recheck,
+            "state": state,
+            "state_kind": kind,
+        }
+
+    def server_records(self, page: int = 1, size: int = 20,
+                       semester_code: str = "", run_plan_code: str = "") -> Dict[str, Any]:
+        """服务端记录分页（原版 pageSunRunRecord）：只读，不写本地库
+
+        返回 {ok, error, items, page, has_next, total}；失败时 ok=False 且 error
+        给出原因（未登录 / 网络异常 / 服务端 code≠0），前端据此显示提示。
+        """
+        page = max(1, int(page or 1))
+        size = max(1, min(50, int(size or 20)))
+        out: Dict[str, Any] = {"ok": False, "error": "", "items": [],
+                               "page": page, "has_next": False, "total": None}
+        if not getattr(self.client, "logged_in", False):
+            out["error"] = "未登录"
+            return out
+        try:
+            res = self.client.list_sun_runs(page=page, size=size,
+                                            semester_code=str(semester_code or ""),
+                                            run_plan_code=str(run_plan_code or ""))
+        except Exception as e:  # noqa: BLE001
+            out["error"] = f"{type(e).__name__}: {e}"
+            return out
+        if int(res.get("code") or 0) != CODE_OK:
+            out["error"] = str(res.get("message") or "服务端返回失败")
+            return out
+        data = res.get("data") or {}
+        items = [self._server_record_item(x) for x in (data.get("list") or [])
+                 if isinstance(x, dict)]
+        out.update(ok=True, items=items,
+                   page=int(data.get("pageNum") or page),
+                   has_next=bool(data.get("hasNext")),
+                   total=data.get("total"))
+        return out
+
+    def server_record_detail(self, run_code: str, semester_code: str = "") -> Dict[str, Any]:
+        """服务端记录详情（原版 runRecordDetail）：runRecordCode + semesterCode"""
+        code = str(run_code or "").strip()
+        out: Dict[str, Any] = {"ok": False, "error": "", "record": None}
+        if not code:
+            out["error"] = "缺少 runRecordCode"
+            return out
+        if not getattr(self.client, "logged_in", False):
+            out["error"] = "未登录"
+            return out
+        try:
+            res = self.client.sun_run_detail(code, str(semester_code or ""))
+        except Exception as e:  # noqa: BLE001
+            out["error"] = f"{type(e).__name__}: {e}"
+            return out
+        if int(res.get("code") or 0) != CODE_OK:
+            out["error"] = str(res.get("message") or "服务端返回失败")
+            return out
+        data = res.get("data") or {}
+        reasons: List[Dict[str, Any]] = []
+        for r in (data.get("invalidReasons") or []):
+            if isinstance(r, dict):
+                reasons.append({"type": int(r.get("invalidType") or 0),
+                                "detail": str(r.get("invalidDetail") or r.get("name") or "")})
+            else:
+                reasons.append({"type": 0, "detail": str(r)})
+        out.update(ok=True, record=self._server_record_item(data),
+                   invalid_reasons=reasons,
+                   audit_detail=[str(x) for x in (data.get("auditDetail") or [])],
+                   point_count=len(data.get("pois") or []),
+                   target_points=len(data.get("targetPoints") or []),
+                   pace_segments=len(data.get("paceList") or []),
+                   step_segments=len(data.get("stepList") or []))
+        return out
+
     # ══════════════════ 记录查询 / 导出 ══════════════════
     def list_runs(self, limit: int = 100) -> List[Dict[str, Any]]:
         return self.store.list_runs(limit=limit)

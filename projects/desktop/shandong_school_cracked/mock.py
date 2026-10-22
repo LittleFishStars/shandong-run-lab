@@ -498,6 +498,12 @@ def _finish_sun_run(w: MockWorld, path: str, h, b):
         "pace": round(pace, 1), "status": status,
         "invalidReasons": problems, "endTime": int(time.time() * 1000),
         "pointCount": len(run.points), "checkpoints": len(run.pass_points),
+        # 以下字段真实服务端会返回（SportRecord），mock 也一并补齐：
+        # 列表页要按开始时间排序、详情页要显示有效距离，没有它们界面只能显示 --。
+        "startTime": int(run.started_ms or 0),
+        "validDistance": distance if status == 1 else 0,
+        "sunRunRecordStatus": 1 if status == 1 else 2,
+        "semesterCode": str(getattr(w, "semester_code", "") or ""),
     }
     w.records.append(record)
     w.emit(f"{'✓' if status == 1 else '⚠'} Mock 结算：{distance:.0f} 米 / {duration}s / "
@@ -511,13 +517,33 @@ def _finish_sun_run(w: MockWorld, path: str, h, b):
 
 
 def _query_sunrun_list(w: MockWorld, path: str, h, b):
+    """记录分页（原版 pageSunRunRecord）
+
+    真实响应是 SunshineRecordRealData{pageNum, hasNext, list}——没有 total/pageSize，
+    这里两个旧字段保留作为兼容，hasNext 与真实一致，前端/后端都优先用它。
+    """
     page = int(b.get("pageNum", 1) or 1)
     size = int(b.get("pageSize", 10) or 10)
     items = sorted(w.records, key=lambda r: r["endTime"], reverse=True)
     return {"code": CODE_OK, "message": "成功", "data": {
         "total": len(items), "pageNum": page, "pageSize": size,
+        "hasNext": page * size < len(items),
         "list": items[(page - 1) * size: page * size],
     }}
+
+
+def _query_run_detail(w: MockWorld, path: str, h, b):
+    """记录详情（原版 runRecordDetail）：按 runRecordCode 取一条并补 RunDetailEntity 字段"""
+    code = str(b.get("runRecordCode", ""))
+    rec = next((r for r in w.records if r.get("runRecordCode") == code), None)
+    if rec is None:
+        return {"code": CODE_MISSING_PARAM, "message": "记录不存在", "data": None}
+    detail = dict(rec)
+    detail.update({
+        "pois": [], "paceList": [], "stepList": [], "targetPoints": [],
+        "invalidReasons": rec.get("invalidReasons") or [], "auditDetail": [],
+    })
+    return {"code": CODE_OK, "message": "成功", "data": detail}
 
 
 def _query_summary(w: MockWorld, path: str, h, b):
@@ -642,7 +668,7 @@ _ROUTES = {
     "run/nfc/verification-status": _mock_nfc_status,
     "run/querySchoolRunSummary": _query_summary,
     "run/queryRunRecordCount": _query_summary,
-    "run/runRecordDetail": _query_summary,
+    "run/runRecordDetail": _query_run_detail,
     "run/free/detail": _query_summary,
     "run/pageSunRunRecord": _query_sunrun_list,
     "run/pageFreeRunRecordList": _query_sunrun_list,

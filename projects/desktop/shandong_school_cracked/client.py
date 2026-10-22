@@ -875,6 +875,18 @@ class ShandongClient:
             "semesterCode": semester_code, "runPlanCode": run_plan_code,
         }))
 
+    def sun_run_detail(self, run_code: str, semester_code: str = "") -> Dict[str, Any]:
+        """记录详情：原版 ISunshineApi.q → run/runRecordDetail
+
+        @FormUrlEncoded，两个字段：runRecordCode + semesterCode（均为 String）。
+        返回 BaseEntity<RunDetailEntity>：SportRecord 全字段 + invalidReasons /
+        paceList / stepList / pois / targetPoints / auditDetail 等。
+        """
+        return self.transport.post("run_detail", self.transport.base_payload({
+            "runRecordCode": str(run_code or ""),
+            "semesterCode": str(semester_code or ""),
+        }))
+
     def run_summary(self, sport_type: int = SPORT_TYPE_SUN,
                     time_type: int = 3) -> Dict[str, Any]:
         """近 N 天统计：原版 querySchoolRunSummary 只收一个 time（毫秒时间戳）

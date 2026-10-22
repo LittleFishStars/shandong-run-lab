@@ -257,9 +257,12 @@
 
     <div class="card grow">
       <div class="card-head">
-        <h2>本地记录</h2>
+        <h2>服务器记录</h2>
         <div class="head-tools">
-          <button class="btn ghost small" id="btn-refresh-runs">刷新</button>
+          <span class="hint" id="runs-page">第 1 页</span>
+          <button class="btn ghost small" id="btn-runs-prev" disabled title="上一页（服务端分页）">上一页</button>
+          <button class="btn ghost small" id="btn-runs-next" disabled title="下一页（服务端分页）">下一页</button>
+          <button class="btn ghost small" id="btn-refresh-runs" title="重新从服务端拉取当前页">刷新</button>
         </div>
       </div>
       <div class="card-body list-body">

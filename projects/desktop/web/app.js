@@ -91,6 +91,9 @@ const S = {
   progress: {},          // 轮询里的实时进度（不是 S.status.progress 那个快照）
   walkTimer: null,
   joyKey: null,          // 方向键当前方向
+  // 服务器记录分页（数据源：run/pageSunRunRecord）
+  runsPage: 1,
+  runsHasNext: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -279,34 +282,67 @@ function renderRunInfo(last) {
 }
 
 // ══════════════════ 记录列表 ══════════════════
-async function refreshRuns(autoOpen = false) {
-  const runs = await Bridge.call('list_runs', 100);
+// 数据源是服务端的 run/pageSunRunRecord：只读，不读本地库。
+// 本地库仍由引擎 / 续传使用，但界面不再展示（记录以服务器为准）。
+async function refreshRuns(autoOpen = false, page = null) {
   const box = $('runs');
-  if (!Array.isArray(runs) || !runs.length) {
-    box.innerHTML = '<div class="hint">暂无本地记录</div>';
+  if (page != null) S.runsPage = Math.max(1, Number(page) || 1);
+  box.innerHTML = '<div class="hint">正在从服务器加载…</div>';
+  let r = null;
+  try {
+    r = await Bridge.call('server_records', S.runsPage, 20);
+  } catch (e) {
+    box.innerHTML = `<div class="hint">拉取失败：${esc((e && e.message) || e)}</div>`;
     return;
   }
-  // 刚跑完一次时自动展开最新一条（否则地图要等人手动点一下才画）
+  if (!r || !r.ok) {
+    box.innerHTML = `<div class="hint">${esc((r && r.error) || '拉取失败')}</div>`;
+    syncRunsPager(r);
+    return;
+  }
+  const runs = r.items || [];
+  S.runsHasNext = !!r.has_next;
+  if (!runs.length) {
+    box.innerHTML = `<div class="hint">${S.runsPage > 1 ? '这一页没有记录了'
+      : '服务器上暂无记录：先登录，再完成一次跑步'}</div>`;
+    syncRunsPager(r);
+    return;
+  }
+  // 刚跑完一次时自动展开最新一条（此时详情是服务端数据，不驱动地图）
   if (autoOpen && !S.currentRun && runs[0]) S.currentRun = runs[0].run_code;
-  box.innerHTML = runs.map((r) => {
-    const uploaded = r.uploaded ? '<span class="badge ok">已结算</span>'
-      : (r.distance_m ? '<span class="badge warn">未结算</span>' : '<span class="badge">草稿</span>');
-    const valid = (r.valid && r.valid.isValid === false)
-      ? `<span class="badge err">${esc((r.valid.reasons || []).map(x => x.name).join('、'))}</span>` : '';
-    const d = r.distance_m ? `${Number(r.distance_m).toFixed(0)} 米` : '--';
-    const t = r.duration_s ? `${Math.round(r.duration_s / 60)} 分` : '--';
-    return `<div class="run-item" data-code="${esc(r.run_code)}">
-      <div class="rc">${esc(r.run_code)}</div>
-      <div class="meta"><span>${d}</span><span>${t}</span><span>${esc(r.source || '')}</span>
-      ${uploaded}${valid}</div></div>`;
+  box.innerHTML = runs.map((x) => {
+    const d = x.distance_m ? `${Number(x.distance_m).toFixed(0)} 米` : '--';
+    const t = x.duration_s ? `${Math.round(x.duration_s / 60)} 分` : '--';
+    const when = x.start_ms ? fmtDateTime(x.start_ms) : '';
+    return `<div class="run-item" data-code="${esc(x.run_code)}" data-semester="${esc(x.semester_code || '')}">
+      <div class="rc">${esc(x.run_code)}</div>
+      <div class="meta"><span>${d}</span><span>${t}</span>${when ? `<span>${when}</span>` : ''}
+      <span class="badge ${esc(x.state_kind || '')}">${esc(x.state || '')}</span></div></div>`;
   }).join('');
   box.querySelectorAll('.run-item').forEach((el) => {
     el.addEventListener('click', () => {
       box.querySelectorAll('.run-item').forEach(x => x.classList.remove('active'));
       el.classList.add('active');
-      refreshDetail(el.dataset.code);
+      refreshDetail(el.dataset.code, el.dataset.semester || '');
     });
   });
+  syncRunsPager(r);
+  if (autoOpen && S.currentRun) refreshDetail(S.currentRun);
+}
+
+// 分页状态：上一页/下一页按钮与页码文案
+function syncRunsPager(r) {
+  $('runs-page').textContent = `第 ${S.runsPage} 页`;
+  $('btn-runs-prev').disabled = S.runsPage <= 1;
+  $('btn-runs-next').disabled = !(r && r.has_next);
+}
+
+// 记录时间（服务端给毫秒时间戳，本地时区展示）
+function fmtDateTime(ms) {
+  const t = Number(ms) || 0;
+  if (!t) return '--';
+  const d = new Date(t), p = (n) => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 // 两点球面距离（米）——与后端 protocol.haversine 同一公式，用于跑步中实时累计距离。
@@ -340,56 +376,42 @@ async function refreshLiveMap(code) {
   drawMap();
 }
 
-async function refreshDetail(code) {
-  const d = await Bridge.call('run_detail', code);
-  if (!d || !d.run) { $('run-detail').innerHTML = ''; return; }
-  S.detail = d;
-  S.currentRun = code;
-  const run = d.run, c = d.counts || {};
-  const reasons = (run.valid && run.valid.reasons || []);
-  const uploadRows = (d.upload_log || []).slice(-8).reverse().map(l =>
-    `<tr><td class="mono">${esc((l.endpoint || '').replace('run/', ''))}</td>
-     <td class="${l.ok ? '' : 'err'}">${l.ok ? '成功' : '失败'}</td>
-     <td>${esc(l.message || '')}</td></tr>`).join('');
-  $('run-detail').innerHTML = `
+// 服务端记录详情：只展示服务端字段，不驱动地图
+// （地图上画的是本次实跑的本地轨迹，由 refreshLiveMap 维护）
+async function refreshDetail(code, semester = '') {
+  const box = $('run-detail');
+  box.innerHTML = '<div class="hint">正在读取详情…</div>';
+  let r = null;
+  try {
+    r = await Bridge.call('server_record_detail', code, semester);
+  } catch (e) {
+    box.innerHTML = `<div class="hint">读取失败：${esc((e && e.message) || e)}</div>`;
+    return;
+  }
+  if (!r || !r.ok || !r.record) {
+    box.innerHTML = `<div class="hint">${esc((r && r.error) || '读取失败')}</div>`;
+    return;
+  }
+  const rec = r.record;
+  const reasons = (r.invalid_reasons || [])
+    .map(x => `<li>${esc(x.detail || ('类型 ' + x.type))}</li>`).join('');
+  const audit = (r.audit_detail || []).map(x => `<li>${esc(x)}</li>`).join('');
+  box.innerHTML = `
     <h3>${esc(code)}</h3>
     ${kvTable([
-      ['距离', `${Number(run.distance_m || 0).toFixed(1)} 米`],
-      ['时长', `${run.duration_s || 0} 秒`],
-      ['配速', run.pace_s_per_km ? `${Number(run.pace_s_per_km).toFixed(1)} 秒/公里` : '--'],
-      ['总步数', run.total_step || 0],
-      ['已上传轨迹', `${c.points_uploaded || 0} / ${c.points || 0}（失败 ${c.points_failed || 0}）`],
-      ['状态位', `init=${c.points_pending || 0}`],
-      ['有效性', (run.valid && run.valid.isValid) ? '有效' : ('无效：' + reasons.map(x => x.name).join('、'))],
+      ['距离', `${Number(rec.distance_m || 0).toFixed(1)} 米`],
+      ['有效距离', `${Number(rec.valid_distance_m || 0).toFixed(1)} 米`],
+      ['时长', `${Math.floor((rec.duration_s || 0) / 60)} 分 ${(rec.duration_s || 0) % 60} 秒`],
+      ['配速', rec.pace_s_per_km ? fmtPace(rec.pace_s_per_km) : '--'],
+      ['总步数', rec.total_step || 0],
+      ['开始', fmtDateTime(rec.start_ms)],
+      ['结束', fmtDateTime(rec.end_ms)],
+      ['状态', rec.state || '--'],
+      ['轨迹点', r.point_count ? `${r.point_count} 个（服务端下发）` : '服务端未下发'],
     ])}
-    <h3>上传记录</h3>
-    <table><thead><tr><th>接口</th><th>结果</th><th>说明</th></tr></thead>
-    <tbody>${uploadRows || '<tr><td colspan="3" class="hint">无</td></tr>'}</tbody></table>
-    <h3>操作</h3>
-    <div class="row">
-      <button class="btn small" data-act="export-json" data-code="${esc(code)}">导出 JSON</button>
-      <button class="btn small" data-act="export-gpx" data-code="${esc(code)}">导出 GPX</button>
-      <button class="btn small" data-act="resume" data-code="${esc(code)}">续传</button>
-      <button class="btn small" data-act="delete" data-code="${esc(code)}">删除</button>
-    </div>`;
-  $('run-detail').querySelectorAll('button[data-act]').forEach((b) => {
-    b.addEventListener('click', async () => {
-      const act = b.dataset.act, rc = b.dataset.code;
-      if (act === 'export-json' || act === 'export-gpx') {
-        const r = await Bridge.call('export', rc, act === 'export-gpx' ? 'gpx' : 'json');
-        toast('已导出：' + (r.path || '?'), 'ok');
-      } else if (act === 'resume') {
-        const r = await Bridge.call('resume', rc);
-        toast(r.message || '已触发续传', r.code === 0 ? 'ok' : 'err');
-      } else if (act === 'delete') {
-        await Bridge.call('delete_run', rc);
-        toast('已删除 ' + rc, 'ok');
-        refreshRuns();
-        $('run-detail').innerHTML = '';
-      }
-    });
-  });
-  drawMap();
+    ${reasons ? `<h3>无效原因</h3><ul class="reasons">${reasons}</ul>` : ''}
+    ${audit ? `<h3>审核说明</h3><ul class="reasons">${audit}</ul>` : ''}
+    <div class="hint" style="margin-top:8px">来源：run/pageSunRunRecord · run/runRecordDetail</div>`;
 }
 
 function kvTable(rows) {
@@ -1314,7 +1336,9 @@ $('btn-login').addEventListener('click', async () => {
     setTiles(MAP.obj);
   });
   $('btn-clear-log').addEventListener('click', () => { $('log').innerHTML = ''; S.logCount = 0; });
-  $('btn-refresh-runs').addEventListener('click', refreshRuns);
+  $('btn-refresh-runs').addEventListener('click', () => refreshRuns());
+  $('btn-runs-prev').addEventListener('click', () => refreshRuns(false, S.runsPage - 1));
+  $('btn-runs-next').addEventListener('click', () => refreshRuns(false, S.runsPage + 1));
   // 尺寸变化：Leaflet 必须收到 invalidateSize，否则瓦片错位、底图留白
   window.addEventListener('resize', () => {
     if (MAP.obj) MAP.obj.invalidateSize();

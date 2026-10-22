@@ -151,6 +151,16 @@ class JsApi:
     def list_runs(self, limit: int = 100) -> Any:
         return self.app.list_runs(int(limit))
 
+    # —— 服务端记录（记录页的数据源，不碰本地库）——
+    def server_records(self, page: int = 1, size: int = 20,
+                       semester_code: str = "", run_plan_code: str = "") -> Dict[str, Any]:
+        return self.app.server_records(int(page), int(size),
+                                       str(semester_code), str(run_plan_code))
+
+    def server_record_detail(self, run_code: str,
+                             semester_code: str = "") -> Dict[str, Any]:
+        return self.app.server_record_detail(str(run_code), str(semester_code))
+
     def run_detail(self, run_code: str) -> Dict[str, Any]:
         return self.app.run_detail(str(run_code))
 
