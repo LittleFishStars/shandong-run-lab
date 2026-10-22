@@ -534,7 +534,6 @@ export default function App() {
           mapProps={mapProps}
           params={params}
           distanceOptions={distanceOptions}
-          progress={progress}
           busy={busy}
           actions={actions}
         />

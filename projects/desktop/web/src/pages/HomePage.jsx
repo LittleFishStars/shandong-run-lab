@@ -1,8 +1,8 @@
 import React from 'react';
-import { Button, Progress, Select } from 'antd';
+import { Button, Select } from 'antd';
 import MapCanvas from '../MapCanvas';
 
-export default function HomePage({ mapProps, params, distanceOptions, progress, busy, actions }) {
+export default function HomePage({ mapProps, params, distanceOptions, busy, actions }) {
   return (
     <div className="run-layout">
       <div className="map-card"><MapCanvas {...mapProps} /></div>
@@ -23,10 +23,6 @@ export default function HomePage({ mapProps, params, distanceOptions, progress, 
         <div className="side-actions">
           <Button type="primary" className="btn-start" loading={busy} onClick={actions.startRun}>开始</Button>
           <Button className="btn-more" shape="circle" onClick={actions.toMore}>更多</Button>
-        </div>
-        <div className="progress">
-          <Progress percent={Number(progress.percent) || 0} showInfo={false} />
-          <div className="progress-text">{progress.text}</div>
         </div>
       </aside>
     </div>

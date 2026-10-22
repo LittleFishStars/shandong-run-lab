@@ -59,7 +59,7 @@ button { font-family: inherit; }
 .ant-select-native:focus { border-color: #1677ff; box-shadow: 0 0 0 2px rgba(22, 119, 255, .12); }
 .ant-select-native.ant-select-sm { height: 32px; font-size: 13px; }
 .target-pill {
-  display: flex; align-items: center; gap: 10px; height: 40px;
+  display: flex; align-items: center; gap: 10px; height: 40px; width: 100%; max-width: 320px;
   padding: 0 12px; border: 1px solid #d9d9d9; border-radius: 6px;
 }
 .target-pill > span { color: #8c8c8c; font-size: 13px; white-space: nowrap; }
@@ -82,7 +82,8 @@ button { font-family: inherit; }
 
 .side-panel {
   background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
-  padding: 28px 24px; display: flex; flex-direction: column; gap: 20px; min-height: 0;
+  padding: 28px 24px; display: flex; flex-direction: column; align-items: center;
+  gap: 20px; min-height: 0;
 }
 .side-brand { display: flex; justify-content: center; padding-top: 6px; }
 .side-brand .app-icon { width: 96px; height: 96px; border-radius: 0; }
@@ -94,7 +95,7 @@ button { font-family: inherit; }
 }
 .btn-more {
   width: 56px; height: 56px !important; padding: 0 !important; font-size: 13px;
-  align-self: flex-end; margin-right: 8px; margin-top: -24px;
+  align-self: center; margin: 0;
 }
 
 .progress { margin-top: 4px; }
