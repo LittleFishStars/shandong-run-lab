@@ -213,6 +213,8 @@ function renderStatus(st) {
       ? `${fmtKm(r.dayMaxDistance)} km（超过部分不计成绩）` : '未限制',
     '更新于': ruleTime,
   }) : '尚未加载';
+  // 目标距离下拉：区间取学校规则的单次距离（真实 2000–3000 → 选项 3/2 km），从高到低每 1 km 一项
+  syncDistanceOptions(r, (st.run_cfg || {}).target_distance_m);
 
   // 围栏下拉
   const sel = $('in-fence');
@@ -299,6 +301,28 @@ function fmtPaceShort(secPerKm) {
 function fmtKm(m) {
   const v = Number(m || 0) / 1000;
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+// 目标距离选项：从规则上限到下限、每 1 km 一个，单位米；当前配置值不在区间内时也保留它
+function syncDistanceOptions(rule, currentM) {
+  const sel = $('in-distance');
+  if (!sel) return;
+  const maxM = Number(rule.singleMaxDistance) || 10000;
+  const minM = Number(rule.singleMinDistance) || 1000;
+  const hi = Math.max(1, Math.floor(maxM / 1000));
+  const lo = Math.max(1, Math.ceil(minM / 1000));
+  const vals = [];
+  for (let km = hi; km >= lo; km--) vals.push(km * 1000);
+  const keep = Number(sel.value) || Number(currentM) || (vals[0] || 0);
+  if (keep && !vals.includes(keep)) {
+    vals.push(keep);
+    vals.sort((a, b) => b - a);
+  }
+  const sig = vals.join(',');
+  if (sel.dataset.sig === sig) return;   // 规则没变：保留用户当前选择，不重建
+  sel.innerHTML = vals.map((v) => `<option value="${v}">${v / 1000} km</option>`).join('');
+  sel.dataset.sig = sig;
+  if (vals.includes(keep)) sel.value = String(keep);
 }
 
 // 配速输入框 ↔ 数值：接受 6'40" / 6:40 / 纯秒数（秒/公里）
@@ -1359,7 +1383,7 @@ $('btn-login').addEventListener('click', async () => {
   // 跑步
   $('btn-run').addEventListener('click', async () => {
     await saveParams(true);
-    const r = await Bridge.call('run_auto', Number($('in-distance').value),
+    const r = await Bridge.call('run_auto', Number($('in-distance').value) || 2000,
       Number($('in-fence').value), true, true, 1);
     toast(r.message || '已启动', r.code === 0 ? 'ok' : 'err');
   });
@@ -1472,7 +1496,7 @@ async function saveParams(silent) {
   const speed = paceSec > 0 ? paceToSpeed(paceSec) : 0;
   const patch = {
     run: {
-      target_distance_m: Number($('in-distance').value),
+      target_distance_m: Number($('in-distance').value) || 2000,
       stride_m: Number($('in-stride').value),
     },
     sim: {
