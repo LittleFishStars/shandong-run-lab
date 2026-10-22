@@ -180,7 +180,7 @@ export default function App() {
         toast('登录成功', 'ok');
         await refreshStatus();
         await autoPrepare();
-        setView('home');
+        setView('pick');            // 登录后先进选起始点页，确认再回首页
         refreshRuns(1);
       } else toast((r && r.message) || '登录失败', 'err');
     } finally { setBusy(false); }
@@ -195,7 +195,7 @@ export default function App() {
         toast('已切换账号', 'ok');
         await refreshStatus();
         await autoPrepare();
-        setView('home');
+        setView('pick');            // 登录后先进选起始点页，确认再回首页
         refreshRuns(1);
       } else toast((r && r.message) || '切换失败', 'err');
     } finally { setBusy(false); }
