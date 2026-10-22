@@ -66,7 +66,7 @@ jobs:
       - name: 整理产物（校验和带上平台后缀，避免两个平台同名）
         shell: bash
         run: |
-          mv projects/desktop/dist/SHA256SUMS "projects/desktop/dist/SHA256SUMS-${{ matrix.label }}"
+          mv dist/SHA256SUMS "dist/SHA256SUMS-${{ matrix.label }}"
           ls -lh dist/
 
       - uses: actions/upload-artifact@v4
