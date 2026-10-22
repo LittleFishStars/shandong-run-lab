@@ -281,6 +281,22 @@ function renderRunInfo(last) {
   drawMap();
 }
 
+// 点击服务器记录：把这条记录的信息显示到「本次跑步」卡
+// 字段只取服务端 SportRecord 有的东西（本地实跑的步幅/打卡点/计时这里没有）
+function renderServerRecord(rec) {
+  if (!rec) return;
+  $('run-code-label').textContent = rec.run_code || '--';
+  $('run-info').innerHTML = kv({
+    '距离': `${Number(rec.distance_m || 0).toFixed(1)} 米`,
+    '有效距离': `${Number(rec.valid_distance_m || 0).toFixed(1)} 米`,
+    '时长': fmtDur(rec.duration_s),
+    '配速': rec.pace_s_per_km ? fmtPace(rec.pace_s_per_km) : '--',
+    '总步数': rec.total_step || 0,
+    '开始': fmtDateTime(rec.start_ms),
+    '状态': { html: rec.state || '--', cls: rec.state_kind || '' },
+  });
+}
+
 // ══════════════════ 记录列表 ══════════════════
 // 数据源是服务端的 run/pageSunRunRecord：只读，不读本地库。
 // 本地库仍由引擎 / 续传使用，但界面不再展示（记录以服务器为准）。
@@ -393,6 +409,7 @@ async function refreshDetail(code, semester = '') {
     return;
   }
   const rec = r.record;
+  renderServerRecord(rec);
   const reasons = (r.invalid_reasons || [])
     .map(x => `<li>${esc(x.detail || ('类型 ' + x.type))}</li>`).join('');
   const audit = (r.audit_detail || []).map(x => `<li>${esc(x)}</li>`).join('');
