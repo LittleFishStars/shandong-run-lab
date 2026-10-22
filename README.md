@@ -41,13 +41,16 @@
 | Linux x86_64 | `shandong-school_cracked-<版本>-linux-x86_64`（或 `.zip`） | `chmod +x` 后双击，或终端 `./shandong-school_cracked-… ` |
 | Windows x64 | `shandong-school_cracked-<版本>-windows-x64.exe`（或 `.zip`） | 双击；命令行用法见下文 |
 
+> 注意：**已发布的 v1.1.0 及更早版本**是改名前的构建，附件名仍为 `sdlab-*`；
+> 从下一个版本起产物名与本仓库一致（`shandong-school_cracked-*`）。自行构建见下方方式 B。
+
 命令行和界面是同一个程序：不带参数双击 = 开界面；在终端里带参数 = CLI。
 
 ```bash
-./shandong-school_cracked-1.1.0-linux-x86_64 --help          # 全部命令
-./shandong-school_cracked-1.1.0-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
+./shandong-school_cracked-<版本>-linux-x86_64 --help          # 全部命令
+./shandong-school_cracked-<版本>-linux-x86_64 --mode mock gui  # 纯本地仿真，真接口一根毛都不碰
 # Windows（PowerShell）
-.\shandong-school_cracked-1.1.0-windows-x64.exe --mode mock gui
+.\shandong-school_cracked-<版本>-windows-x64.exe --mode mock gui
 ```
 
 自己构建看 [`docs/打包与发布.md`](docs/打包与发布.md)：`python scripts/build_bin.py --zip`
