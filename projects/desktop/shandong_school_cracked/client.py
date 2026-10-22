@@ -342,7 +342,8 @@ class ShandongClient:
     def load_rule(self, fence_code: str = "", semester_code: str = "",
                   activity_code: str = "", run_plan_code: str = "",
                   sub_school_code: str = "",
-                  sport_type: int = SPORT_TYPE_SUN) -> Dict[str, Any]:
+                  sport_type: int = SPORT_TYPE_SUN,
+                  allow_abstract_fallback: bool = True) -> Dict[str, Any]:
         """拉取 SchoolRule 并转成判定用的 RuleSet
 
         原版签名（RunRequestModel.d，字段名取自 @Field）：
@@ -371,18 +372,33 @@ class ShandongClient:
                               level="warn")
             return res
         rule = data.get("schoolRule") if isinstance(data.get("schoolRule"), dict) else None
+        source = "run/checkSunRunConfig"
         if not rule:
             # 兼容：有些部署直接返回规则本体，而不包一层 schoolRule
             if "singleMinDistance" in data or "singleMaxDistance" in data:
                 rule = data
         if not rule:
-            if self.bus:
-                self.bus.emit("log", "⚠ checkSunRunConfig 响应里没有 schoolRule，"
-                                     "保留上一次规则", level="warn")
+            # 真实服务端（2026-10-23 实测）：checkSunRunConfig 的 data 只有
+            # alertTip / faceImg / runScene / ticket 等，根本没有 schoolRule；
+            # 学校规则的真身在 querySunRunAbstractInfoV2 的 schoolDemandRule 里
+            # （原版 StartRunUtils 也是用 SunshineRunDetail.schoolDemandRule 组开跑参数）。
+            abs_res = self.load_sunrun_abstract()
+            abs_data = abs_res.get("data") if isinstance(abs_res.get("data"), dict) else {}
+            cand = abs_data.get("schoolDemandRule")
+            if isinstance(cand, dict) and cand:
+                rule = cand
+                source = "run/querySunRunAbstractInfoV2"
+        if not rule:
+            if allow_abstract_fallback:
+                if self.bus:
+                    self.bus.emit("log", "⚠ checkSunRunConfig / querySunRunAbstractInfoV2 "
+                                         "都没有返回学校规则，保留上一次规则", level="warn")
+            # allow_abstract_fallback=False 时由调用方紧接着拉 abstract（engine.prepare），
+            # 这里不能把规则重置成默认值，也不能报两次同样的警告
             return res
         self.rule = RuleSet.from_rule(rule)
         self.rule_loaded_at = int(time.time() * 1000)
-        self.rule_source = "run/checkSunRunConfig"
+        self.rule_source = source
         if isinstance(data.get("geoFenceDetail"), dict) and data["geoFenceDetail"]:
             self.fence = data["geoFenceDetail"]
         if self.bus:
@@ -390,8 +406,8 @@ class ShandongClient:
                           f"单次 {self.rule.single_min_distance:.0f}–"
                           f"{self.rule.single_max_distance:.0f} 米，"
                           f"配速 {self.rule.min_pace:.0f}–{self.rule.max_pace:.0f} 秒/公里，"
-                          f"每日上限 {self.rule.day_max_distance:.0f} 米，"
-                          f"打卡点 {self.rule.required_point_counts} 个")
+                          f"每日上限 {self.rule.day_max_distance:.0f} 米")
+        # 打卡点数量不在这里：它来自围栏 / 开跑下发的 targetPoints，不在 SchoolRule 里
         return res
 
     def load_sunrun_rule(self, run_plan_code: str = "", semester_code: str = "") -> Dict[str, Any]:
@@ -402,14 +418,9 @@ class ShandongClient:
         这里改走 abstract 接口，并先刷新全局配置。
         """
         self.load_common_config()
-        res = self.transport.post("sunrun_abstract", self.transport.base_payload({
-            "semesterCode": semester_code, "runPlanCode": run_plan_code,
-            "sportType": SPORT_TYPE_SUN,
-        }))
-        data = res.get("data")
-        if isinstance(data, dict) and data:
-            self.rule = RuleSet.from_rule(data)
-        return res
+        # 走统一入口：规则在 SunshineRunDetail.schoolDemandRule 里，由 abstract 解析
+        return self.load_sunrun_abstract(semester_code=semester_code,
+                                         run_plan_code=run_plan_code)
 
     def load_common_config(self) -> Dict[str, Any]:
         """拉取服务端真实运行参数（GET common/getConfig）并写入 cfg。
@@ -445,7 +456,14 @@ class ShandongClient:
             "runPlanCode": run_plan_code,
             "sportType": sport_type,
         }))
-        self.abstract = res.get("data") or {}
+        data = res.get("data")
+        if isinstance(data, dict) and data:
+            self.abstract = data
+            rule = data.get("schoolDemandRule")
+            if isinstance(rule, dict) and rule:
+                self.rule = RuleSet.from_rule(rule)
+                self.rule_loaded_at = int(time.time() * 1000)
+                self.rule_source = "run/querySunRunAbstractInfoV2"
         return res
 
     def load_plans(self, semester_code: str = "") -> Dict[str, Any]:

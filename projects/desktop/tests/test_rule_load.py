@@ -32,7 +32,8 @@ class 规则拉取测试(unittest.TestCase):
     def test_prepare后规则带更新时间与来源(self):
         st = self.app.status()
         self.assertGreater(int(st["rule_loaded_at"]), 0)
-        self.assertEqual(st["rule_source"], "run/checkSunRunConfig")
+        self.assertIn(st["rule_source"], ("run/checkSunRunConfig",
+                                          "run/querySunRunAbstractInfoV2"))
         # mock 的 SchoolRule 带 dayMaxDistance，应该被解析进 rule
         self.assertGreater(float(st["rule"]["dayMaxDistance"]), 0)
 
@@ -67,6 +68,9 @@ class 规则拉取测试(unittest.TestCase):
         def fake(name, payload=None, **kw):
             if name == "sunrun_config":
                 return {"code": 0, "message": "成功", "data": {"fenceCode": "X"}}
+            if name == "sunrun_abstract":
+                # 真实服务端在这种情况下也没规则：两个来源都空才应保留旧规则
+                return {"code": 0, "message": "成功", "data": {}}
             return orig(name, payload, **kw)
 
         c.transport.post = fake

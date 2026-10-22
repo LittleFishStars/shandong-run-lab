@@ -128,7 +128,9 @@ class RunEngine:
         c.load_common_config()
 
         self._step(8, "拉取学校规则…")
-        c.load_rule(semester_code=sem_code)
+        # 真实服务端：checkSunRunConfig 不返回 schoolRule，规则在 abstract 的
+        # schoolDemandRule 里；这里不让 load_rule 自己去拉 abstract，避免同一次 prepare 请求两遍
+        c.load_rule(semester_code=sem_code, allow_abstract_fallback=False)
         c.load_sunrun_abstract(semester_code=sem_code)
         c.load_plans(semester_code=sem_code)
 

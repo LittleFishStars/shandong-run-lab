@@ -317,13 +317,27 @@ def _sunrun_rule(w: MockWorld, path: str, h, b):
 
 
 def _run_abstract(w: MockWorld, path: str, h, b):
+    """原版 querySunRunAbstractInfoV2 → SunshineRunDetail
+
+    真实响应（2026-10-23 实测）的学校规则在 schoolDemandRule 下；以前 mock 把规则
+    平铺在 data 里，与真实结构不一致——按真实结构造，客户端解析路径才对得上。
+    """
+    done = len([r for r in w.records if r.get("status") == 1])
+    done_distance = round(sum(r.get("distance", 0) for r in w.records
+                              if r.get("status") == 1), 1)
     return {"code": CODE_OK, "message": "成功", "data": {
-        "minPace": w.rule["minPace"], "maxPace": w.rule["maxPace"],
-        "segmentStrideAvg": w.rule["segmentStrideAvg"],
-        "singleMinDistance": w.rule["singleMinDistance"],
-        "singleMaxDistance": w.rule["singleMaxDistance"],
-        "weekMinTimes": w.rule["weekMinTimes"],
-        "doneTimes": len([r for r in w.records if r.get("status") == 1]),
+        "schoolCode": MOCK_SCHOOL["schoolCode"],
+        "runPlanCode": "PLAN_DAILY",
+        "planType": 1,
+        "validStatus": True,
+        "schoolDemandRule": w.rule,
+        "studentDoneRuleInfo": {
+            "doneDistance": done_distance,
+            "doneTargetTimes": done,
+            "weekAlreadyTimes": done,
+        },
+        "weekAlreadyTimes": done,
+        "weekRemainTimes": max(0, 3 - done),
     }}
 
 

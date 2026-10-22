@@ -197,10 +197,12 @@ python3 -m venv --system-site-packages .venv       # 继承系统包，省一次
 
 * **左栏**：登录/注销、模式切换、围栏选择（可能多个）、目标距离与跑步参数（平均步频 ± 波动、
   步幅、配速、到达目标自动结算）、学校规则阈值与进度条。规则卡（④）显示单次距离（km）、
-  配速区间（m'ss"）、步幅基准、打卡点（取当前围栏的 `requiredPointCounts`）、
-  每日上限（`SchoolRule.dayMaxDistance`）与「更新于」时间；右上「刷新」只重拉一次规则
-  （`run/checkSunRunConfig`），失败或响应里没有 `schoolRule` 时**保留旧规则**并在事件流告警，
-  不会用默认值静默覆盖。
+  配速区间（m'ss"）、步幅基准、打卡点（优先最近一次记录的 `targetPoints`，
+  其次本次开跑下发的打卡点，最后才回退围栏的 `requiredPointCounts`）、
+  每日上限（`SchoolRule.dayMaxDistance`）与「更新于」时间。
+  规则真身在 `run/querySunRunAbstractInfoV2` 的 `schoolDemandRule`（实测 `checkSunRunConfig`
+  不返回规则）；右上「刷新」只重拉一次规则，失败或两个来源都没有规则时**保留旧规则**并在
+  事件流告警，不会用默认值静默覆盖。
   （服务端注入失败率、实时仿真开关、仿真倍速已从界面移除：失败率固定 0、仿真固定瞬间算完；
   这两个能力仍在 CLI / Mock 内部保留，只是不摆在主界面上。）
 * **中栏**：**真实地图 + 矢量叠加**——底图用 Leaflet 渲染（底图可在「高级 / 调试」里切：高德路网 /

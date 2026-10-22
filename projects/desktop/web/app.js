@@ -95,6 +95,7 @@ const S = {
   runsPage: 1,
   runsHasNext: false,
   pickedRecord: null,    // 用户点选/自动选中的服务端记录（非空时左卡不被“最近一次”覆盖）
+  serverPoints: null,     // 最近一条服务端记录的打卡点数（targetPoints）
 };
 const $ = (id) => document.getElementById(id);
 
@@ -188,14 +189,25 @@ function renderStatus(st) {
   // 打卡点数量在 GeoFenceDetail 上（围栏字段），不是 SchoolRule；优先取当前围栏，回退到规则
   const curFence = st.fence || (st.fences || [])[0] || {};
   const pointCount = Number(curFence.requiredPointCounts ?? r.requiredPointCounts ?? 0);
+  // 打卡点实际数量：服务端在开跑时下发 targetPoints（真实记录里是 5 个，围栏的
+  // requiredPointCounts 只有 2，不是一回事）。优先本次已在跑的打卡点，其次最近一次记录，最后围栏。
+  const livePoints = (st.checkpoints || []).length;
+  const shownPoints = livePoints || (S.serverPoints != null ? S.serverPoints : pointCount);
+  // 配速区间：真实数据里 minPace=600（最慢）、maxPace=180（最快），按数值排一下
+  const paceA = Math.min(Number(r.minPace) || 0, Number(r.maxPace) || 0);
+  const paceB = Math.max(Number(r.minPace) || 0, Number(r.maxPace) || 0);
+  // 步幅基准：真实 SchoolRule 是**厘米**（如 190），旧 mock / 旧配置里可能是米（0.85）
+  const strideRaw = Number(r.segmentStrideAvg) || 0;
+  const strideM = strideRaw > 0 ? (strideRaw < 10 ? strideRaw : strideRaw / 100) : 0;
   // “更新于”：每次重新拉规则都会变，用来判断拉取到底有没有生效
   const ruleTime = st.rule_loaded_at
     ? new Date(Number(st.rule_loaded_at)).toLocaleTimeString('zh-CN', { hour12: false }) : '--';
   $('rule-info').innerHTML = r.singleMinDistance !== undefined ? kv({
     '单次距离': `${fmtKm(r.singleMinDistance)} – ${fmtKm(r.singleMaxDistance)} km`,
-    '配速区间': `${fmtPaceShort(r.minPace)} – ${fmtPaceShort(r.maxPace)}`,
-    '步幅基准': `${r.segmentStrideAvg} 米（异常段上限 ${r.segmentStrideExceptionNum}）`,
-    '打卡点': `${pointCount} 个`,
+    '配速区间': `${fmtPaceShort(paceA)} – ${fmtPaceShort(paceB)}`,
+    '步幅基准': strideM > 0
+      ? `${strideM.toFixed(2)} 米（异常段上限 ${r.segmentStrideExceptionNum}）` : '--',
+    '打卡点': `${shownPoints} 个${livePoints ? '（本次）' : (S.serverPoints != null ? '（最近一次记录）' : '（围栏）')}`,
     '每日上限': Number(r.dayMaxDistance) > 0
       ? `${fmtKm(r.dayMaxDistance)} km（超过部分不计成绩）` : '未限制',
     '更新于': ruleTime,
@@ -367,6 +379,7 @@ async function refreshRuns(autoOpen = false, page = null) {
     return;
   }
   const runs = r.items || [];
+  S.serverPoints = null;      // 列表一变，重新取一次最近记录的打卡点数
   S.runsHasNext = !!r.has_next;
   if (!runs.length) {
     box.innerHTML = `<div class="hint">${S.runsPage > 1 ? '这一页没有记录了'
@@ -396,6 +409,14 @@ async function refreshRuns(autoOpen = false, page = null) {
     });
   });
   syncRunsPager(r);
+  // 规则卡的「打卡点」：服务端在开跑时才下发 targetPoints，这里用最近一条记录的实际值作参考
+  Bridge.call('server_record_detail', runs[0].run_code, runs[0].semester_code || '')
+    .then((d) => {
+      if (d && d.ok && d.target_points != null) {
+        S.serverPoints = d.target_points;
+        if (S.status) renderStatus(S.status);
+      }
+    }).catch(() => {});
   if (autoOpen) {
     const first = runs[0];
     if (first) {
