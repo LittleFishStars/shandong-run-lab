@@ -413,3 +413,6 @@ button { font-family: inherit; }
   width: 56px; height: 56px !important; padding: 0 !important; font-size: 13px;
 }
 .home-sheet .home-sheet-repick { position: absolute; left: 20px; bottom: 22px; z-index: 2; }
+
+/* 下拉选项要压过首页底部面板（面板 z-index 1200） */
+.ant-select-dropdown { z-index: 1300 !important; }
