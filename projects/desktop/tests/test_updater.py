@@ -22,12 +22,12 @@ class UpdaterTest(unittest.TestCase):
         self.assertEqual(updater.version_tuple(""), (0, 0, 0))
 
     def test_has_update(self):
-        payload = {"tag_name": "v1.4.0", "html_url": "https://example.com/r",
+        payload = {"tag_name": "v9.9.9", "html_url": "https://example.com/r",
                    "body": "更新内容"}
         with mock.patch.object(updater.urllib.request, "urlopen", return_value=_Resp(json.dumps(payload).encode())):
             r = updater.check_update()
         self.assertTrue(r["ok"])
-        self.assertEqual(r["latest"], "1.4.0")
+        self.assertEqual(r["latest"], "9.9.9")
         self.assertTrue(r["has_update"])
 
     def test_same_version(self):
