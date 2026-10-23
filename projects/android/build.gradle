@@ -1,6 +1,6 @@
 // 闪动校园 · 安卓版：版本组合已在本机实测通过（assembleDebug 成功，含 Pillow）
+// 原生壳用 Java（不引入 Kotlin 插件，少一次下载、编译更快）
 plugins {
     id 'com.android.application' version '8.13.2' apply false
-    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
     id 'com.chaquo.python' version '17.1.0' apply false
 }
