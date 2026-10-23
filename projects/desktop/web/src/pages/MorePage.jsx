@@ -1,8 +1,7 @@
 import React from 'react';
 import {
-  Button, Card, Checkbox, Descriptions, Input, InputNumber, List, Select, Space, Tag, Typography,
+  Button, Card, Checkbox, Descriptions, Input, InputNumber, Select, Typography,
 } from 'antd';
-import RecordCard from '../RecordCard';
 
 const { Text } = Typography;
 
@@ -139,41 +138,6 @@ export default function MorePage({
           </div>
         </Card>
 
-        <Card
-          title="服务器记录"
-          size="small"
-          className="records-card"
-          extra={(
-            <Space size={4}>
-              <Text type="secondary">第 {runs.page} 页</Text>
-              <Button type="link" size="small" disabled={runs.page <= 1}
-                onClick={() => actions.loadRuns(runs.page - 1)}>上一页</Button>
-              <Button type="link" size="small" disabled={!runs.hasNext}
-                onClick={() => actions.loadRuns(runs.page + 1)}>下一页</Button>
-              <Button type="link" size="small" onClick={() => actions.loadRuns(1)}>刷新</Button>
-            </Space>
-          )}
-        >
-          {runs.error ? (
-            <Text type="secondary">{runs.error}</Text>
-          ) : runs.items.length ? (
-            <List
-              dataSource={runs.items}
-              renderItem={(item) => (
-                <List.Item
-                  className={`rec-item${detail && detail.record && detail.record.run_code === item.run_code ? ' active' : ''}`}
-                  onClick={() => actions.pickRun(item)}
-                >
-                  <RecordCard item={item} />
-                </List.Item>
-              )}
-            />
-          ) : (
-            <Text type="secondary">
-              {logged ? '服务器上暂无记录（完成一次跑步后会出现在这里）' : '未登录：登录后才会显示账号下的记录'}
-            </Text>
-          )}
-        </Card>
 
         <Card
           title="事件流"
