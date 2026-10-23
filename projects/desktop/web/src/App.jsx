@@ -69,7 +69,7 @@ export default function App() {
   const refreshStatus = useCallback(async () => {
     try {
       const st = await Bridge.call('status');
-      if (!st) return;
+      if (!st) return null;
       setStatus(st);
       setAccounts(st.accounts || []);
       if (!paramsLoadedRef.current) {
@@ -91,7 +91,8 @@ export default function App() {
           mode: st.mode || 'real',
         }));
       }
-    } catch (_) { /* 桥未就绪 */ }
+      return st;
+    } catch (_) { return null; /* 桥未就绪 */ }
   }, []);
 
   const autoPrepare = useCallback(async () => {
@@ -123,13 +124,25 @@ export default function App() {
     }
   }, []);
 
-  /* 启动：先到登录页；已登录会话仍在后端，等用户选「选择已有账号」或登录 */
+  /* 启动：有上次的登录会话就直接进选起始点页；会话失效才回登录页 */
   useEffect(() => {
     (async () => {
       await Bridge.waitReady();
-      await refreshStatus();
+      const st = await refreshStatus();
+      if (st && st.logged_in) {
+        try {
+          const r = await Bridge.call('refresh_user');   // 顺带校验会话是否还有效
+          if (r && r.code === 0) {
+            await autoPrepare();
+            setView('pick');
+            refreshRuns(1);
+            return;
+          }
+        } catch (_) { /* 会话失效，回登录页 */ }
+      }
+      setView('login');
     })();
-  }, [refreshStatus]);
+  }, [refreshStatus, autoPrepare, refreshRuns]);
 
   /* 事件流 / 进度轮询 */
   useEffect(() => {
