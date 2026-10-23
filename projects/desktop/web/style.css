@@ -312,3 +312,24 @@ button { font-family: inherit; }
 
 /* 侧栏右上角：账户入口 */
 .account-entry { position: absolute; top: 12px; right: 12px; z-index: 5; }
+
+/* ── 跑步记录卡片（照 App 记录页）── */
+.rec-item { padding: 0 !important; border-bottom: 1px solid #f0f0f0 !important; }
+.rec-item.active { background: #e6f4ff; }
+.rec-card { width: 100%; padding: 16px 20px; }
+.rec-head { display: flex; align-items: baseline; gap: 8px; }
+.rec-dist { font-size: 34px; font-weight: 700; line-height: 1.1; color: #1f1f1f; }
+.rec-dist.invalid { color: #f5222d; }
+.rec-unit { font-size: 16px; color: #8c8c8c; margin-right: 6px; }
+.rec-tag {
+  display: inline-block; padding: 2px 12px; border-radius: 14px;
+  font-size: 13px; line-height: 20px; color: #fff; background: #1677ff;
+}
+.rec-tag.err { background: #f5222d; }
+.rec-sub {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 6px; color: #1f1f1f; font-size: 13px;
+}
+.rec-date { color: #bfbfbf; }
+.rec-stats { display: flex; gap: 24px; margin-top: 8px; color: #8c8c8c; font-size: 13px; }
+.rec-stat i { font-style: normal; margin-right: 4px; opacity: .55; }

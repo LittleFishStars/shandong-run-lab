@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Button, Card, Checkbox, Descriptions, Input, InputNumber, List, Select, Space, Tag, Typography,
 } from 'antd';
-import { fmtDateTime, fmtDur, fmtPaceShort } from '../format';
+import RecordCard from '../RecordCard';
 
 const { Text } = Typography;
 
@@ -161,20 +161,10 @@ export default function MorePage({
               dataSource={runs.items}
               renderItem={(item) => (
                 <List.Item
-                  className={`run-item${detail && detail.record && detail.record.run_code === item.run_code ? ' active' : ''}`}
+                  className={`rec-item${detail && detail.record && detail.record.run_code === item.run_code ? ' active' : ''}`}
                   onClick={() => actions.pickRun(item)}
                 >
-                  <div style={{ width: '100%' }}>
-                    <div className="rc">{item.run_code}</div>
-                    <div className="meta">
-                      <span>{item.distance_m ? `${Number(item.distance_m).toFixed(0)} 米` : '--'}</span>
-                      <span>{item.duration_s ? `${Math.round(item.duration_s / 60)} 分` : '--'}</span>
-                      <span>{item.start_ms ? fmtDateTime(item.start_ms) : ''}</span>
-                      <Tag color={item.state_kind === 'ok' ? 'green' : item.state_kind === 'err' ? 'red' : 'gold'}>
-                        {item.state || '--'}
-                      </Tag>
-                    </div>
-                  </div>
+                  <RecordCard item={item} />
                 </List.Item>
               )}
             />

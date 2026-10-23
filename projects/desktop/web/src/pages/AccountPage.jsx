@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, List, Tag, Typography } from 'antd';
-import { fmtDateTime, fmtDur, fmtPaceShort } from '../format';
+import { Button, List, Typography } from 'antd';
+import RecordCard from '../RecordCard';
 
 const { Text } = Typography;
 
@@ -26,23 +26,7 @@ export default function AccountPage({ status, runs, actions }) {
             <List
               className="account-runs"
               dataSource={runs.items}
-              renderItem={(item) => (
-                <List.Item>
-                  <div className="account-run">
-                    <div className="account-run-main">
-                      <span className="rc">{item.run_code}</span>
-                      <span className="meta">{item.start_ms ? fmtDateTime(item.start_ms) : ''}</span>
-                    </div>
-                    <div className="account-run-stats">
-                      <span>{item.distance_m ? `${Number(item.distance_m).toFixed(0)} 米` : '--'}</span>
-                      <span>{item.duration_s ? fmtDur(item.duration_s) : '--'}</span>
-                      <Tag color={item.state_kind === 'ok' ? 'green' : item.state_kind === 'err' ? 'red' : 'gold'}>
-                        {item.state || '--'}
-                      </Tag>
-                    </div>
-                  </div>
-                </List.Item>
-              )}
+              renderItem={(item) => <List.Item className="rec-item"><RecordCard item={item} /></List.Item>}
             />
           ) : (
             <div className="account-empty">
