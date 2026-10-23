@@ -417,13 +417,17 @@ button { font-family: inherit; }
 /* 下拉选项要压过首页底部面板（面板 z-index 1200） */
 .ant-select-dropdown { z-index: 1300 !important; }
 
-/* ── 跑步页：地图全屏 + 并排两个底部面板（统计 / 控制） ── */
+/* ── 跑步页：地图全屏 + 底部三块面板（停止 / 摇杆 / 统计），摇杆居中 ── */
 .run-page { position: relative; height: 100%; overflow: hidden; background: #f0f2f5; }
 .run-page .home-map { position: absolute; inset: 0; }
 .run-sheets {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px;
-  display: flex; align-items: flex-end; gap: 16px; z-index: 1200;
+  position: absolute; left: 0; right: 0; bottom: 16px;
+  display: flex; align-items: flex-end; justify-content: center; gap: 16px; z-index: 1200;
+  padding: 0 16px;
 }
+.run-sheets-side { flex: 1 1 0; display: flex; align-items: flex-end; min-width: 0; }
+.run-sheets-side.left { justify-content: flex-end; }
+.run-sheets-side.right { justify-content: flex-start; }
 .run-sheet {
   background: #fff; border-radius: 22px; box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
 }
@@ -432,4 +436,5 @@ button { font-family: inherit; }
 .run-ctl-sheet { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .run-ctl-sheet .run-ctl { margin: 0; }
 .run-ctl-sheet .run-pace { margin: 0; }
-.run-ctl-sheet .btn-end { align-self: center; margin: 0; margin-top: 4px; }
+.run-stop-sheet { padding: 20px; display: flex; align-items: center; justify-content: center; }
+.run-stop-sheet .btn-end { margin: 0; }
