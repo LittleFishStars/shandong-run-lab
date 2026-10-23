@@ -15,7 +15,6 @@ export default function RunPage({ mapProps, walk, planDistance, actions }) {
     <div className="run-layout">
       <div className="map-card"><MapCanvas {...mapProps} /></div>
       <aside className="side-panel">
-        <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
         <div className="live-stats">
           <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
           <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
