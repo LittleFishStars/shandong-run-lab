@@ -523,6 +523,7 @@ export default function App() {
     checkpoints: mapCheckpoints,
     waypoints,
     tiles: params.tiles,
+    onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
     fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${(status && status.start_point && status.start_point.lat) || ''}|${fitNonce}`,
     onClick: view === 'pick' ? onMapClick : undefined,
   };

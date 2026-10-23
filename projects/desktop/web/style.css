@@ -263,3 +263,10 @@ button { font-family: inherit; }
 .target-pill .ant-select { width: 100%; }
 .target-pill .ant-select-selector { border: 0 !important; box-shadow: none !important; padding: 0 !important; background: transparent !important; }
 .more-grid .ant-card-head-title { font-weight: 600; }
+
+/* 地图右上角：高德地图 / 高德卫星 切换 */
+.map-wrap { position: relative; height: 100%; }
+.map-type-switch { position: absolute; top: 12px; right: 12px; z-index: 900; }
+.map-type-switch .ant-radio-group {
+  background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); padding: 2px;
+}
