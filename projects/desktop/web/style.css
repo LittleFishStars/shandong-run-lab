@@ -131,7 +131,7 @@ button { font-family: inherit; }
 .more-grid { grid-template-columns: 1fr; }
 .param-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
 .param-grid .field { margin-bottom: 16px; }
-.more-grid > .ant-card { display: flex; flex-direction: column; min-width: 0; }
+.more-grid > .ant-card { display: flex; flex-direction: column; min-width: 0; width: 100%; }
 .more-grid .ant-card-head { padding: 0 16px; min-height: 48px; }
 .more-grid .ant-card-head-title { font-size: 14px; }
 .more-grid .ant-card-body { padding: 16px; }
@@ -250,7 +250,6 @@ button { font-family: inherit; }
 /* ── 窄屏 ── */
 @media (max-width: 1180px) {
   .run-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; padding: 12px; }
-  .more-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .records-card, .log-card { grid-column: span 2; }
   .btn-start { width: 128px; height: 128px !important; font-size: 22px !important; }
 }
