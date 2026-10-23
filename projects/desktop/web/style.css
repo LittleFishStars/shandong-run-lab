@@ -31,7 +31,7 @@ button { font-family: inherit; }
 .login-brand-sub { font-size: 13px; color: #8c8c8c; letter-spacing: 4px; margin-top: -8px; }
 .login-card { border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .08); justify-self: center; width: 100%; max-width: 380px; }
 .login-card .ant-card-body { padding: 32px; }
-.login-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.login-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .login-actions .ant-btn { height: 38px; padding: 0 22px; }
 .login-remove { height: 38px !important; padding: 0 14px !important; }
 
@@ -337,3 +337,17 @@ button { font-family: inherit; }
 .account-main-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .account-main-head h2 { margin: 0; font-size: 16px; }
 .account-progress { color: #8c8c8c; font-size: 13px; }
+
+/* 已保存的账号弹窗 */
+.saved-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; }
+.saved-item { display: flex; align-items: center; gap: 8px; }
+.saved-main {
+  flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border: 1px solid #f0f0f0; border-radius: 8px; background: #fff; cursor: pointer; text-align: left;
+}
+.saved-main:hover { border-color: #91caff; background: #f5faff; }
+.saved-name { font-size: 14px; color: #1f1f1f; }
+.saved-current { font-size: 12px; color: #1677ff; }
+.saved-del { border: 0; background: transparent; color: #bfbfbf; cursor: pointer; font-size: 12px; }
+.saved-del:hover { color: #f5222d; }
+.saved-empty { color: #8c8c8c; padding: 12px 0; }

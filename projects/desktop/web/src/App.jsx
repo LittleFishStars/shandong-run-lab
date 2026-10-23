@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { Bridge } from './bridge';
 import {
   parsePace, paceToSpeed, fmtPaceInput, fmtPaceShort, fmtDur, fmtKm, fmtDateTime,
@@ -25,10 +25,9 @@ const fmtEventTime = (ts) => {
 export default function App() {
   const [status, setStatus] = useState(null);
   const [view, setView] = useState('login');
-  const [accountMode, setAccountMode] = useState(false);
   const [accounts, setAccounts] = useState([]);
-  const [account, setAccount] = useState('');
-  const [phone, setPhone] = useState('13800138000');
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState([]);
@@ -308,39 +307,40 @@ export default function App() {
     } finally { setBusy(false); }
   };
 
-  const loginAccount = async () => {
-    if (!account) return;
+  /* 已保存的账号：弹窗里选一个，直接切换；token 失效就用保存的密码重登 */
+  const loginSaved = async (uid) => {
+    if (!uid) return;
     setBusy(true);
     try {
-      const r = await Bridge.call('switch_account', account);
-      if (r && r.code === 0) {
-        toast('已切换账号', 'ok');
-        await refreshStatus();
-        await autoPrepare();
-        setView('pick');            // 登录后先进选起始点页，确认再回首页
-        refreshRuns(1);
+      let r = await Bridge.call('switch_account', uid);
+      if (!(r && r.code === 0)) {
+        r = await Bridge.call('relogin_account', uid);
+        if (!(r && r.code === 0)) {
+          toast((r && r.message) || '登录失败', 'err');
+          return;
+        }
+        toast('历史登录已失效，已用保存的账号密码重新登录', 'ok');
       } else {
-        // 历史账号登录态失效：用保存的账号密码重新登录
-        const rr = await Bridge.call('relogin_account', account);
-        if (rr && rr.code === 0) {
-          toast('历史登录已失效，已用保存的账号密码重新登录', 'ok');
-          await refreshStatus();
-          await autoPrepare();
-          setView('pick');
-          refreshRuns(1);
-        } else toast((rr && rr.message) || (r && r.message) || '切换失败', 'err');
+        toast('已切换账号', 'ok');
       }
+      await refreshStatus();
+      await autoPrepare();
+      setView('pick');            // 登录后先进选起始点页，确认再回首页
+      refreshRuns(1);
     } finally { setBusy(false); }
   };
 
-  const removeAccount = async () => {
-    if (!account) return;
-    const r = await Bridge.call('forget_account', account);
+  const removeSaved = async (uid) => {
+    const r = await Bridge.call('forget_account', uid);
     if (r && r.code === 0) {
       toast('已移除该账号', 'ok');
-      setAccount('');
       await refreshStatus();
     } else toast((r && r.message) || '移除失败', 'err');
+  };
+
+  const openSavedAccounts = () => {
+    if (!accounts.length) { toast('本机还没有保存的账号', 'err'); return; }
+    setSavedOpen(true);
   };
 
   const logout = async () => {
@@ -348,14 +348,7 @@ export default function App() {
     toast('已退出登录');
     setView('login');
     setDetail(null);
-    setAccountMode(false);
-    setAccount('');
     await refreshStatus();
-  };
-
-  const toAccount = () => {
-    if (!accounts.length) { toast('本机还没有登录过的账号', 'err'); return; }
-    setAccountMode(true);
   };
 
   /* 参数 */
@@ -648,8 +641,7 @@ export default function App() {
   };
 
   const actions = {
-    setPhone, setPassword, setAccount, login, loginAccount, removeAccount, toAccount,
-    toNew: () => setAccountMode(false), logout,
+    setPhone, setPassword, login, logout,
     setDistance: (v) => setParams((p) => ({ ...p, distance: v })),
     setParam: (k, v) => setParams((p) => ({ ...p, [k]: v })),
     setMode, setFence: (v) => setParams((p) => ({ ...p, fence: v })), setTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
@@ -669,21 +661,44 @@ export default function App() {
         }
       } catch (_) { /* 忽略 */ }
     },
-    toAccount: () => {
-      if (!accounts.length) { toast('本机还没有登录过的账号', 'err'); return; }
-      setAccountMode(true);
-    },
+    openSavedAccounts,
+    loginSaved,
+    removeSaved,
     openAccount: () => { refreshRuns(1); setView('account'); },
     back: () => setView(walk && walk.running ? 'run' : 'home'),
   };
 
   return (
     <div className="app-root">
+      <Modal
+        title="已保存的账号"
+        open={savedOpen}
+        onCancel={() => setSavedOpen(false)}
+        footer={null}
+        destroyOnClose
+      >
+        {accounts.length ? (
+          <div className="saved-list">
+            {accounts.map((a) => (
+              <div key={a.userId} className="saved-item">
+                <button
+                  type="button"
+                  className="saved-main"
+                  onClick={() => { setSavedOpen(false); loginSaved(a.userId); }}
+                >
+                  <span className="saved-name">{a._account_name || a.loginName || a.userId}</span>
+                  {a.current ? <span className="saved-current">当前</span> : null}
+                </button>
+                <button type="button" className="saved-del" onClick={() => removeSaved(a.userId)}>移除</button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="saved-empty">本机还没有保存的账号</div>
+        )}
+      </Modal>
       {view === 'login' && (
         <LoginPage
-          accountMode={accountMode}
-          accounts={accounts}
-          account={account}
           phone={phone}
           password={password}
           busy={busy}
