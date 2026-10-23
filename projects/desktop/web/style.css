@@ -333,3 +333,7 @@ button { font-family: inherit; }
 .rec-date { color: #bfbfbf; }
 .rec-stats { display: flex; gap: 24px; margin-top: 8px; color: #8c8c8c; font-size: 13px; }
 .rec-stat i { font-style: normal; margin-right: 4px; opacity: .55; }
+
+.account-main-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.account-main-head h2 { margin: 0; font-size: 16px; }
+.account-progress { color: #8c8c8c; font-size: 13px; }

@@ -33,7 +33,20 @@ export default function AccountPage({ status, runs, actions }) {
           <Button danger type="primary" className="account-logout" onClick={actions.logout}>退出登录</Button>
         </aside>
         <section className="account-main">
-          <h2>跑步记录</h2>
+          <div className="account-main-head">
+            <h2>跑步记录</h2>
+            {(() => {
+              const doneKm = (Number(status && status.done_distance) || 0) / 1000;
+              const totalKm = (Number(status && status.rule && status.rule.totalDistance) || 0) / 1000;
+              if (!totalKm) return null;
+              const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+              return (
+                <span className="account-progress">
+                  已完成 {fmt(doneKm)} km / 要求 {fmt(totalKm)} km
+                </span>
+              );
+            })()}
+          </div>
           {runs.error ? (
             <Text type="secondary">{runs.error}</Text>
           ) : runs.items.length ? (

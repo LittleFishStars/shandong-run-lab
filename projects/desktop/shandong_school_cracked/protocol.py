@@ -491,6 +491,8 @@ class RuleSet:
 
     single_min_distance: float = 1000.0     # 单次最小距离（米）
     single_max_distance: float = 10000.0
+    # SchoolRule.totalDistance（米）：学校要求的总里程（学期目标）
+    total_distance: float = 0.0
     # SchoolRule.dayMaxDistance（米）：每日最多计入成绩的里程；原版规则页（dw7.a）按 km 显示
     day_max_distance: float = 0.0
     min_pace: float = 120.0                 # 秒/公里，越快值越小
@@ -514,6 +516,7 @@ class RuleSet:
             return r
         r.single_min_distance = float(_first(rule, "singleMinDistance", default=r.single_min_distance))
         r.single_max_distance = float(_first(rule, "singleMaxDistance", default=r.single_max_distance))
+        r.total_distance = float(_first(rule, "totalDistance", default=r.total_distance))
         r.day_max_distance = float(_first(rule, "dayMaxDistance", default=r.day_max_distance))
         r.min_pace = float(_first(rule, "minPace", default=r.min_pace))
         r.max_pace = float(_first(rule, "maxPace", default=r.max_pace))
@@ -541,6 +544,7 @@ class RuleSet:
             "minPace": self.min_pace,
             "maxPace": self.max_pace,
             "segmentStrideAvg": self.segment_stride_avg,
+            "totalDistance": self.total_distance,
             "dayMaxDistance": self.day_max_distance,
             "segmentStrideExceptionNum": self.segment_stride_exception_num,
             "swingAmplitudeThreshold": self.swing_amplitude_threshold,

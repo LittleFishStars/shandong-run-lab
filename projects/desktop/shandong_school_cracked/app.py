@@ -364,6 +364,7 @@ class App:
             "progress": self._progress,
             "stats": self.store.stats(),
             "last": self._last_result,
+            "done_distance": int((self.client.abstract or {}).get("doneDistance") or 0),
             "data_dir": str(self.data_dir),
             "config_path": str(self.cfg_store.path),
             # 配置目录只读时（沙箱、容器）界面上要能看见，不然“保存参数”看着成功其实没落盘

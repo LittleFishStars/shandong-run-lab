@@ -336,6 +336,7 @@ def _run_abstract(w: MockWorld, path: str, h, b):
         "runPlanCode": "PLAN_DAILY",
         "planType": 1,
         "validStatus": True,
+        "doneDistance": done_distance,
         "schoolDemandRule": w.rule,
         "studentDoneRuleInfo": {
             "doneDistance": done_distance,
