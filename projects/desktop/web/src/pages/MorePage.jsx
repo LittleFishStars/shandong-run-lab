@@ -84,20 +84,7 @@ export default function MorePage({
           {ruleRows.length ? <KV rows={ruleRows} /> : <Text type="secondary">尚未加载</Text>}
         </Card>
 
-        <Card title="账号" size="small">
-          {logged ? <KV rows={userRows} /> : <Text type="secondary">未登录</Text>}
-          <div className="row">
-            <Button size="small" onClick={actions.openDataDir}>数据目录</Button>
-            <Button size="small" onClick={actions.logout}>退出登录</Button>
-          </div>
-        </Card>
-
-        <Card title="本次跑步" size="small"
-          extra={<Text type="secondary">{runCode || '--'}</Text>}>
-          {runRows.length ? <KV rows={runRows} /> : <Text type="secondary">尚未开始</Text>}
-        </Card>
-
-        <Card title="地图与起点" size="small">
+        <Card title="功能" size="small">
           <div className="row">
             <Button size="small" onClick={actions.toPick}>选择起始点</Button>
             <Button size="small" onClick={actions.clearStart}>清除起点</Button>
@@ -115,9 +102,6 @@ export default function MorePage({
               按上传状态着色
             </Checkbox>
           </div>
-        </Card>
-
-        <Card title="高级 / 调试" size="small">
           <div className="row">
             <Button size="small" onClick={actions.dryRun}>干跑调试</Button>
             <Button size="small" onClick={actions.stopWalk}>停止</Button>
