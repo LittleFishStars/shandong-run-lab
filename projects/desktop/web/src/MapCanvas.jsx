@@ -3,7 +3,7 @@ import { Radio } from 'antd';
 import { initMap, renderMap, setTileLayer } from './map';
 
 /* 地图画布：挂载 Leaflet 实例，数据变化时重绘（页面切换时重建，镜头随围栏 fit） */
-export default function MapCanvas({ status, walkPoints, waypoints, checkpoints, ghostPath, ghostEnabled, tiles, fitKey, onClick, onTiles, onGhostStart, onGhostMove, onGhostEnd, className }) {
+export default function MapCanvas({ status, walkPoints, checkpoints, ghostPath, ghostEnabled, tiles, fitKey, onClick, onTiles, onGhostStart, onGhostMove, onGhostEnd, className }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const clickRef = useRef(onClick);
@@ -20,7 +20,7 @@ export default function MapCanvas({ status, walkPoints, waypoints, checkpoints, 
     const m = initMap(ref.current, clickRef, ghostRef);
     mapRef.current = m;
     setTileLayer(m, tiles);
-    renderMap(m, { status, walkPoints, waypoints, checkpoints, ghostPath, fitKey });
+    renderMap(m, { status, walkPoints, checkpoints, ghostPath, fitKey });
     return () => {
       try { m.remove(); } catch (_) { /* 忽略 */ }
       mapRef.current = null;
@@ -29,8 +29,8 @@ export default function MapCanvas({ status, walkPoints, waypoints, checkpoints, 
   }, []);
 
   useEffect(() => {
-    renderMap(mapRef.current, { status, walkPoints, waypoints, checkpoints, ghostPath, fitKey });
-  }, [status, walkPoints, waypoints, checkpoints, ghostPath, fitKey]);
+    renderMap(mapRef.current, { status, walkPoints, checkpoints, ghostPath, fitKey });
+  }, [status, walkPoints, checkpoints, ghostPath, fitKey]);
 
   useEffect(() => {
     setTileLayer(mapRef.current, tiles);

@@ -21,7 +21,7 @@ export function initMap(el, onClickRef, ghostRef) {
   const L = window.L;
   const m = L.map(el, { center: HOME, zoom: 16, zoomControl: true, preferCanvas: true });
   m.layers = {};
-  for (const k of ['fence', 'route', 'wpt', 'track', 'cps', 'start', 'ghost']) {
+  for (const k of ['fence', 'track', 'cps', 'start', 'ghost']) {
     m.layers[k] = L.layerGroup().addTo(m);
   }
   m.on('click', (e) => {
@@ -77,7 +77,7 @@ export function setTileLayer(map, kind) {
 export function renderMap(map, data) {
   const L = window.L;
   if (!map) return;
-  const { status, walkPoints, route, waypoints, checkpoints, ghostPath, fitKey } = data || {};
+  const { status, walkPoints, checkpoints, ghostPath, fitKey } = data || {};
   const st = status || {};
   const layers = map.layers;
 
@@ -118,14 +118,6 @@ export function renderMap(map, data) {
     }).addTo(layers.start);
   }
 
-  /* 路点（规划的整条路线不再画，只保留手动点选的路点） */
-  layers.route.clearLayers();
-  layers.wpt.clearLayers();
-  (waypoints || []).forEach((p) => {
-    L.circleMarker([Number(p[0]), Number(p[1])], {
-      radius: 4, color: '#1677ff', weight: 2, fillColor: '#ffffff', fillOpacity: 1,
-    }).addTo(layers.wpt);
-  });
 
   /* 本次轨迹 */
   layers.track.clearLayers();

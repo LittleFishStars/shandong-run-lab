@@ -37,8 +37,6 @@ export default function App() {
   const [detail, setDetail] = useState(null);
   const [walk, setWalk] = useState(null);
   const [walkPoints, setWalkPoints] = useState([]);
-  const [route, setRoute] = useState([]);
-  const [waypoints, setWaypoints] = useState([]);
   const [fitNonce, setFitNonce] = useState(0);
   const [serverPoints, setServerPoints] = useState(null);
   const [ghostPath, setGhostPath] = useState([]);
@@ -481,20 +479,6 @@ export default function App() {
     toast((r && r.message) || '草稿已保存', r && r.code === 0 ? 'ok' : 'err');
   };
 
-  const planRoute = async () => {
-    const r = await Bridge.call('walk_plan');
-    if (r && r.code === 0) {
-      const pts = (r.data && (r.data.route || r.data.points)) || [];
-      if (Array.isArray(pts) && pts.length) {
-        setRoute(pts.map((p) => (Array.isArray(p) ? p : [p.lat, p.lng])));
-      }
-      toast('已按打卡点规划路线', 'ok');
-      setView('home');
-    } else toast((r && r.message) || '规划失败', 'err');
-  };
-
-  const clearWaypoints = () => { setWaypoints([]); setRoute([]); toast('已清空路点'); };
-
   const runAuto = async () => {
     const r = await Bridge.call('run_auto', params.distance, params.fence, true, true, 1);
     toast((r && r.message) || '一键跑已启动', r && r.code === 0 ? 'ok' : 'err');
@@ -656,7 +640,6 @@ export default function App() {
     onGhostStart,
     onGhostMove,
     onGhostEnd,
-    waypoints,
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
 
@@ -672,7 +655,7 @@ export default function App() {
     setMode, setFence: (v) => setParams((p) => ({ ...p, fence: v })), setTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
     saveParams, resetDevice, openDataDir, reloadRule,
     startRun, endRun, dryRun, stopWalk, pauseWalk, uploadWalk, saveDraft,
-    planRoute, clearWaypoints, runAuto, resumeRun, toggleAuto,
+    runAuto, resumeRun, toggleAuto,
     joystick, joystickEnd,
     toPick, confirmPick, clearStart, fitHome,
     loadRuns: refreshRuns, pickRun,

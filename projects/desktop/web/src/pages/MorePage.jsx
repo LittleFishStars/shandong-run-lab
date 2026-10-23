@@ -126,10 +126,6 @@ export default function MorePage({
             <Button size="small" onClick={actions.saveDraft}>存草稿</Button>
           </div>
           <div className="row">
-            <Button size="small" onClick={actions.planRoute}>只规划路径</Button>
-            <Button size="small" onClick={actions.clearWaypoints}>清路点</Button>
-          </div>
-          <div className="row">
             <Button size="small" onClick={actions.runAuto}>一键跑完整链路</Button>
             <Button size="small" onClick={actions.resumeRun}>断点续传</Button>
             <Button size="small" onClick={actions.toggleAuto}>
