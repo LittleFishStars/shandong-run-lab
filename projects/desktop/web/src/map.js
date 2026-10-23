@@ -21,6 +21,21 @@ export function initMap(el, onClickRef, ghostRef) {
   const L = window.L;
   const m = L.map(el, { center: HOME, zoom: 16, zoomControl: true, preferCanvas: true });
   m.layers = {};
+  // 叠放次序（低 -> 高）：围栏 < 起点 < 规划轨迹 < 轨迹 < 打卡点 < 复制点 < 人
+  const panes = [
+    ['fencePane', 380],
+    ['startPane', 390],
+    ['ghostPathPane', 400],
+    ['trackPane', 410],
+    ['cpsPane', 420],
+    ['ghostPane', 430],
+    ['personPane', 440],
+  ];
+  for (const [name, z] of panes) {
+    m.createPane(name);
+    const pane = m.getPane(name);
+    if (pane) pane.style.zIndex = String(z);
+  }
   for (const k of ['fence', 'start', 'ghostPath', 'track', 'cps', 'ghost', 'person']) {
     m.layers[k] = L.layerGroup().addTo(m);
   }
@@ -86,7 +101,7 @@ export function renderMap(map, data) {
   const fence = (st.fence_polygon || []).map(([a, b]) => [Number(a), Number(b)])
     .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
   if (fence.length >= 3) {
-    L.polygon(fence, { color: '#52c41a', weight: 2, fillColor: '#95de64', fillOpacity: 0.12 }).addTo(layers.fence);
+    L.polygon(fence, { pane: 'fencePane', color: '#52c41a', weight: 2, fillColor: '#95de64', fillOpacity: 0.12 }).addTo(layers.fence);
   }
 
   /* 打卡点（服务端开跑后下发；开跑前用预览点） */
@@ -105,6 +120,7 @@ export function renderMap(map, data) {
         iconAnchor: [10, 10],
         html: `<span class="cp-label${passed ? ' passed' : ''}">${num}</span>`,
       }),
+      pane: 'cpsPane',
       keyboard: false,
     }).addTo(layers.cps);
   });
@@ -115,6 +131,7 @@ export function renderMap(map, data) {
   if (sp && Number.isFinite(Number(sp.lat)) && Number.isFinite(Number(sp.lng))) {
     L.marker([Number(sp.lat), Number(sp.lng)], {
       icon: L.divIcon({ className: 'start-label', html: '起', iconSize: [22, 22], iconAnchor: [11, 11] }),
+      pane: 'startPane',
     }).addTo(layers.start);
   }
 
@@ -124,11 +141,11 @@ export function renderMap(map, data) {
   layers.person.clearLayers();
   if (Array.isArray(walkPoints) && walkPoints.length > 1) {
     L.polyline(walkPoints.map((p) => [Number(p.lat), Number(p.lng)]), {
-      color: '#1677ff', weight: 4, opacity: 0.9,
+      pane: 'trackPane', color: '#1677ff', weight: 4, opacity: 0.9,
     }).addTo(layers.track);
     const last = walkPoints[walkPoints.length - 1];
     L.circleMarker([Number(last.lat), Number(last.lng)], {
-      radius: 7, color: '#ffffff', weight: 2.5, fillColor: '#1677ff', fillOpacity: 1,
+      pane: 'personPane', radius: 7, color: '#ffffff', weight: 2.5, fillColor: '#1677ff', fillOpacity: 1,
     }).addTo(layers.person);
   }
 
@@ -137,11 +154,11 @@ export function renderMap(map, data) {
   layers.ghost.clearLayers();
   if (Array.isArray(ghostPath) && ghostPath.length > 1) {
     L.polyline(ghostPath.map((p) => [Number(p[0]), Number(p[1])]), {
-      color: '#13c2c2', weight: 3, dashArray: '4 6', opacity: 0.9,
+      pane: 'ghostPathPane', color: '#13c2c2', weight: 3, dashArray: '4 6', opacity: 0.9,
     }).addTo(layers.ghostPath);
     const last = ghostPath[ghostPath.length - 1];
     L.circleMarker([Number(last[0]), Number(last[1])], {
-      radius: 7, color: '#ffffff', weight: 2, fillColor: '#13c2c2', fillOpacity: 1,
+      pane: 'ghostPane', radius: 7, color: '#ffffff', weight: 2, fillColor: '#13c2c2', fillOpacity: 1,
     }).addTo(layers.ghost);
   }
 
