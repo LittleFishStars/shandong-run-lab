@@ -36,7 +36,7 @@
 from .constants import APP_VERSION
 
 #: 本工程（工作台）自身版本，与复刻的 App 版本 APP_VERSION 区分开
-__version__ = "2.0.0"
+__version__ = "2.1.1"
 
 __all__ = ["APP_VERSION", "__version__", "App", "ShanDongClient", "RunEngine"]
 

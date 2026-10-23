@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用主题：无 ActionBar、浅色状态栏（与前端背景 #f0f2f5 接近） -->
+    <style name="Theme.SD" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F0F2F5</item>
+        <item name="android:statusBarColor">#F0F2F5</item>
+        <item name="android:navigationBarColor">#F0F2F5</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorPrimary">#3B82F6</item>
+    </style>
+</resources>

@@ -28,7 +28,8 @@ ShanDong/
 │   ├── meta/            盘点清单与产出（inventory、manifest、plugin_risk、domains/urls）
 │   └── toolchain/       apktool、smali/baksmali、frida-server 等工具链
 ├── projects/         可运行工程
-│   └── desktop/      ★ 桌面工作台 shandong-school_cracked（Python 包，GUI+CLI，见 projects/desktop/README.md）
+│   ├── desktop/      ★ 桌面工作台 shandong-school_cracked（Python 包，GUI+CLI，见 projects/desktop/README.md）
+│   └── android/      ★ 安卓版（Chaquopy 复用同一套 Python 业务 + WebView 移动端界面，见 projects/android/README.md）
 ├── .github/workflows/   CI（打 tag 自动双平台构建 + 发 Release）
 ├── .gitattributes       Git LFS 规则（*.apk/*.dex/*.so/*.bin/*.jar/*.a/*.xz/*.zip/*.png）
 └── tmp/              临时产物（脚本会自动重建，可随时清）

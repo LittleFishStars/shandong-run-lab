@@ -1,0 +1,54 @@
+// 闪动校园 · 安卓版 —— 原生壳构建脚本（纯 Java，不引入 Kotlin 插件）
+// 版本组合已实测通过：AGP 8.13.2 + Gradle 9.3.1 + JDK 21 + Chaquopy 17.1.0 + Python 3.12
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.ylxc.shandong'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+
+    defaultConfig {
+        applicationId "com.ylxc.shandong"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+        ndk {
+            // 仅保留真机 + 模拟器两个 ABI，减小包体
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            // 演示用，不签名也可安装（debug 签名即可）；此处仅控制压缩混淆
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+}
+
+chaquopy {
+    defaultConfig {
+        // 固定 Python 3.12（Chaquopy 17.x 的 Pillow wheel 在 cp312 最稳）
+        version = '3.12'
+        // 注意：Chaquopy 17.x 的 buildPython 是 List<String>（用于命令+参数），
+        // 不能用 String 直接赋值，需包一层列表。可通过 -PbuildPython=/path 覆盖。
+        def bp = (project.findProperty('buildPython') ?: '/home/ylxc/.local/bin/python3.12')
+        buildPython = [bp]
+        pip {
+            // 显式指定 Pillow 版本 + Chaquopy 预编译 wheel 源（默认已配，保险起见显式写出）
+            options "--index-url", "https://pypi.org/simple/",
+                    "--extra-index-url", "https://chaquo.com/pypi-13.1/"
+            install 'pillow==11.0.0'
+        }
+    }
+}
