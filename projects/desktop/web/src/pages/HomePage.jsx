@@ -6,9 +6,9 @@ export default function HomePage({ mapProps, params, distanceOptions, busy, acti
   return (
     <div className="home-page">
       <div className="home-map"><MapCanvas {...mapProps} /></div>
-      <Button size="small" className="repick-entry" onClick={actions.toPick}>重新选择起始点</Button>
-      <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
       <div className="home-sheet">
+        <Button size="small" className="home-sheet-repick" onClick={actions.toPick}>重新选择起始点</Button>
+        <Button size="small" className="home-sheet-account" onClick={actions.openAccount}>账户</Button>
         <div className="home-sheet-target">
           <span>目标距离</span>
           <Select

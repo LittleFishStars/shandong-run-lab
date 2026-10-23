@@ -404,3 +404,7 @@ button { font-family: inherit; }
 
 /* 首页顶部按钮也要盖住地图内部的 Leaflet panes */
 .home-page .repick-entry, .home-page .account-entry { z-index: 1200; }
+
+/* 首页底部面板内的两个入口：账户在更多上方，重新选择起始点在左下 */
+.home-sheet .home-sheet-account { position: absolute; right: 24px; bottom: 100px; z-index: 2; }
+.home-sheet .home-sheet-repick { position: absolute; left: 20px; bottom: 22px; z-index: 2; }
