@@ -8,6 +8,7 @@ export default function LoginPage({ accountMode, accounts, account, phone, passw
       <div className="login-brand">
         <img className="app-icon" src="assets/app-icon.png" alt="闪动校园" />
         <div className="login-brand-name">闪动校园</div>
+        <div className="login-brand-sub">破解版</div>
       </div>
       <Card className="login-card" bordered={false}>
         {!accountMode ? (

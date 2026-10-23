@@ -28,6 +28,7 @@ button { font-family: inherit; }
   border-radius: 0; box-shadow: none; background: transparent;
 }
 .login-brand-name { font-size: 30px; font-weight: 600; letter-spacing: 2px; }
+.login-brand-sub { font-size: 13px; color: #8c8c8c; letter-spacing: 4px; margin-top: -8px; }
 .login-card { border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .08); justify-self: center; width: 100%; max-width: 380px; }
 .login-card .ant-card-body { padding: 32px; }
 .login-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
