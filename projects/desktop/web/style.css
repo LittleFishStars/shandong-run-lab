@@ -431,8 +431,12 @@ button { font-family: inherit; }
 .run-sheet {
   background: #fff; border-radius: 22px; box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
 }
-.run-stats-sheet { padding: 22px 26px; }
+.run-stats-sheet { padding: 20px 24px; }
 .run-stats-sheet .live-stats { margin: 0; gap: 10px; }
+.run-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 14px 30px; }
+.run-stats-grid .stat { display: flex; flex-direction: column; gap: 4px; }
+.run-stats-grid .stat span { color: #8c8c8c; font-size: 12px; white-space: nowrap; }
+.run-stats-grid .stat b { color: #1f1f1f; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .run-ctl-sheet { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .run-ctl-sheet .run-ctl { margin: 0; }
 .run-ctl-sheet .run-pace { margin: 0; }

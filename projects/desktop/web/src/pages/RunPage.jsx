@@ -21,16 +21,13 @@ export default function RunPage({ mapProps, walk, params, planDistance, actions 
       <div className="home-map"><MapCanvas {...mapProps} /></div>
       <div className="run-sheets">
         <div className="run-sheets-side left">
-          <div className="run-sheet run-stop-sheet">
-            <Button
-              type="primary"
-              shape="circle"
-              className="btn-end"
-              disabled={!walk || !walk.running}
-              onClick={actions.endRun}
-            >
-              结束
-            </Button>
+          <div className="run-sheet run-stats-sheet">
+            <div className="run-stats-grid">
+              <div className="stat"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
+              <div className="stat"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
+              <div className="stat"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
+              <div className="stat"><span>实时配速</span><b>{livePace ? fmtPaceShort(livePace) : '--'}</b></div>
+            </div>
           </div>
         </div>
         <div className="run-sheet run-ctl-sheet">
@@ -48,13 +45,16 @@ export default function RunPage({ mapProps, walk, params, planDistance, actions 
           </div>
         </div>
         <div className="run-sheets-side right">
-          <div className="run-sheet run-stats-sheet">
-            <div className="live-stats">
-              <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
-              <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
-              <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
-              <div className="live-line"><span>实时配速</span><b>{livePace ? fmtPaceShort(livePace) : '--'}</b></div>
-            </div>
+          <div className="run-sheet run-stop-sheet">
+            <Button
+              type="primary"
+              shape="circle"
+              className="btn-end"
+              disabled={!walk || !walk.running}
+              onClick={actions.endRun}
+            >
+              结束
+            </Button>
           </div>
         </div>
       </div>
