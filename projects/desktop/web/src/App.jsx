@@ -163,27 +163,15 @@ export default function App() {
     const w = walkRef.current;
     const st = (w && w.state) || {};
     const bl = Number(st.lat), bg = Number(st.lng);
-    if (!Number.isFinite(bl) || !Number.isFinite(bg)) return;
-    // 复制点从「人当前所在的位置」继续：保留已经走过的旧轨迹，从当前位置往后接着画
-    ghostDragRef.current = { active: true, baseLat: bl, baseLng: bg, startLat: lat, startLng: lng };
+    const path = ghostPathRef.current || [];
+    // 再次拖动从「复制点当前所在的位置」（轨迹终点）继续延长；第一次拖动从人的位置开始
+    const base = path.length ? path[path.length - 1] : [bl, bg];
+    if (!path.length) {
+      if (!Number.isFinite(bl) || !Number.isFinite(bg)) return;
+      setGhostPath([[bl, bg]]);
+    }
+    ghostDragRef.current = { active: true, baseLat: base[0], baseLng: base[1], startLat: lat, startLng: lng };
     ghostLastMsRef.current = 0;
-    setGhostPath((prev) => {
-      if (!prev.length) { ghostIdxRef.current = 0; return [[bl, bg]]; }
-      const cos = Math.cos(bl * Math.PI / 180);
-      let best = 0;
-      let bestD = Infinity;
-      for (let i = 0; i < prev.length; i += 1) {
-        const d = Math.hypot((prev[i][0] - bl) * 111320, (prev[i][1] - bg) * 111320 * cos);
-        if (d < bestD) { bestD = d; best = i; }
-      }
-      ghostIdxRef.current = best;
-      const head = prev.slice(0, best + 1);
-      const last = head[head.length - 1];
-      if (Math.hypot((last[0] - bl) * 111320, (last[1] - bg) * 111320 * cos) > 1.2) {
-        head.push([bl, bg]);                           // 当前位置作为新段的起点
-      }
-      return head;
-    });
   }, []);
 
   const onGhostMove = useCallback((lat, lng) => {
