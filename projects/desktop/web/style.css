@@ -351,3 +351,6 @@ button { font-family: inherit; }
 .saved-del { border: 0; background: transparent; color: #bfbfbf; cursor: pointer; font-size: 12px; }
 .saved-del:hover { color: #f5222d; }
 .saved-empty { color: #8c8c8c; padding: 12px 0; }
+
+/* 侧栏左上角：重新选择起始点 */
+.repick-entry { position: absolute; top: 12px; left: 12px; z-index: 5; }
