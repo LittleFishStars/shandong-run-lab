@@ -62,13 +62,19 @@ export function renderMap(map, data) {
   layers.cps.clearLayers();
   const cps = (Array.isArray(checkpoints) && checkpoints.length) ? checkpoints
     : ((st.checkpoints || []).length ? st.checkpoints : (st.preview_points || []));
-  cps.forEach((p) => {
+  cps.forEach((p, i) => {
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const passed = Number(p.passed) === 1 || p.passed === true;
-    L.circleMarker([lat, lng], {
-      radius: 5, color: '#ffffff', weight: 1.5,
-      fillColor: passed ? '#389e0d' : '#722ed1', fillOpacity: 1,
+    const num = p.index != null ? Number(p.index) + 1 : i + 1;   // 服务端 sort 序号
+    L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: 'cp-icon',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        html: `<span class="cp-label${passed ? ' passed' : ''}">${num}</span>`,
+      }),
+      keyboard: false,
     }).addTo(layers.cps);
   });
 
