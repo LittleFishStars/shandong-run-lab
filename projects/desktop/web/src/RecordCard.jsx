@@ -18,10 +18,19 @@ function fmtDateShort(ms) {
 }
 
 /* 单条跑步记录：大号距离 + 状态标签 + 总里程/时间 + 时长/配速/消耗（照 App 记录页样式） */
-export default function RecordCard({ item }) {
-  const km = (Number(item.distance_m) || 0) / 1000;
-  const kmText = (Number.isInteger(km) && km >= 1) ? String(km)
+function fmtKm(m) {
+  const km = (Number(m) || 0) / 1000;
+  return (Number.isInteger(km) && km >= 1) ? String(km)
     : km.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+export default function RecordCard({ item }) {
+  // 大号数字 = 计入成绩的里程（服务端 validDistance，已按单日上限封顶）；无效记录回退实际里程
+  const totalM = Number(item.distance_m) || 0;
+  const validM = Number(item.valid_distance_m) || 0;
+  const shownM = validM > 0 ? validM : totalM;
+  const kmText = fmtKm(shownM);
+  const totalText = fmtKm(totalM);
   const ok = item.state_kind === 'ok';
   const stateText = item.state || (ok ? '计入成绩' : '无效');
   return (
@@ -32,7 +41,7 @@ export default function RecordCard({ item }) {
         <span className={`rec-tag${ok ? '' : ' err'}`}>{stateText}</span>
       </div>
       <div className="rec-sub">
-        <span>本次总里程 {kmText}km</span>
+        <span>本次总里程 {totalText}km</span>
         <span className="rec-date">{fmtDateShort(item.start_ms)}</span>
       </div>
       <div className="rec-stats">
