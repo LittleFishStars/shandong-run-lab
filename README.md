@@ -37,26 +37,6 @@ ShanDong/
 
 - 各目录说明见 `work/README.md`（逐项）与 `report/README.md`；工程文档在 `projects/desktop/README.md`。
 
-### 仓库与版本控制约定
-
-**一个仓库装下整个项目**：`github.com/LittleFishStars/shandong-school_cracked`（应用、报告、脚本、脱壳产物、native 证据全在里面）。
-
-| 内容 | 存储方式 |
-|---|---|
-| 文本：报告、脚本、版本信息、jadx 全量源码、清单 | 普通 git 对象 |
-| 二进制：`.apk` `.dex` `.so` `.bin` `.jar` `.a` `.xz` `.zip` `.png`、无扩展的 `frida-server` | **Git LFS**（`.gitattributes`，147 个对象 / 约 550 MB） |
-| 不入库 | 虚拟环境（`.venv`、`.venv-frida`）、`node_modules`、`tmp/`、`dist/`、`build/`、签名密钥 `work/noshell.keystore` |
-
-```bash
-# 首次克隆（需要 git-lfs）
-git lfs install
-git clone ssh://git@ssh.github.com:443/LittleFishStars/shandong-school_cracked.git
-cd shandong-school_cracked && git lfs pull    # 拉取大文件（约 550 MB）
-```
-
-> 本机推送：/etc/ssh 配置属主异常，用仓库里的包装脚本
-> `GIT_SSH_COMMAND="$PWD/scripts/git-ssh-wrap.sh" git push origin main`
-
 ---
 
 ## 使用方法
