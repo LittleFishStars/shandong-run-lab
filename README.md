@@ -1,11 +1,10 @@
 # 闪动校园（com.huachenjie.shandong_school v8.7.7）逆向与复刻
 
-本仓库同时承载三样东西：**逆向工作区**、**24 篇分析报告**、以及一个**可运行的桌面前端复刻工程（shandong-school_cracked）**。
-对一个包的使用/建工程有疑问，先看下面的「项目结构」，再对号入座进对应目录。
+本仓库是「闪动校园」`com.huachenjie.shandong_school` v8.7.7 的**逆向工作区 + 24 篇分析报告**，
+外加一个可运行的**桌面工作台复刻**（阳光跑协议全链路复原）。
 
-- **逆向结论**：见 [`report/`](report/README.md)（报告 01–24 的唯一出处）。
-- **可运行的工程**：见 [`projects/desktop/`](projects/desktop/)（闪动校园·阳光跑 桌面工作台）。
-- **环境与路径约定**：`samples/` 只读；`tmp/` 可随时清；`work/` 只留证据与输入。
+- 逆向结论：[`report/`](report/README.md)（报告 01–24 唯一出处）
+- 桌面工程：[`projects/desktop/`](projects/desktop/)（闪动校园·阳光跑 工作台）
 
 > ⚠️ **用途声明**：本仓库仅用于**个人学习、协议研究与本地仿真调试**。请勿用于任何影响真实校园跑数据、
 > 或与自身无关的账号的用途。默认运行在**真实模式**（直连 `api.huachenjie.com`）；想纯本地调试请把登录方式切成「本地登录」。
@@ -36,9 +35,7 @@ ShanDong/
 └── tmp/              临时产物（脚本会自动重建，可随时清）
 ```
 
-- 目录树只列主干，`work/**` 每一层都有说明：`work/README.md`、`report/README.md`。
-- 应用的完整文档（功能、安装、用法、模块结构、测试）见 [`projects/desktop/README.md`](projects/desktop/README.md)（单目录就是独立文档，下同）。
-- 版本记录：应用在 `projects/desktop/README.md` 的「版本更新」；逆向每个阶段的结论见 `report/`。
+- 各目录说明见 `work/README.md`（逐项）与 `report/README.md`；工程文档在 `projects/desktop/README.md`。
 
 ### 仓库与版本控制约定
 
@@ -155,33 +152,9 @@ jadx -d work/dex/jadx_FULL --no-res samples/com.huachenjie.shandong_school.apk
 
 源码方式运行时把 `./shandong-school_cracked-<平台>` 换成 `.venv/bin/python -m shandong_school_cracked` 即可。
 所有子命令见 `--help`。
-## 开发指南
+## 开发
 
-```bash
-cd projects/desktop
-.venv/bin/python -m unittest discover -s tests -q     # 单元测试（187 项左右）
-.venv/bin/python scripts/selfcheck.py -v               # 自检
-.venv/bin/python -m shandong_school_cracked check      # 两个自检一起跑
-```
-
-**目录约定（务必遵守）**
-
-- `work/` 只留证据与输入：`report/` 里每条结论都标了对应路径；不要对 `work/` 做破坏性修改。
-- `samples/` 只读：脚本默认从 `samples/com.huachenjie.shandong_school.apk` 取样本。
-- `tmp/` 可随时清；只保留可重建的产物。
-- 代码/报告改动**提交并推送**（本机推送方式见上方）。
-
-**想改哪里**
-
-| 想改什么 | 改哪里 |
-|---|---|
-| 桌面工作台功能 | `projects/desktop/`（`shandong_school_cracked/` 包，README 有模块导览） |
-| 协议 / 逆向结论 | `report/`（报告是唯一出处），配套脚本在 `report/` 目录的 `scripts/` |
-| 整理记录 | `docs/`（新增清理/归档记录时更新 `docs/CLEANUP-2026-10-22.md` 或另起一文件） |
-
-**CI**
-
-`.github/workflows/build-release.yml`：push 以 `v*` 开头的 tag → 双平台（Linux/Windows）构建单文件可执行程序 → 发 GitHub Release；手动触发只构建不发版。
+目录约定、测试、打包、CI、提交推送等开发 / 逆向相关内容见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
 
 ---
 
