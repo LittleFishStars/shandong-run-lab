@@ -47,7 +47,7 @@ export default function RecordCard({ item }) {
       <div className="rec-stats">
         <span className="rec-stat"><i>⏱</i>{fmtHms(item.duration_s)}</span>
         <span className="rec-stat"><i>⚡</i>{fmtPaceShort(item.pace_s_per_km)}</span>
-        <span className="rec-stat"><i>🔥</i>{item.calorie || '--'}</span>
+        <span className="rec-stat"><i>🔥</i>{item.calorie ? Math.floor(Number(item.calorie) / 1000) : '--'}</span>
       </div>
     </div>
   );
