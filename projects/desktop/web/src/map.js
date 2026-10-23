@@ -21,7 +21,7 @@ export function initMap(el, onClickRef, ghostRef) {
   const L = window.L;
   const m = L.map(el, { center: HOME, zoom: 16, zoomControl: true, preferCanvas: true });
   m.layers = {};
-  for (const k of ['fence', 'track', 'cps', 'start', 'ghost']) {
+  for (const k of ['fence', 'start', 'ghostPath', 'track', 'cps', 'ghost', 'person']) {
     m.layers[k] = L.layerGroup().addTo(m);
   }
   m.on('click', (e) => {
@@ -119,24 +119,26 @@ export function renderMap(map, data) {
   }
 
 
-  /* 本次轨迹 */
+  /* 本次轨迹（线）与人（当前位置，单独一层放最上面） */
   layers.track.clearLayers();
+  layers.person.clearLayers();
   if (Array.isArray(walkPoints) && walkPoints.length > 1) {
     L.polyline(walkPoints.map((p) => [Number(p.lat), Number(p.lng)]), {
       color: '#1677ff', weight: 4, opacity: 0.9,
     }).addTo(layers.track);
     const last = walkPoints[walkPoints.length - 1];
     L.circleMarker([Number(last.lat), Number(last.lng)], {
-      radius: 6, color: '#1677ff', weight: 2, fillColor: '#ffffff', fillOpacity: 1,
-    }).addTo(layers.track);
+      radius: 7, color: '#ffffff', weight: 2.5, fillColor: '#1677ff', fillOpacity: 1,
+    }).addTo(layers.person);
   }
 
-  /* 复制点轨迹（右键拖出来的那条线） */
+  /* 复制点轨迹（规划轨迹，压在人/打卡点/轨迹之下）与复制点（在打卡点之上） */
+  layers.ghostPath.clearLayers();
   layers.ghost.clearLayers();
   if (Array.isArray(ghostPath) && ghostPath.length > 1) {
     L.polyline(ghostPath.map((p) => [Number(p[0]), Number(p[1])]), {
       color: '#13c2c2', weight: 3, dashArray: '4 6', opacity: 0.9,
-    }).addTo(layers.ghost);
+    }).addTo(layers.ghostPath);
     const last = ghostPath[ghostPath.length - 1];
     L.circleMarker([Number(last[0]), Number(last[1])], {
       radius: 7, color: '#ffffff', weight: 2, fillColor: '#13c2c2', fillOpacity: 1,
