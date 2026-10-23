@@ -84,7 +84,8 @@ exe_kwargs = dict(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,                 # 同一份 exe 既是 CLI 也是 GUI，保留控制台
+    # Windows 发布件不开控制台（GUI 子系统，启动不弹黑窗口）；Linux 保留，方便直接跑 CLI
+    console=(sys.platform != "win32"),
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
