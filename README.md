@@ -1,4 +1,4 @@
-# 闪动校园（com.huachenjie.shandong_school v8.7.7）逆向与复刻
+# 闪动校园逆向与破解重构
 
 本仓库是「闪动校园」`com.huachenjie.shandong_school` v8.7.7 的**逆向工作区 + 24 篇分析报告**，
 外加一个可运行的**桌面工作台复刻**（阳光跑协议全链路复原）。
