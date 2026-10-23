@@ -164,11 +164,26 @@ export default function App() {
     const st = (w && w.state) || {};
     const bl = Number(st.lat), bg = Number(st.lng);
     if (!Number.isFinite(bl) || !Number.isFinite(bg)) return;
-    // 每次右键拖动都从人的当前位置重新拉一条轨迹（相对鼠标拖动方向），避免与旧轨迹拼接出折返线
+    // 复制点从「人当前所在的位置」继续：保留已经走过的旧轨迹，从当前位置往后接着画
     ghostDragRef.current = { active: true, baseLat: bl, baseLng: bg, startLat: lat, startLng: lng };
-    ghostIdxRef.current = 0;
     ghostLastMsRef.current = 0;
-    setGhostPath([[bl, bg]]);
+    setGhostPath((prev) => {
+      if (!prev.length) { ghostIdxRef.current = 0; return [[bl, bg]]; }
+      const cos = Math.cos(bl * Math.PI / 180);
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < prev.length; i += 1) {
+        const d = Math.hypot((prev[i][0] - bl) * 111320, (prev[i][1] - bg) * 111320 * cos);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      ghostIdxRef.current = best;
+      const head = prev.slice(0, best + 1);
+      const last = head[head.length - 1];
+      if (Math.hypot((last[0] - bl) * 111320, (last[1] - bg) * 111320 * cos) > 1.2) {
+        head.push([bl, bg]);                           // 当前位置作为新段的起点
+      }
+      return head;
+    });
   }, []);
 
   const onGhostMove = useCallback((lat, lng) => {
