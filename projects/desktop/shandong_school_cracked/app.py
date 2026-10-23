@@ -65,8 +65,8 @@ class App:
         self.cfg_store = ConfigStore(config_path)
         self.cfg: Dict[str, Any] = self.cfg_store.as_dict()
         self.store = RecordStore(self.data_dir / "records.db")
-        # 运行模式：显式参数 > 配置文件 > 默认（真实服务端，本地登录是可选开关）
-        _m = str(mode or self.cfg.get("mode") or DEFAULT_MODE).lower()
+        # 运行模式：只有显式传 --mode mock 才用本地 Mock；其余一律真实服务端（不持久化）
+        _m = str(mode or DEFAULT_MODE).lower()
         self.mode: str = "mock" if _m == "mock" else "real"
 
         self._mock: Optional[MockServer] = None
@@ -197,9 +197,7 @@ class App:
         else:
             self.mode = "mock"
             self._build()
-        self.cfg_store.set("mode", mode)
-        self.cfg_store.save()
-        self.bus.emit("state", f"已切换到{'本地 Mock（离线调试）' if mode == 'mock' else '真实服务端'}模式")
+        self.bus.emit("state", f"已切换到{'本地 Mock（离线调试）' if mode == 'mock' else '真实服务端'}模式（仅本次运行）")
         return {"mode": self.mode}
 
     # ══════════════════ 配置 ══════════════════

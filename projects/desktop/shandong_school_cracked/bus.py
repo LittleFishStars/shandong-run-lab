@@ -91,7 +91,6 @@ class EventBus:
 DEFAULT_MODE = "real"
 
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "mode": DEFAULT_MODE,          # real 真实服务端 / mock 本地离线仿真
     "base_url": "https://api.huachenjie.com/run-front",
     "transport": "direct",          # direct / proxy
     "proxy": "",
@@ -173,6 +172,9 @@ class ConfigStore:
         try:
             if self.path.exists():
                 raw = json.loads(self.path.read_text(encoding="utf-8"))
+                # 运行模式不再持久化（只由 --mode 参数决定），旧配置里的 mode 直接丢弃
+                if isinstance(raw, dict):
+                    raw.pop("mode", None)
                 self._data = _deep_merge(DEFAULT_CONFIG, raw)
         except Exception:
             self._data = dict(DEFAULT_CONFIG)

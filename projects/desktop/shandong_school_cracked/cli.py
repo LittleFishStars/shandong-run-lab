@@ -62,10 +62,6 @@ def build_app(args: argparse.Namespace):
     mode = getattr(args, "mode", None)
     # 模式直接进构造函数：先建好再 switch 会白起一个 Mock 服务端再拆掉
     app = App(data_dir=data_dir, config_path=cfg_path, mode=mode)
-    if mode and str(mode).lower() != str(app.cfg.get("mode", "")).lower():
-        # 命令行显式指定的模式写回配置，下次开界面/直接跑还是这个模式
-        app.cfg_store.set("mode", app.mode)
-        app.cfg_store.save()
     if getattr(args, "proxy", None):
         app.patch_config({"transport": "proxy", "proxy": args.proxy})
     sim_patch: Dict[str, Any] = {}
@@ -680,8 +676,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     _harden_stdio()
     ap = build_parser()
     args = ap.parse_args(argv)
-    if getattr(args, "mode_global", None) and getattr(args, "mode", None) is not None:
-        args.mode = args.mode_global      # 全局 --mode 优先于子命令默认值
+    if getattr(args, "mode_global", None):
+        args.mode = args.mode_global      # 全局 --mode 优先于子命令里的模式
     if not getattr(args, "command", None):
         # 没给子命令 = 开桌面窗口
         args = ap.parse_args(["gui"] + (argv or []))
