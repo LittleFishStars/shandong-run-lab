@@ -531,6 +531,9 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="默认全部走本地 Mock 服务端；加 --real 才会请求真实 api.huachenjie.com。")
     ap.add_argument("-V", "--version", action="version",
                     version=f"shandong-school_cracked {__version__}（复刻 App {APP_VERSION}）")
+    # 兼容 `--mode mock gui`（全局选项写在子命令前面的写法）；子命令后的 --mode 仍然有效
+    ap.add_argument("--mode", dest="mode_global", choices=["real", "mock"],
+                    default=None, help=argparse.SUPPRESS)
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--data-dir", help="数据目录（默认 ~/.local/share/shandong-school_cracked）")
@@ -677,6 +680,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     _harden_stdio()
     ap = build_parser()
     args = ap.parse_args(argv)
+    if getattr(args, "mode_global", None) and getattr(args, "mode", None) is not None:
+        args.mode = args.mode_global      # 全局 --mode 优先于子命令默认值
     if not getattr(args, "command", None):
         # 没给子命令 = 开桌面窗口
         args = ap.parse_args(["gui"] + (argv or []))
