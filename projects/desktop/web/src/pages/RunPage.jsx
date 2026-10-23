@@ -17,37 +17,41 @@ export default function RunPage({ mapProps, walk, params, planDistance, actions 
   const speed = Number(st.speed_mps) || 0;
   const livePace = speed > 0.1 ? 1000 / speed : 0;
   return (
-    <div className="run-layout">
-      <div className="map-card"><MapCanvas {...mapProps} /></div>
-      <aside className="side-panel">
-        <div className="live-stats">
-          <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
-          <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
-          <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
-          <div className="live-line"><span>实时配速</span><b>{livePace ? fmtPaceShort(livePace) : '--'}</b></div>
+    <div className="run-page">
+      <div className="home-map"><MapCanvas {...mapProps} /></div>
+      <div className="run-sheets">
+        <div className="run-sheet run-stats-sheet">
+          <div className="live-stats">
+            <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
+            <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
+            <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
+            <div className="live-line"><span>实时配速</span><b>{livePace ? fmtPaceShort(livePace) : '--'}</b></div>
+          </div>
         </div>
-        <div className="run-ctl">
-          <Joystick onMove={actions.joystick} onEnd={actions.joystickEnd} />
+        <div className="run-sheet run-ctl-sheet">
+          <div className="run-ctl">
+            <Joystick onMove={actions.joystick} onEnd={actions.joystickEnd} />
+          </div>
+          <div className="run-pace">
+            <span>配速</span>
+            <Input
+              value={paceDraft}
+              placeholder={'6\'40"'}
+              onChange={(e) => setPaceDraft(e.target.value)}
+              onPressEnter={() => setPaceDraft(actions.setPace(paceDraft) || paceDraft)}
+            />
+          </div>
+          <Button
+            type="primary"
+            shape="circle"
+            className="btn-end"
+            disabled={!walk || !walk.running}
+            onClick={actions.endRun}
+          >
+            结束
+          </Button>
         </div>
-        <div className="run-pace">
-          <span>配速</span>
-          <Input
-            value={paceDraft}
-            placeholder={'6\'40"'}
-            onChange={(e) => setPaceDraft(e.target.value)}
-            onPressEnter={() => setPaceDraft(actions.setPace(paceDraft) || paceDraft)}
-          />
-        </div>
-        <Button
-          type="primary"
-          shape="circle"
-          className="btn-end"
-          disabled={!walk || !walk.running}
-          onClick={actions.endRun}
-        >
-          结束
-        </Button>
-      </aside>
+      </div>
     </div>
   );
 }
