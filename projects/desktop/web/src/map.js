@@ -91,8 +91,8 @@ export function renderMap(map, data) {
 
   /* 打卡点（服务端开跑后下发；开跑前用预览点） */
   layers.cps.clearLayers();
-  const cps = (Array.isArray(checkpoints) && checkpoints.length) ? checkpoints
-    : ((st.checkpoints || []).length ? st.checkpoints : (st.preview_points || []));
+  // 打卡点只画 App 传进来的（跑步页才传）；首页/选点页传空数组就只留围栏与起点
+  const cps = (Array.isArray(checkpoints) && checkpoints.length) ? checkpoints : [];
   cps.forEach((p, i) => {
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;

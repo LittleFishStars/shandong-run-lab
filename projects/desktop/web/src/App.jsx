@@ -647,10 +647,12 @@ export default function App() {
     return [];
   }, [detail, status]);
 
-  // 跑步时打卡点以实时快照为准（walk_status.targets），开跑后才有
-  const mapCheckpoints = (walk && Array.isArray(walk.targets) && walk.targets.length)
-    ? walk.targets
-    : ((status && status.checkpoints) || (status && status.preview_points) || []);
+  // 打卡点只在跑步页显示（开跑后服务端才下发 targetPoints）；首页/选点页只留围栏与起点
+  const mapCheckpoints = (view === 'run')
+    ? ((walk && Array.isArray(walk.targets) && walk.targets.length)
+      ? walk.targets
+      : ((status && status.checkpoints) || (status && status.preview_points) || []))
+    : [];
 
   const mapProps = {
     status,
