@@ -39,6 +39,7 @@ export default function App() {
   const [route, setRoute] = useState([]);
   const [waypoints, setWaypoints] = useState([]);
   const [fitNonce, setFitNonce] = useState(0);
+  const [serverPoints, setServerPoints] = useState(null);
   const [params, setParams] = useState({
     distance: 2000, fence: 0, cadAvg: 177, cadVar: 5, stride: 0.85,
     pace: `6'40"`, autoSettle: true, auto: false, mode: 'real',
@@ -97,8 +98,15 @@ export default function App() {
   const refreshRuns = useCallback(async (page = 1) => {
     try {
       const r = await Bridge.call('server_records', page, 20);
-      if (r && r.ok) setRuns({ items: r.items || [], page: r.page || page, hasNext: !!r.has_next });
-      else setRuns({ items: [], page, hasNext: false, error: (r && r.error) || '拉取失败' });
+      if (r && r.ok) {
+        setRuns({ items: r.items || [], page: r.page || page, hasNext: !!r.has_next });
+        // 打卡点实际数量：服务端开跑时下发 targetPoints（真实记录 5 个），围栏 requiredPointCounts 只有 2
+        const first = (r.items || [])[0];
+        if (first) {
+          const d = await Bridge.call('server_record_detail', first.run_code, first.semester_code || '');
+          setServerPoints(d && d.ok && d.target_points != null ? d.target_points : null);
+        } else setServerPoints(null);
+      } else setRuns({ items: [], page, hasNext: false, error: (r && r.error) || '拉取失败' });
     } catch (e) {
       setRuns({ items: [], page, hasNext: false, error: String((e && e.message) || e) });
     }
@@ -239,18 +247,20 @@ export default function App() {
       walk: {
         speed_mps: pace ? paceToSpeed(pace) : 2.5,
         auto_settle: !!params.autoSettle,
-        auto_route: !!params.auto,
       },
       mock_fail_rate: 0,
     };
+    // patch_config 成功时返回的是整份配置（没有 code 字段），失败才是 {error}
     const r = await Bridge.call('patch_config', JSON.stringify(patch));
-    toast(r && r.code === 0 ? '参数已保存' : ((r && r.message) || '保存失败'), r && r.code === 0 ? 'ok' : 'err');
+    if (r && r.error) toast('保存失败：' + r.error, 'err');
+    else toast('参数已保存', 'ok');
     await refreshStatus();
   };
 
   const resetDevice = async () => {
     const r = await Bridge.call('reset_device');
-    toast(r && r.code === 0 ? '已换新 deviceId' : ((r && r.message) || '换设备失败'), r && r.code === 0 ? 'ok' : 'err');
+    if (r && r.device_id) toast('新 deviceId：' + r.device_id, 'ok');
+    else toast((r && r.error) || '换设备失败', 'err');
     await refreshStatus();
   };
 
@@ -451,11 +461,14 @@ export default function App() {
       rows.push(['配速区间', `${fmtPaceShort(r.minPace || 0)} – ${fmtPaceShort(r.maxPace || 0)}`]);
     }
     if (r.strideBase) rows.push(['步幅基准', `${r.strideBase} 厘米`]);
-    if (pointCount) rows.push(['打卡点', `${pointCount} 个`]);
+    const livePoints = (status && status.checkpoints ? status.checkpoints.length : 0);
+    const shownPoints = livePoints || (serverPoints != null ? serverPoints : pointCount);
+    const pointNote = livePoints ? '本次' : (serverPoints != null ? '最近一次记录' : '围栏');
+    if (shownPoints) rows.push(['打卡点', `${shownPoints} 个（${pointNote}）`]);
     if (r.dayMaxDistance) rows.push(['每日上限', `${fmtKm(r.dayMaxDistance)} km`]);
     if (status && status.rule_loaded_at) rows.push(['更新于', fmtDateTime(status.rule_loaded_at)]);
     return rows;
-  }, [status]);
+  }, [status, serverPoints]);
 
   const userRows = useMemo(() => {
     const u = (status && status.user) || {};
