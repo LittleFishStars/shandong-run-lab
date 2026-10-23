@@ -11,12 +11,23 @@ export default function Joystick({ onMove, onEnd, disabled }) {
     const box = boxRef.current;
     if (!box) return;
     const r = box.getBoundingClientRect();
-    const max = r.width / 2 - 12;
-    const len = Math.hypot(dx, dy) || 1;
-    const scale = Math.min(max, len) / len;
-    const x = dx * scale, y = dy * scale;
-    if (knobRef.current) knobRef.current.style.transform = `translate(${x}px, ${y}px)`;
-    onMove && onMove(dx / max, dy / max, Math.min(1, len / max));
+    const rad = r.width / 2 - 10;
+    const len = Math.hypot(dx, dy);
+    const mag = Math.min(1, len / rad);
+    if (mag < 0.02) {
+      // 中心死区：只回中并发 0，不能结束拖动（否则按下后再拖就失效）
+      if (knobRef.current) knobRef.current.style.transform = '';
+      onMove && onMove(0, 0, 0);
+      return;
+    }
+    // 后端约定：dx/dy 是单位方向（东/北为正），mag ∈ [0,1] 是推杆幅度；
+    // 屏幕 y 向下为正，向北要取反，否则上下会翻转
+    const east = dx / (len || 1);
+    const north = -dy / (len || 1);
+    const kx = east * mag * rad * 0.72;
+    const ky = -north * mag * rad * 0.72;
+    if (knobRef.current) knobRef.current.style.transform = `translate(${kx.toFixed(1)}px, ${ky.toFixed(1)}px)`;
+    onMove && onMove(east, north, mag);
   };
 
   const reset = () => {
