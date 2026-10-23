@@ -41,6 +41,7 @@ export default function App() {
   const [waypoints, setWaypoints] = useState([]);
   const [fitNonce, setFitNonce] = useState(0);
   const [serverPoints, setServerPoints] = useState(null);
+  const [ghostPath, setGhostPath] = useState([]);
   const [params, setParams] = useState({
     distance: 2000, fence: 0, cadAvg: 177, cadVar: 5, stride: 0.85,
     pace: `6'40"`, autoSettle: true, auto: false, mode: 'real',
@@ -51,6 +52,12 @@ export default function App() {
   const walkSinceRef = useRef(0);
   const walkTimerRef = useRef(null);
   const walkTickRef = useRef(0);
+  const walkRef = useRef(null);
+  const ghostPathRef = useRef([]);
+  const ghostIdxRef = useRef(0);
+  const ghostLastMsRef = useRef(0);
+  walkRef.current = walk;
+  ghostPathRef.current = ghostPath;
   const paramsLoadedRef = useRef(false);
   const statusRef = useRef(null);
   const viewRef = useRef(view);
@@ -149,6 +156,67 @@ export default function App() {
     loop();
     return () => { stop = true; };
   }, []);
+
+  /* 右键从「人」的位置拉出复制点轨迹：起点取当前人的位置，之后跟随鼠标 */
+  const onGhostStart = useCallback(() => {
+    const w = walkRef.current;
+    const st = (w && w.state) || {};
+    const lat = Number(st.lat), lng = Number(st.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    ghostLastMsRef.current = 0;
+    setGhostPath((prev) => {
+      if (!prev.length) { ghostIdxRef.current = 0; return [[lat, lng]]; }
+      // 已经有一条轨迹：接着它往下画，不重置（右键拖动可继续延长）
+      const last = prev[prev.length - 1];
+      const d = Math.hypot((lat - last[0]) * 111320, (lng - last[1]) * 111320 * Math.cos(lat * Math.PI / 180));
+      return d > 1.2 ? [...prev, [lat, lng]] : prev;
+    });
+  }, []);
+
+  const onGhostMove = useCallback((lat, lng) => {
+    const now = Date.now();
+    if (now - ghostLastMsRef.current < 60) return;      // 节流，避免拖动时疯狂重绘
+    ghostLastMsRef.current = now;
+    setGhostPath((prev) => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      const d = Math.hypot((lat - last[0]) * 111320, (lng - last[1]) * 111320 * Math.cos(lat * Math.PI / 180));
+      if (d < 1.2) return prev;
+      return [...prev, [lat, lng]];
+    });
+  }, []);
+
+  /* 沿复制点轨迹运动：方向朝下一个点，速度 = 设定速度 × 随机波动（0.85~1） */
+  useEffect(() => {
+    if (view !== 'run') return undefined;
+    const timer = setInterval(() => {
+      const path = ghostPathRef.current || [];
+      const w = walkRef.current;
+      if (path.length < 2 || !w || !w.running || !w.state) return;
+      const lat = Number(w.state.lat), lng = Number(w.state.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const cosLat = Math.cos(lat * Math.PI / 180);
+      let idx = ghostIdxRef.current;
+      let best = Infinity;
+      for (let i = Math.max(0, idx - 2); i < Math.min(path.length, idx + 40); i += 1) {
+        const d = Math.hypot((path[i][0] - lat) * 111320, (path[i][1] - lng) * 111320 * cosLat);
+        if (d < best) { best = d; idx = i; }
+      }
+      ghostIdxRef.current = idx;
+      if (idx >= path.length - 1) {                    // 已经走到轨迹终点：停下
+        Bridge.call('walk_joystick', 0, 0, 0).catch(() => {});
+        return;
+      }
+      const tgt = path[idx + 1];
+      const east = (tgt[1] - lng) * cosLat;
+      const north = tgt[0] - lat;
+      const len = Math.hypot(east, north);
+      if (len < 1e-9) return;
+      const mag = 0.85 + Math.random() * 0.15;         // 设定速度上叠加一点随机波动
+      Bridge.call('walk_joystick', east / len, north / len, mag).catch(() => {});
+    }, 250);
+    return () => clearInterval(timer);
+  }, [view]);
 
   /* 跑步状态轮询 */
   const startWalkPoll = useCallback(() => {
@@ -528,6 +596,10 @@ export default function App() {
     status,
     walkPoints,
     checkpoints: mapCheckpoints,
+    ghostPath,
+    ghostEnabled: view === 'run' && !!(walk && walk.running),
+    onGhostStart,
+    onGhostMove,
     waypoints,
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),

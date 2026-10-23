@@ -17,17 +17,47 @@ const TILES = {
 
 const HOME = [36.6615, 117.0265];
 
-export function initMap(el, onClickRef) {
+export function initMap(el, onClickRef, ghostRef) {
   const L = window.L;
   const m = L.map(el, { center: HOME, zoom: 16, zoomControl: true, preferCanvas: true });
   m.layers = {};
-  for (const k of ['fence', 'route', 'wpt', 'track', 'cps', 'start']) {
+  for (const k of ['fence', 'route', 'wpt', 'track', 'cps', 'start', 'ghost']) {
     m.layers[k] = L.layerGroup().addTo(m);
   }
   m.on('click', (e) => {
     const fn = onClickRef && onClickRef.current;
     if (fn) fn(e.latlng.lat, e.latlng.lng);
   });
+
+  /* 跑步页：右键从「人」的位置拉出复制点轨迹 */
+  let dragging = false;
+  const container = m.getContainer();
+  m.on('contextmenu', (e) => { if (e.originalEvent) e.originalEvent.preventDefault(); });
+  container.addEventListener('contextmenu', (ev) => ev.preventDefault());
+  container.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 2) return;
+    const g = ghostRef && ghostRef.current;
+    if (!g || !g.enabled) return;
+    ev.preventDefault();
+    dragging = true;
+    m.dragging.disable();
+    if (g.onStart) g.onStart();
+  });
+  container.addEventListener('mousemove', (ev) => {
+    if (!dragging) return;
+    const g = ghostRef && ghostRef.current;
+    if (!g) return;
+    const ll = m.mouseEventToLatLng(ev);
+    if (g.onMove) g.onMove(ll.lat, ll.lng);
+  });
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    m.dragging.enable();
+    const g = ghostRef && ghostRef.current;
+    if (g && g.onEnd) g.onEnd();
+  };
+  window.addEventListener('mouseup', endDrag);
   return m;
 }
 
@@ -46,7 +76,7 @@ export function setTileLayer(map, kind) {
 export function renderMap(map, data) {
   const L = window.L;
   if (!map) return;
-  const { status, walkPoints, route, waypoints, checkpoints, fitKey } = data || {};
+  const { status, walkPoints, route, waypoints, checkpoints, ghostPath, fitKey } = data || {};
   const st = status || {};
   const layers = map.layers;
 
@@ -106,6 +136,18 @@ export function renderMap(map, data) {
     L.circleMarker([Number(last.lat), Number(last.lng)], {
       radius: 6, color: '#1677ff', weight: 2, fillColor: '#ffffff', fillOpacity: 1,
     }).addTo(layers.track);
+  }
+
+  /* 复制点轨迹（右键拖出来的那条线） */
+  layers.ghost.clearLayers();
+  if (Array.isArray(ghostPath) && ghostPath.length > 1) {
+    L.polyline(ghostPath.map((p) => [Number(p[0]), Number(p[1])]), {
+      color: '#13c2c2', weight: 3, dashArray: '4 6', opacity: 0.9,
+    }).addTo(layers.ghost);
+    const last = ghostPath[ghostPath.length - 1];
+    L.circleMarker([Number(last[0]), Number(last[1])], {
+      radius: 7, color: '#ffffff', weight: 2, fillColor: '#13c2c2', fillOpacity: 1,
+    }).addTo(layers.ghost);
   }
 
   /* 镜头：围栏或起点首次出现时 fit */
