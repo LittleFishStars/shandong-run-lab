@@ -1,23 +1,9 @@
 import React from 'react';
-import {
-  Button, Card, Checkbox, Descriptions, Input, InputNumber, Select, Typography,
-} from 'antd';
+import { Button, Card, Checkbox, Input, InputNumber, Select, Typography } from 'antd';
 
 const { Text } = Typography;
 
-function KV({ rows }) {
-  return (
-    <Descriptions column={1} size="small" colon={false}>
-      {rows.map(([k, v]) => <Descriptions.Item key={k} label={k}>{v}</Descriptions.Item>)}
-    </Descriptions>
-  );
-}
-
-export default function MorePage({
-  status, params, distanceOptions, ruleRows, userRows, runRows, runCode,
-  log, runs, detail, busy, actions,
-}) {
-  const logged = !!(status && status.logged_in);
+export default function MorePage({ status, params, log, actions }) {
   return (
     <div className="more-page">
       <div className="more-head">
@@ -26,28 +12,28 @@ export default function MorePage({
       </div>
       <div className="more-grid">
         <Card title="跑步参数" size="small">
-          <div className="field">
-            <span>运行模式</span>
-            <Select
-              value={params.mode}
-              onChange={actions.setMode}
-              options={[
-                { value: 'real', label: '真实服务端' },
-                { value: 'mock', label: '本地 Mock' },
-              ]}
-            />
-          </div>
-          <div className="field">
-            <span>围栏</span>
-            <Select
-              value={params.fence}
-              onChange={actions.setFence}
-              options={(status?.fences || []).map((f, i) => ({
-                value: i, label: f.fenceName || f.fenceCode || `围栏 ${i + 1}`,
-              }))}
-            />
-          </div>
-          <div className="row2">
+          <div className="param-grid">
+            <div className="field">
+              <span>运行模式</span>
+              <Select
+                value={params.mode}
+                onChange={actions.setMode}
+                options={[
+                  { value: 'real', label: '真实服务端' },
+                  { value: 'mock', label: '本地 Mock' },
+                ]}
+              />
+            </div>
+            <div className="field">
+              <span>围栏</span>
+              <Select
+                value={params.fence}
+                onChange={actions.setFence}
+                options={((status && status.fences) || []).map((f, i) => ({
+                  value: i, label: f.fenceName || f.fenceCode || `围栏 ${i + 1}`,
+                }))}
+              />
+            </div>
             <div className="field">
               <span>平均步频（步/分）</span>
               <InputNumber min={120} max={240} value={params.cadAvg}
@@ -58,8 +44,6 @@ export default function MorePage({
               <InputNumber min={0} max={30} value={params.cadVar}
                 onChange={(v) => actions.setParam('cadVar', v || 0)} style={{ width: '100%' }} />
             </div>
-          </div>
-          <div className="row2">
             <div className="field">
               <span>步幅（米）</span>
               <InputNumber min={0.1} step={0.01} value={params.stride}
@@ -78,46 +62,6 @@ export default function MorePage({
             <Button size="small" onClick={actions.resetDevice}>换 deviceId</Button>
           </div>
         </Card>
-
-        <Card title="学校规则" size="small"
-          extra={<Button type="link" size="small" onClick={actions.reloadRule}>刷新</Button>}>
-          {ruleRows.length ? <KV rows={ruleRows} /> : <Text type="secondary">尚未加载</Text>}
-        </Card>
-
-        <Card title="功能" size="small">
-          <div className="row">
-            <Button size="small" onClick={actions.toPick}>选择起始点</Button>
-            <Button size="small" onClick={actions.clearStart}>清除起点</Button>
-            <Button size="small" onClick={actions.fitHome}>适应</Button>
-          </div>
-          <div className="row">
-            <Select size="small" value={params.tiles} onChange={actions.setTiles}
-              options={[
-                { value: 'amap', label: '高德路网' },
-                { value: 'amap-sat', label: '高德卫星' },
-                { value: 'osm', label: 'OpenStreetMap' },
-                { value: 'none', label: '无底图' },
-              ]} />
-            <Checkbox checked={params.showState} onChange={(e) => actions.setParam('showState', e.target.checked)}>
-              按上传状态着色
-            </Checkbox>
-          </div>
-          <div className="row">
-            <Button size="small" onClick={actions.dryRun}>干跑调试</Button>
-            <Button size="small" onClick={actions.stopWalk}>停止</Button>
-            <Button size="small" onClick={actions.pauseWalk}>暂停</Button>
-            <Button size="small" onClick={actions.uploadWalk}>上传结算</Button>
-            <Button size="small" onClick={actions.saveDraft}>存草稿</Button>
-          </div>
-          <div className="row">
-            <Button size="small" onClick={actions.runAuto}>一键跑完整链路</Button>
-            <Button size="small" onClick={actions.resumeRun}>断点续传</Button>
-            <Button size="small" onClick={actions.toggleAuto}>
-              {params.auto ? '自动跑中（点此转手动）' : '手动（摇杆）'}
-            </Button>
-          </div>
-        </Card>
-
 
         <Card
           title="事件流"
