@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { message, Modal } from 'antd';
+import { message, Modal, Spin } from 'antd';
 import { Bridge } from './bridge';
 import {
   parsePace, paceToSpeed, fmtPaceInput, fmtPaceShort, fmtDur, fmtKm, fmtDateTime,
@@ -24,7 +24,7 @@ const fmtEventTime = (ts) => {
 
 export default function App() {
   const [status, setStatus] = useState(null);
-  const [view, setView] = useState('login');
+  const [view, setView] = useState('loading');
   const [accounts, setAccounts] = useState([]);
   const [savedOpen, setSavedOpen] = useState(false);
   const [fencePickOpen, setFencePickOpen] = useState(false);
@@ -137,7 +137,6 @@ export default function App() {
             await autoPrepare();
             const st2 = await refreshStatus();
             setView('pick');
-            if (st2 && (st2.fences || []).length > 1) setFencePickOpen(true);
             refreshRuns(1);
             return;
           }
@@ -319,7 +318,7 @@ export default function App() {
         await autoPrepare();        // 先把围栏拉下来，才能判断是否有多个
         const st0 = await refreshStatus();
         setView('pick');            // 登录后先进选起始点页，确认再回首页
-        if (st0 && (st0.fences || []).length > 1) setFencePickOpen(true);
+        if (st0 && !st0.fence_chosen && (st0.fences || []).length > 1) setFencePickOpen(true);
         refreshRuns(1);
       } else toast((r && r.message) || '登录失败', 'err');
     } finally { setBusy(false); }
@@ -345,7 +344,6 @@ export default function App() {
       await autoPrepare();
       const st0 = await refreshStatus();
       setView('pick');            // 登录后先进选起始点页，确认再回首页
-      if (st0 && (st0.fences || []).length > 1) setFencePickOpen(true);
       refreshRuns(1);
     } finally { setBusy(false); }
   };
@@ -361,7 +359,10 @@ export default function App() {
   const selectFence = async (index) => {
     setFencePickOpen(false);
     setParams((p) => ({ ...p, fence: index }));
-    try { await Bridge.call('prepare', index); } catch (_) { /* 忽略 */ }
+    try {
+      await Bridge.call('patch_config', JSON.stringify({ fence_index: index, fence_chosen: true }));
+      await Bridge.call('prepare', index);
+    } catch (_) { /* 忽略 */ }
     await refreshStatus();
     toast('已选择围栏', 'ok');
   };
@@ -741,6 +742,13 @@ export default function App() {
         </div>
       </Modal>
 
+      {view === 'loading' && (
+        <div className="loading-page">
+          <img className="app-icon" src="assets/app-icon.png" alt="闪动校园" />
+          <Spin size="large" />
+          <div className="loading-text">正在登录上次的账号…</div>
+        </div>
+      )}
       {view === 'login' && (
         <LoginPage
           phone={phone}
