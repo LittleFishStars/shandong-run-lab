@@ -392,23 +392,24 @@ button { font-family: inherit; }
   position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px;
   width: min(460px, calc(100% - 32px));
   background: #fff; border-radius: 22px; box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
-  padding: 16px 20px 20px; display: flex; flex-direction: column; justify-content: space-between; z-index: 1200;
+  padding: 0; z-index: 1200;
   aspect-ratio: 4 / 3;           /* 宽:高 = 4:3 */
 }
 .home-sheet-target {
+  position: absolute; left: 20px; right: 20px; top: 16px;
   display: flex; align-items: center; gap: 10px;
   border: 1px solid #f0f0f0; border-radius: 10px; padding: 2px 12px;
 }
 .home-sheet-target > span { color: #8c8c8c; font-size: 13px; white-space: nowrap; }
-.home-sheet-actions { position: relative; display: flex; justify-content: center; padding-bottom: 8px; margin-top: auto; }
-.home-sheet-actions .btn-more { position: absolute; right: 0; bottom: 0; margin: 0; }
+.home-sheet-actions { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; justify-content: center; }
+.home-sheet .btn-more { position: absolute; right: 24px; bottom: 20px; margin: 0; }
 
 /* 首页顶部按钮也要盖住地图内部的 Leaflet panes */
 .home-page .repick-entry, .home-page .account-entry { z-index: 1200; }
 
 /* 首页底部面板内的两个入口：账户在更多上方，重新选择起始点在左下 */
 .home-sheet .home-sheet-account {
-  position: absolute; right: 24px; bottom: 100px; z-index: 2;
+  position: absolute; right: 24px; bottom: 88px; z-index: 2;
   width: 56px; height: 56px !important; padding: 0 !important; font-size: 13px;
 }
 .home-sheet .home-sheet-repick { position: absolute; left: 20px; bottom: 22px; z-index: 2; }
