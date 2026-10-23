@@ -56,6 +56,7 @@ export default function App() {
   const ghostPathRef = useRef([]);
   const ghostIdxRef = useRef(0);
   const ghostLastMsRef = useRef(0);
+  const ghostDragRef = useRef({ active: false, baseLat: 0, baseLng: 0, startLat: 0, startLng: 0 });
   walkRef.current = walk;
   ghostPathRef.current = ghostPath;
   const paramsLoadedRef = useRef(false);
@@ -158,33 +159,37 @@ export default function App() {
   }, []);
 
   /* 右键从「人」的位置拉出复制点轨迹：起点取当前人的位置，之后跟随鼠标 */
-  const onGhostStart = useCallback(() => {
+  const onGhostStart = useCallback((lat, lng) => {
     const w = walkRef.current;
     const st = (w && w.state) || {};
-    const lat = Number(st.lat), lng = Number(st.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const bl = Number(st.lat), bg = Number(st.lng);
+    if (!Number.isFinite(bl) || !Number.isFinite(bg)) return;
+    // 每次右键拖动都从人的当前位置重新拉一条轨迹（相对鼠标拖动方向），避免与旧轨迹拼接出折返线
+    ghostDragRef.current = { active: true, baseLat: bl, baseLng: bg, startLat: lat, startLng: lng };
+    ghostIdxRef.current = 0;
     ghostLastMsRef.current = 0;
-    setGhostPath((prev) => {
-      if (!prev.length) { ghostIdxRef.current = 0; return [[lat, lng]]; }
-      // 已经有一条轨迹：接着它往下画，不重置（右键拖动可继续延长）
-      const last = prev[prev.length - 1];
-      const d = Math.hypot((lat - last[0]) * 111320, (lng - last[1]) * 111320 * Math.cos(lat * Math.PI / 180));
-      return d > 1.2 ? [...prev, [lat, lng]] : prev;
-    });
+    setGhostPath([[bl, bg]]);
   }, []);
 
   const onGhostMove = useCallback((lat, lng) => {
+    const d = ghostDragRef.current;
+    if (!d.active) return;
     const now = Date.now();
     if (now - ghostLastMsRef.current < 60) return;      // 节流，避免拖动时疯狂重绘
     ghostLastMsRef.current = now;
+    // 相对鼠标按下的位移，复制点始终从「人」出发
+    const pl = d.baseLat + (lat - d.startLat);
+    const pg = d.baseLng + (lng - d.startLng);
     setGhostPath((prev) => {
-      if (!prev.length) return prev;
-      const last = prev[prev.length - 1];
-      const d = Math.hypot((lat - last[0]) * 111320, (lng - last[1]) * 111320 * Math.cos(lat * Math.PI / 180));
-      if (d < 1.2) return prev;
-      return [...prev, [lat, lng]];
+      const last = prev.length ? prev[prev.length - 1] : [d.baseLat, d.baseLng];
+      const dist = Math.hypot((pl - last[0]) * 111320,
+                              (pg - last[1]) * 111320 * Math.cos(pl * Math.PI / 180));
+      if (dist < 1.2) return prev;
+      return [...prev, [pl, pg]];
     });
   }, []);
+
+  const onGhostEnd = useCallback(() => { ghostDragRef.current.active = false; }, []);
 
   /* 沿复制点轨迹运动：方向朝下一个点，速度 = 设定速度 × 随机波动（0.85~1） */
   useEffect(() => {
@@ -192,6 +197,7 @@ export default function App() {
     const timer = setInterval(() => {
       const path = ghostPathRef.current || [];
       const w = walkRef.current;
+      if (ghostDragRef.current.active) return;          // 拖动中先别抢方向
       if (path.length < 2 || !w || !w.running || !w.state) return;
       const lat = Number(w.state.lat), lng = Number(w.state.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -203,11 +209,16 @@ export default function App() {
         if (d < best) { best = d; idx = i; }
       }
       ghostIdxRef.current = idx;
-      if (idx >= path.length - 1) {                    // 已经走到轨迹终点：停下
+      // 朝前找第一个距离 > 1.2 米的点（跳过与当前位置重合的点，避免原地打转/停住）
+      let tgt = null;
+      for (let i = idx + 1; i < path.length; i += 1) {
+        const d = Math.hypot((path[i][0] - lat) * 111320, (path[i][1] - lng) * 111320 * cosLat);
+        if (d > 1.2) { tgt = path[i]; break; }
+      }
+      if (!tgt) {                                      // 已经走到轨迹终点：停下
         Bridge.call('walk_joystick', 0, 0, 0).catch(() => {});
         return;
       }
-      const tgt = path[idx + 1];
       const east = (tgt[1] - lng) * cosLat;
       const north = tgt[0] - lat;
       const len = Math.hypot(east, north);
@@ -600,6 +611,7 @@ export default function App() {
     ghostEnabled: view === 'run' && !!(walk && walk.running),
     onGhostStart,
     onGhostMove,
+    onGhostEnd,
     waypoints,
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),

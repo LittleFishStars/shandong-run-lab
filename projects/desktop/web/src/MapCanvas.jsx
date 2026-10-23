@@ -11,7 +11,7 @@ export default function MapCanvas({ status, walkPoints, waypoints, checkpoints, 
   const ghostRef = useRef({});
   ghostRef.current = {
     enabled: !!ghostEnabled,
-    onStart: onGhostStart,
+    onStart: (lat, lng) => { if (onGhostStart) onGhostStart(lat, lng); },
     onMove: onGhostMove,
     onEnd: onGhostEnd,
   };

@@ -41,7 +41,8 @@ export function initMap(el, onClickRef, ghostRef) {
     ev.preventDefault();
     dragging = true;
     m.dragging.disable();
-    if (g.onStart) g.onStart();
+    const ll = m.mouseEventToLatLng(ev);
+    if (g.onStart) g.onStart(ll.lat, ll.lng);
   });
   container.addEventListener('mousemove', (ev) => {
     if (!dragging) return;
