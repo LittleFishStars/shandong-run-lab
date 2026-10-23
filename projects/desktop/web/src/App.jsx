@@ -42,6 +42,7 @@ export default function App() {
   const [fitNonce, setFitNonce] = useState(0);
   const [serverPoints, setServerPoints] = useState(null);
   const [ghostPath, setGhostPath] = useState([]);
+  const [planRemain, setPlanRemain] = useState(0);
   const [params, setParams] = useState({
     distance: 2000, fence: 0, cadAvg: 177, cadVar: 5, stride: 0.85,
     pace: `6'40"`, autoSettle: true, auto: false, mode: 'real',
@@ -57,6 +58,9 @@ export default function App() {
   const ghostIdxRef = useRef(0);
   const ghostLastMsRef = useRef(0);
   const ghostDragRef = useRef({ active: false, baseLat: 0, baseLng: 0, startLat: 0, startLng: 0 });
+  const sentDirRef = useRef(null);
+  const speedRef = useRef(2.5);
+  speedRef.current = paceToSpeed(parsePace(params.pace)) || 2.5;
   walkRef.current = walk;
   ghostPathRef.current = ghostPath;
   const paramsLoadedRef = useRef(false);
@@ -180,53 +184,72 @@ export default function App() {
     const now = Date.now();
     if (now - ghostLastMsRef.current < 60) return;      // 节流，避免拖动时疯狂重绘
     ghostLastMsRef.current = now;
-    // 相对鼠标按下的位移，复制点始终从「人」出发
+    // 相对鼠标位移：拖动点始终从复制点（轨迹终点）接出去
     const pl = d.baseLat + (lat - d.startLat);
     const pg = d.baseLng + (lng - d.startLng);
+    const speed = Math.max(1.5, Number(speedRef.current) || 2.5);
+    const step = speed * 1.0;                           // 一秒步长（米）一个路径点
+    const cos = Math.cos(pl * Math.PI / 180);
     setGhostPath((prev) => {
       const last = prev.length ? prev[prev.length - 1] : [d.baseLat, d.baseLng];
-      const dist = Math.hypot((pl - last[0]) * 111320,
-                              (pg - last[1]) * 111320 * Math.cos(pl * Math.PI / 180));
-      if (dist < 1.2) return prev;
-      return [...prev, [pl, pg]];
+      const dLat = pl - last[0];
+      const dLng = pg - last[1];
+      const distM = Math.hypot(dLat * 111320, dLng * 111320 * cos);
+      if (distM < step) return prev;
+      const n = Math.floor(distM / step);
+      const out = [...prev];
+      for (let i = 1; i <= n; i += 1) {
+        const k = (i * step) / distM;
+        out.push([last[0] + dLat * k, last[1] + dLng * k]);
+      }
+      return out;
     });
   }, []);
 
   const onGhostEnd = useCallback(() => { ghostDragRef.current.active = false; }, []);
 
-  /* 沿复制点轨迹运动：方向朝下一个点，速度 = 设定速度 × 随机波动（0.85~1） */
+  /* 沿计划路径点运动：朝下一个点走，指向该点的矢量反向（内积 < 0）就标记已过并前进 */
   useEffect(() => {
     if (view !== 'run') return undefined;
     const timer = setInterval(() => {
       const path = ghostPathRef.current || [];
       const w = walkRef.current;
-      if (ghostDragRef.current.active) return;          // 拖动中先别抢方向
-      if (path.length < 2 || !w || !w.running || !w.state) return;
+      if (!path.length || !w || !w.running || !w.state) return;
       const lat = Number(w.state.lat), lng = Number(w.state.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const cosLat = Math.cos(lat * Math.PI / 180);
+      // 跳过「已经站在上面」或「已经越过（目标在前进方向后方，内积 < 0）」的路径点
+      const dir = sentDirRef.current;
       let idx = ghostIdxRef.current;
-      let best = Infinity;
-      for (let i = Math.max(0, idx - 2); i < Math.min(path.length, idx + 40); i += 1) {
-        const d = Math.hypot((path[i][0] - lat) * 111320, (path[i][1] - lng) * 111320 * cosLat);
-        if (d < best) { best = d; idx = i; }
+      while (idx < path.length) {
+        const east = (path[idx][1] - lng) * cosLat;
+        const north = path[idx][0] - lat;
+        const d = Math.hypot(east * 111320, north * 111320);
+        if (d < 0.5) { idx += 1; continue; }             // 已在点上
+        if (dir && east * dir[0] + north * dir[1] < 0) { idx += 1; continue; }  // 已越过
+        break;
       }
       ghostIdxRef.current = idx;
-      // 朝前找第一个距离 > 1.2 米的点（跳过与当前位置重合的点，避免原地打转/停住）
-      let tgt = null;
-      for (let i = idx + 1; i < path.length; i += 1) {
-        const d = Math.hypot((path[i][0] - lat) * 111320, (path[i][1] - lng) * 111320 * cosLat);
-        if (d > 1.2) { tgt = path[i]; break; }
-      }
-      if (!tgt) {                                      // 已经走到轨迹终点：停下
+      // 没有下一个路径点：停下等待（继续拖动/摇杆再动）
+      if (ghostIdxRef.current >= path.length) {
         Bridge.call('walk_joystick', 0, 0, 0).catch(() => {});
+        setPlanRemain(0);
         return;
       }
+      const tgt = path[ghostIdxRef.current];
       const east = (tgt[1] - lng) * cosLat;
       const north = tgt[0] - lat;
       const len = Math.hypot(east, north);
       if (len < 1e-9) return;
+      // 计划距离 = 已走 + 到目标的剩余 + 后续路径点间距
+      let remain = len;
+      for (let i = ghostIdxRef.current + 1; i < path.length; i += 1) {
+        remain += Math.hypot((path[i][0] - path[i - 1][0]) * 111320,
+                             (path[i][1] - path[i - 1][1]) * 111320 * cosLat);
+      }
+      setPlanRemain(remain);
       const mag = 0.85 + Math.random() * 0.15;         // 设定速度上叠加一点随机波动
+      sentDirRef.current = [east / len, north / len];
       Bridge.call('walk_joystick', east / len, north / len, mag).catch(() => {});
     }, 250);
     return () => clearInterval(timer);
@@ -485,6 +508,14 @@ export default function App() {
 
   /* 摇杆 */
   const joystick = (dx, dy, mag) => {
+    // 用户推摇杆：清掉所有计划路径点，复制点回到人的位置
+    if (ghostPathRef.current.length) {
+      ghostPathRef.current = [];
+      ghostIdxRef.current = 0;
+      sentDirRef.current = null;
+      setGhostPath([]);
+      setPlanRemain(0);
+    }
     Bridge.call('walk_joystick', dx, dy, mag).catch(() => {});
   };
   const joystickEnd = () => {
@@ -668,7 +699,9 @@ export default function App() {
         />
       )}
       {view === 'pick' && <PickPage mapProps={mapProps} actions={actions} />}
-      {view === 'run' && <RunPage mapProps={mapProps} walk={walk} actions={actions} />}
+      {view === 'run' && (
+        <RunPage mapProps={mapProps} walk={walk} planDistance={(Number(walk && walk.state && walk.state.dist_m) || 0) + planRemain} actions={actions} />
+      )}
       {view === 'account' && (
         <AccountPage status={status} runs={runs} actions={actions} />
       )}

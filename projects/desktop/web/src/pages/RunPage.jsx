@@ -4,7 +4,7 @@ import MapCanvas from '../MapCanvas';
 import Joystick from '../Joystick';
 import { fmtPaceShort } from '../format';
 
-export default function RunPage({ mapProps, walk, actions }) {
+export default function RunPage({ mapProps, walk, planDistance, actions }) {
   const st = (walk && walk.state) || {};
   const dist = Number(st.dist_m) || 0;
   const dur = Number(st.elapsed_sec || st.move_sec) || 0;
@@ -19,6 +19,7 @@ export default function RunPage({ mapProps, walk, actions }) {
         <div className="live-stats">
           <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
           <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
+          <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
         </div>
         <div className="run-ctl">
           <Joystick onMove={actions.joystick} onEnd={actions.joystickEnd} />
