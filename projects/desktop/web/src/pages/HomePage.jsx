@@ -4,15 +4,12 @@ import MapCanvas from '../MapCanvas';
 
 export default function HomePage({ mapProps, params, distanceOptions, busy, actions }) {
   return (
-    <div className="run-layout">
-      <div className="map-card"><MapCanvas {...mapProps} /></div>
-      <aside className="side-panel">
-        <Button size="small" className="repick-entry" onClick={actions.toPick}>重新选择起始点</Button>
-        <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
-        <div className="side-brand">
-          <img className="app-icon" src="assets/app-icon.png" alt="闪动校园" />
-        </div>
-        <div className="target-pill">
+    <div className="home-page">
+      <div className="home-map"><MapCanvas {...mapProps} /></div>
+      <Button size="small" className="repick-entry" onClick={actions.toPick}>重新选择起始点</Button>
+      <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
+      <div className="home-sheet">
+        <div className="home-sheet-target">
           <span>目标距离</span>
           <Select
             style={{ flex: 1 }}
@@ -23,11 +20,11 @@ export default function HomePage({ mapProps, params, distanceOptions, busy, acti
             listHeight={400}
           />
         </div>
-        <div className="side-actions">
+        <div className="home-sheet-actions">
           <Button type="primary" className="btn-start" loading={busy} onClick={actions.startRun}>开始</Button>
           <Button className="btn-more" shape="circle" onClick={actions.toMore}>更多</Button>
         </div>
-      </aside>
+      </div>
     </div>
   );
 }
