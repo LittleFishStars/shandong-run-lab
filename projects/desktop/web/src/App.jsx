@@ -545,8 +545,10 @@ export default function App() {
     const hi = Number(rule.maxPace) || 0;
     let paceSec = sec;
     if (sec > 0 && lo > 0 && hi > lo) paceSec = Math.min(Math.max(sec, lo), hi);
-    setParams((p) => ({ ...p, pace: paceSec > 0 ? fmtPaceInput(paceSec) : text }));
+    const shown = paceSec > 0 ? fmtPaceInput(paceSec) : text;
+    setParams((p) => ({ ...p, pace: shown }));
     if (paceSec > 0) Bridge.call('walk_speed', paceToSpeed(paceSec)).catch(() => {});
+    return shown;              // 回车后输入框回显夹紧/格式化后的值
   };
 
   const joystick = (dx, dy, mag) => {

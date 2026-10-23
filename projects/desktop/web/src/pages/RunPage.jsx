@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Input } from 'antd';
 import MapCanvas from '../MapCanvas';
 import Joystick from '../Joystick';
 import { fmtPaceShort } from '../format';
 
 export default function RunPage({ mapProps, walk, params, planDistance, actions }) {
+  // 配速输入只在回车时生效：草稿存在本地，回车才交给 actions.setPace
+  const [paceDraft, setPaceDraft] = useState((params && params.pace) || '');
+  useEffect(() => { setPaceDraft((params && params.pace) || ''); }, [params && params.pace]);
   const st = (walk && walk.state) || {};
   const dist = Number(st.dist_m) || 0;
   const dur = Number(st.elapsed_sec || st.move_sec) || 0;
@@ -25,9 +28,10 @@ export default function RunPage({ mapProps, walk, params, planDistance, actions 
         <div className="run-pace">
           <span>配速</span>
           <Input
-            value={(params && params.pace) || ''}
+            value={paceDraft}
             placeholder={'6\'40"'}
-            onChange={(e) => actions.setPace(e.target.value)}
+            onChange={(e) => setPaceDraft(e.target.value)}
+            onPressEnter={() => setPaceDraft(actions.setPace(paceDraft) || paceDraft)}
           />
         </div>
         <Button
