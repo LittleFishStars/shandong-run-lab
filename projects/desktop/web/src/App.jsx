@@ -27,6 +27,7 @@ export default function App() {
   const [view, setView] = useState('login');
   const [accounts, setAccounts] = useState([]);
   const [savedOpen, setSavedOpen] = useState(false);
+  const [fencePickOpen, setFencePickOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -134,7 +135,9 @@ export default function App() {
           const r = await Bridge.call('refresh_user');   // 顺带校验会话是否还有效
           if (r && r.code === 0) {
             await autoPrepare();
+            const st2 = await refreshStatus();
             setView('pick');
+            if (st2 && (st2.fences || []).length > 1) setFencePickOpen(true);
             refreshRuns(1);
             return;
           }
@@ -313,8 +316,10 @@ export default function App() {
       if (r && r.code === 0) {
         toast('登录成功', 'ok');
         await refreshStatus();
-        await autoPrepare();
+        await autoPrepare();        // 先把围栏拉下来，才能判断是否有多个
+        const st0 = await refreshStatus();
         setView('pick');            // 登录后先进选起始点页，确认再回首页
+        if (st0 && (st0.fences || []).length > 1) setFencePickOpen(true);
         refreshRuns(1);
       } else toast((r && r.message) || '登录失败', 'err');
     } finally { setBusy(false); }
@@ -338,7 +343,9 @@ export default function App() {
       }
       await refreshStatus();
       await autoPrepare();
+      const st0 = await refreshStatus();
       setView('pick');            // 登录后先进选起始点页，确认再回首页
+      if (st0 && (st0.fences || []).length > 1) setFencePickOpen(true);
       refreshRuns(1);
     } finally { setBusy(false); }
   };
@@ -349,6 +356,14 @@ export default function App() {
       toast('已移除该账号', 'ok');
       await refreshStatus();
     } else toast((r && r.message) || '移除失败', 'err');
+  };
+
+  const selectFence = async (index) => {
+    setFencePickOpen(false);
+    setParams((p) => ({ ...p, fence: index }));
+    try { await Bridge.call('prepare', index); } catch (_) { /* 忽略 */ }
+    await refreshStatus();
+    toast('已选择围栏', 'ok');
   };
 
   const openSavedAccounts = () => {
@@ -676,6 +691,7 @@ export default function App() {
     openSavedAccounts,
     loginSaved,
     removeSaved,
+    selectFence,
     openAccount: () => { refreshRuns(1); setView('account'); },
     back: () => setView(walk && walk.running ? 'run' : 'home'),
   };
@@ -709,6 +725,22 @@ export default function App() {
           <div className="saved-empty">本机还没有保存的账号</div>
         )}
       </Modal>
+
+      <Modal
+        title="选择围栏"
+        open={fencePickOpen}
+        closable={false}
+        footer={null}
+      >
+        <div className="fence-list">
+          {((status && status.fences) || []).map((f, i) => (
+            <button key={i} type="button" className="fence-item" onClick={() => selectFence(i)}>
+              <span>{f.fenceName || f.fenceCode || `围栏 ${i + 1}`}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
       {view === 'login' && (
         <LoginPage
           phone={phone}

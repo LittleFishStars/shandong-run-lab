@@ -473,9 +473,9 @@ class App:
         self._thread.start()
         return {"code": 0, "message": "任务已启动", "data": None}
 
-    def run_prepare(self) -> Dict[str, Any]:
+    def run_prepare(self, fence_index: int = 0) -> Dict[str, Any]:
         try:
-            return {"code": 0, "message": "ok", "data": self.engine.prepare()}
+            return {"code": 0, "message": "ok", "data": self.engine.prepare(fence_index=int(fence_index))}
         except Exception as e:  # noqa: BLE001
             self.bus.emit("log", f"✗ 准备失败：{e}", level="error")
             return {"code": -1, "message": str(e), "data": None}

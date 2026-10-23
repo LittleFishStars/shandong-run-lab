@@ -85,8 +85,8 @@ class JsApi:
         return self.app.forget_account(str(user_id))
 
     # —— 跑步 ——
-    def prepare(self) -> Dict[str, Any]:
-        return self.app.run_prepare()
+    def prepare(self, fence_index: int = 0) -> Dict[str, Any]:
+        return self.app.run_prepare(int(fence_index))
 
     def reload_rule(self) -> Dict[str, Any]:
         return self.app.reload_rule()

@@ -354,3 +354,11 @@ button { font-family: inherit; }
 
 /* 侧栏左上角：重新选择起始点 */
 .repick-entry { position: absolute; top: 12px; left: 12px; z-index: 5; }
+
+/* 首次登录多围栏选择 */
+.fence-list { display: flex; flex-direction: column; gap: 8px; }
+.fence-item {
+  padding: 10px 12px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fff;
+  cursor: pointer; text-align: left; font-size: 14px; color: #1f1f1f;
+}
+.fence-item:hover { border-color: #91caff; background: #f5faff; }
