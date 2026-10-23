@@ -129,6 +129,16 @@ class ShandongClient:
             # 历史账号下拉要显示完整号码就得单独存一份
             "_account_name": str(merged.get("_account_name", "") or ""),
             "userType": merged.get("userType", 1),
+            # 个人资料（账户页昵称/头像用）：queryCommonUserInfo 的明文昵称与头像 URL
+            "nickName": str(merged.get("nickName", "") or ""),
+            "avatar": str(merged.get("avatar", "") or ""),
+            "defaultAvatar": str(merged.get("defaultAvatar", "") or ""),
+            "avatarFrameImgUrl": str(merged.get("avatarFrameImgUrl", "") or ""),
+            "slogan": str(merged.get("slogan", "") or ""),
+            "phone": str(merged.get("phone", "") or ""),
+            "studentNumber": str(merged.get("studentNumber", "") or ""),
+            "shortName": str(merged.get("shortName", "") or ""),
+            "sex": merged.get("sex", 0),
             "deviceId": self.transport.device_id,
             "loginAt": (int(time.time() * 1000) if touch
                         else int(merged.get("loginAt") or time.time() * 1000)),

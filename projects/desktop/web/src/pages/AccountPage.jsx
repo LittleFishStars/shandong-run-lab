@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button, List, Typography } from 'antd';
 import RecordCard from '../RecordCard';
 
@@ -6,6 +6,15 @@ const { Text } = Typography;
 
 export default function AccountPage({ status, runs, actions }) {
   const user = (status && status.user) || {};
+  // 昵称优先（服务端下发的 nickName），其次登录手机号；加密的 userName 不直接当昵称用
+  const nick = user.nickName || user._account_name || user.loginName
+    || (/^[A-Za-z0-9+/=]{12,}$/.test(String(user.userName || '')) ? '' : user.userName)
+    || '未登录';
+  const avatar = user.avatar || user.defaultAvatar || 'assets/app-icon.png';
+  useEffect(() => {
+    if (actions.refreshUser) actions.refreshUser();   // 拉一次昵称/头像（服务端 queryCommonUserInfo）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="account-page">
       <div className="account-head">
@@ -14,8 +23,13 @@ export default function AccountPage({ status, runs, actions }) {
       </div>
       <div className="account-body">
         <aside className="account-side">
-          <img className="account-avatar" src="assets/app-icon.png" alt="头像" />
-          <div className="account-name">{user.userName || '未登录'}</div>
+          <img
+            className="account-avatar"
+            src={avatar}
+            alt="头像"
+            onError={(e) => { e.currentTarget.src = 'assets/app-icon.png'; }}
+          />
+          <div className="account-name">{nick}</div>
           <Button danger type="primary" className="account-logout" onClick={actions.logout}>退出登录</Button>
         </aside>
         <section className="account-main">

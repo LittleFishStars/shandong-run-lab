@@ -228,6 +228,20 @@ class App:
         self.bus.emit("state", "配置已保存")
         return self.cfg
 
+    def refresh_user(self) -> Dict[str, Any]:
+        """重新拉一次用户资料（昵称 nickname / 头像 avatar）：账户页用"""
+        if not getattr(self.client, "logged_in", False):
+            return {"code": -1, "message": "未登录", "data": None}
+        try:
+            res = self.client.load_user()
+        except Exception as e:  # noqa: BLE001
+            return {"code": -1, "message": f"{type(e).__name__}: {e}", "data": None}
+        return {
+            "code": int((res or {}).get("code") or 0),
+            "message": str((res or {}).get("message") or ""),
+            "data": dict(self.client.user or {}),
+        }
+
     def reset_device(self) -> Dict[str, Any]:
         from .simulator import random_device_id
         did = random_device_id()

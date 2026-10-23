@@ -184,6 +184,9 @@ class JsApi:
     def switch_mode(self, mode: str) -> Dict[str, Any]:
         return self.app.switch_mode(str(mode))
 
+    def refresh_user(self) -> Dict[str, Any]:
+        return self.app.refresh_user()
+
     def reset_device(self) -> Dict[str, Any]:
         return self.app.reset_device()
 

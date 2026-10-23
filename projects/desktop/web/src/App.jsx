@@ -668,6 +668,14 @@ export default function App() {
     loadRuns: refreshRuns, pickRun,
     clearLog: () => setLog([]),
     toMore: () => setView('more'),
+    refreshUser: async () => {
+      try {
+        const r = await Bridge.call('refresh_user');
+        if (r && r.code === 0 && r.data) {
+          setStatus((prev) => (prev ? { ...prev, user: { ...(prev.user || {}), ...r.data } } : prev));
+        }
+      } catch (_) { /* 忽略 */ }
+    },
     toAccount: () => {
       if (!accounts.length) { toast('本机还没有登录过的账号', 'err'); return; }
       setAccountMode(true);

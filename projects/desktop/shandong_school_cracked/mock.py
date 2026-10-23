@@ -292,6 +292,11 @@ def _user_info(w: MockWorld, path: str, h: Dict[str, str], b: Dict[str, Any]):
         "schoolCode": sess.get("schoolCode") or MOCK_SCHOOL["schoolCode"],
         "schoolName": sess.get("schoolName") or MOCK_SCHOOL["schoolName"],
         "studentNo": "20260001", "sex": 2, "grade": "2026",
+        "nickName": sess.get("nickName") or "本地仿真用户",
+        "avatar": sess.get("avatar") or "",
+        "avatarFrameImgUrl": "",
+        "defaultAvatar": "",
+        "slogan": "本地仿真",
         "totalDistance": 128000, "totalTimes": 42,
     }}
 
