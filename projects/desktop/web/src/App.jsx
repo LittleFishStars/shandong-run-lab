@@ -531,7 +531,7 @@ export default function App() {
     waypoints,
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
-    onAccount: () => { refreshRuns(1); setView('account'); },
+
     fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${(status && status.start_point && status.start_point.lat) || ''}|${fitNonce}`,
     onClick: view === 'pick' ? onMapClick : undefined,
   };
@@ -550,7 +550,11 @@ export default function App() {
     loadRuns: refreshRuns, pickRun,
     clearLog: () => setLog([]),
     toMore: () => setView('more'),
-    toAccount: () => { refreshRuns(1); setView('account'); },
+    toAccount: () => {
+      if (!accounts.length) { toast('本机还没有登录过的账号', 'err'); return; }
+      setAccountMode(true);
+    },
+    openAccount: () => { refreshRuns(1); setView('account'); },
     back: () => setView(walk && walk.running ? 'run' : 'home'),
   };
 
