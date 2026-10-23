@@ -266,9 +266,44 @@ button { font-family: inherit; }
 
 /* 地图右上角：高德地图 / 高德卫星 切换 */
 .map-wrap { position: relative; height: 100%; }
-.map-type-switch { position: absolute; top: 12px; right: 12px; z-index: 900; }
-.map-type-switch .ant-radio-group {
+.map-top-right {
+  position: absolute; top: 12px; right: 12px; z-index: 900;
+  display: flex; align-items: center; gap: 8px;
+}
+.map-top-right .ant-radio-group {
   background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); padding: 2px;
 }
+.map-account-btn { background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); }
+
+/* ── 账户页 ── */
+.account-page { height: 100%; display: flex; flex-direction: column; }
+.account-head { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+.account-title { font-size: 20px; font-weight: 600; }
+.account-body {
+  flex: 1 1 auto; min-height: 0; display: grid;
+  grid-template-columns: 280px minmax(0, 1fr); gap: 16px; padding: 0 16px 16px;
+}
+.account-side {
+  background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+  padding: 32px 20px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.account-avatar {
+  width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+  background: #f0f2f5; border: 1px solid #f0f0f0;
+}
+.account-name { font-size: 16px; font-weight: 600; color: #1f1f1f; }
+.account-logout { width: 100%; margin-top: auto; }
+.account-main {
+  background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+  padding: 20px 24px; overflow: auto; min-width: 0;
+}
+.account-main h2 { margin: 0 0 12px; font-size: 16px; }
+.account-runs .ant-list-item { padding: 10px 0; }
+.account-run { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.account-run-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.account-run .rc { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #1f1f1f; }
+.account-run .meta { color: #8c8c8c; font-size: 12px; }
+.account-run-stats { display: flex; align-items: center; gap: 14px; color: #595959; font-size: 13px; white-space: nowrap; }
+.account-empty { padding: 48px 0; text-align: center; }
 
 .cp-icon { background: transparent; border: none; }

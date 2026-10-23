@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import PickPage from './pages/PickPage';
 import RunPage from './pages/RunPage';
 import MorePage from './pages/MorePage';
+import AccountPage from './pages/AccountPage';
 
 const toast = (text, kind) => {
   const fn = kind === 'err' ? message.error : kind === 'ok' ? message.success : message.info;
@@ -530,6 +531,7 @@ export default function App() {
     waypoints,
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
+    onAccount: () => { refreshRuns(1); setView('account'); },
     fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${(status && status.start_point && status.start_point.lat) || ''}|${fitNonce}`,
     onClick: view === 'pick' ? onMapClick : undefined,
   };
@@ -548,6 +550,7 @@ export default function App() {
     loadRuns: refreshRuns, pickRun,
     clearLog: () => setLog([]),
     toMore: () => setView('more'),
+    toAccount: () => { refreshRuns(1); setView('account'); },
     back: () => setView(walk && walk.running ? 'run' : 'home'),
   };
 
@@ -575,6 +578,9 @@ export default function App() {
       )}
       {view === 'pick' && <PickPage mapProps={mapProps} actions={actions} />}
       {view === 'run' && <RunPage mapProps={mapProps} walk={walk} actions={actions} />}
+      {view === 'account' && (
+        <AccountPage status={status} runs={runs} actions={actions} />
+      )}
       {view === 'more' && (
         <MorePage
           status={status}
