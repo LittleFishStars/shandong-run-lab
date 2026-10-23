@@ -191,7 +191,8 @@ class MockWorld:
         return ok
 
     def require_login(self, headers: Dict[str, str]) -> bool:
-        return bool(headers.get("Authorization"))
+        # BAD_TOKEN 用于模拟「历史账号登录态已过期」，方便自测自动重登
+        return bool(headers.get("Authorization")) and headers.get("Authorization") != "BAD_TOKEN"
 
     def require_headers(self, headers: Dict[str, str]) -> bool:
         """校验原版拦截器必须注入的头（Mock 侧的一致性守门）

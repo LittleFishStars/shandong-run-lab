@@ -184,6 +184,9 @@ class JsApi:
     def switch_mode(self, mode: str) -> Dict[str, Any]:
         return self.app.switch_mode(str(mode))
 
+    def relogin_account(self, user_id: str) -> Dict[str, Any]:
+        return self.app.relogin_account(str(user_id))
+
     def refresh_user(self) -> Dict[str, Any]:
         return self.app.refresh_user()
 

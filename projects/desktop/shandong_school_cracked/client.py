@@ -220,12 +220,26 @@ class ShandongClient:
         res = self.load_user()
         code = int(res.get("code", -1))
         if code == CODE_NEED_LOGIN:
-            self._forget_account(uid)
+            # 不删账号：密码还留着，前端会用「保存的账号密码」自动重登
             self._apply_session(old)
-            return {"code": code, "message": "该账号登录已过期，请重新登录", "data": None}
+            return {"code": code, "message": "该账号登录已过期，正在用保存的账号密码重试", "data": None}
         if code == CODE_OK:
             self._remember_account()          # 登录时间保留该账号原值
         return res
+
+    def relogin_account(self, user_id: str) -> Dict[str, Any]:
+        """历史账号登录态失效时，用保存的账号密码重新登录"""
+        uid = str(user_id or "")
+        target = next((a for a in self.accounts() if str(a.get("userId")) == uid), None)
+        if not target:
+            return {"code": CODE_NEED_LOGIN, "message": "本机没有这个账号", "data": None}
+        name = str(target.get("_account_name") or target.get("loginName") or "")
+        pwd = str(target.get("password") or "")
+        if not name or not pwd:
+            return {"code": -1, "message": "该账号没有保存密码，请手动输入密码登录", "data": None}
+        if self.bus:
+            self.bus.emit("state", "历史账号登录态失效，改用保存的账号密码重新登录")
+        return self.login(name, pwd)
 
     def _forget_account(self, user_id: str) -> None:
         lst = [a for a in self.accounts() if str(a.get("userId")) != str(user_id)]
@@ -305,6 +319,8 @@ class ShandongClient:
             res["data"]["loginName"] = phone
             res["data"]["_account_name"] = str(phone)   # 明文手机号/学号：历史账号下拉用
             self._save_session(res["data"], touch=True)
+            # 密码只存进历史账号记录（本地 kv 的 accounts），会话白名单不含 password
+            self.user["password"] = str(password or "")
             self._remember_account()
             # 登录后立即校准时钟（原版在隐私协议同意时就已跑 SyncTimeIntentService，
             # 登录更晚；这里取等价时机）。失败不影响登录本身。

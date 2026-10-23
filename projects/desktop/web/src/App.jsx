@@ -321,7 +321,17 @@ export default function App() {
         await autoPrepare();
         setView('pick');            // 登录后先进选起始点页，确认再回首页
         refreshRuns(1);
-      } else toast((r && r.message) || '切换失败', 'err');
+      } else {
+        // 历史账号登录态失效：用保存的账号密码重新登录
+        const rr = await Bridge.call('relogin_account', account);
+        if (rr && rr.code === 0) {
+          toast('历史登录已失效，已用保存的账号密码重新登录', 'ok');
+          await refreshStatus();
+          await autoPrepare();
+          setView('pick');
+          refreshRuns(1);
+        } else toast((rr && rr.message) || (r && r.message) || '切换失败', 'err');
+      }
     } finally { setBusy(false); }
   };
 

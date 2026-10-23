@@ -228,6 +228,15 @@ class App:
         self.bus.emit("state", "配置已保存")
         return self.cfg
 
+    def relogin_account(self, user_id: str) -> Dict[str, Any]:
+        """历史账号登录态失效：用保存的账号密码重新登录"""
+        res = self.client.relogin_account(str(user_id or ""))
+        if int((res or {}).get("code") or 0) == CODE_OK:
+            self.client.transport.school_code = str(
+                (self.client.user or {}).get("schoolCode") or self.client.transport.school_code)
+            self.bus.emit("state", "已用保存的账号密码重新登录")
+        return res
+
     def refresh_user(self) -> Dict[str, Any]:
         """重新拉一次用户资料（昵称 nickname / 头像 avatar）：账户页用"""
         if not getattr(self.client, "logged_in", False):
