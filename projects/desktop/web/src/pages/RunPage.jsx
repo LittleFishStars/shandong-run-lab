@@ -8,7 +8,9 @@ export default function RunPage({ mapProps, walk, actions }) {
   const st = (walk && walk.state) || {};
   const dist = Number(st.dist_m) || 0;
   const dur = Number(st.elapsed_sec || st.move_sec) || 0;
-  const pace = dist > 0 ? dur / (dist / 1000) : 0;
+  const speed = Number(st.speed_mps) || 0;
+  // 配速优先用当前速度（跑起来才准）；没速度时再退回全程平均，避免刚起步显示 70 多分钟
+  const pace = speed > 0.1 ? 1000 / speed : (dist > 0 ? dur / (dist / 1000) : 0);
   return (
     <div className="run-layout">
       <div className="map-card"><MapCanvas {...mapProps} /></div>

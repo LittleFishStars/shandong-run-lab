@@ -46,7 +46,7 @@ export function setTileLayer(map, kind) {
 export function renderMap(map, data) {
   const L = window.L;
   if (!map) return;
-  const { status, walkPoints, route, waypoints, fitKey } = data || {};
+  const { status, walkPoints, route, waypoints, checkpoints, fitKey } = data || {};
   const st = status || {};
   const layers = map.layers;
 
@@ -60,12 +60,15 @@ export function renderMap(map, data) {
 
   /* 打卡点（服务端开跑后下发；开跑前用预览点） */
   layers.cps.clearLayers();
-  const cps = (st.checkpoints || []).length ? st.checkpoints : (st.preview_points || []);
+  const cps = (Array.isArray(checkpoints) && checkpoints.length) ? checkpoints
+    : ((st.checkpoints || []).length ? st.checkpoints : (st.preview_points || []));
   cps.forEach((p) => {
     const lat = Number(p.lat), lng = Number(p.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const passed = Number(p.passed) === 1 || p.passed === true;
     L.circleMarker([lat, lng], {
-      radius: 5, color: '#ffffff', weight: 1.5, fillColor: '#722ed1', fillOpacity: 1,
+      radius: 5, color: '#ffffff', weight: 1.5,
+      fillColor: passed ? '#389e0d' : '#722ed1', fillOpacity: 1,
     }).addTo(layers.cps);
   });
 

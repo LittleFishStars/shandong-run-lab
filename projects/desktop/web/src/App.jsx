@@ -510,10 +510,17 @@ export default function App() {
     return [];
   }, [detail, status]);
 
+  // 跑步时打卡点与路线以实时快照为准（walk_status.targets / route），开跑后才有
+  const mapCheckpoints = (walk && Array.isArray(walk.targets) && walk.targets.length)
+    ? walk.targets
+    : ((status && status.checkpoints) || (status && status.preview_points) || []);
+  const mapRoute = (walk && Array.isArray(walk.route) && walk.route.length) ? walk.route : route;
+
   const mapProps = {
     status,
     walkPoints,
-    route,
+    route: mapRoute,
+    checkpoints: mapCheckpoints,
     waypoints,
     tiles: params.tiles,
     fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${(status && status.start_point && status.start_point.lat) || ''}|${fitNonce}`,
