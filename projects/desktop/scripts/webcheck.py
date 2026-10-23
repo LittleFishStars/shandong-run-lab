@@ -7,7 +7,7 @@
   · 浏览器走 POST /api  {"method": ..., "args": [...]}
 
 本脚本不起浏览器，而是直接对 HTTP 桥发请求，验证：
-  1. 静态资源可服务（index.html / app.js / style.css 都是 200 且非空）
+  1. 静态资源可服务（index.html / app.bundle.js / style.css 都是 200 且非空）
   2. 前端会调用的每一个方法都存在且返回 JSON
   3. 走完「登录 → 备跑 → 一键跑 → 轮询进度 → 记录详情 → 导出」全流程
   4. 配置补丁、设备指纹重置、删除记录等辅助动作可用
@@ -94,30 +94,33 @@ def main() -> int:
     try:
         # ── 1. 静态资源 ──
         section("1. 静态资源与桥")
-        for name in ("index.html", "app.js", "style.css"):
+        for name in ("index.html", "app.bundle.js", "style.css"):
             status, text = get_text(page_url.rsplit("/", 1)[0] + "/" + name)
             check(status == 200 and len(text) > 200,
                   f"{name} 可访问（{len(text)} 字节）", f"HTTP {status}")
 
-        # 前端 JS 的语法：HTTP 桥自检看不出来（页面里 S 找不到变量时请求照样通），
-        # 有 node 就真解析一遍；没有就跳过。
+        # 前端 JS 的语法：HTTP 桥自检看不出来（页面里找不到变量时请求照样通），
+        # 有 node 就真解析一遍打包产物；没有就跳过。
         node = shutil.which("node")
-        if node:
-            proc = subprocess.run([node, "--check", str(ROOT / "web" / "app.js")],
+        bundle = ROOT / "web" / "app.bundle.js"
+        if node and bundle.exists():
+            proc = subprocess.run([node, "--check", str(bundle)],
                                   capture_output=True, text=True)
             tail = (proc.stderr or "").strip().splitlines()
-            check(proc.returncode == 0, "app.js 语法通过（node --check）",
+            check(proc.returncode == 0, "app.bundle.js 语法通过（node --check）",
                   tail[-1] if (proc.returncode and tail) else "")
         else:
-            print("  \033[33m·\033[0m 没装 node，跳过 app.js 语法检查")
+            print("  \033[33m·\033[0m 没装 node 或产物不存在，跳过语法检查")
 
         # 时长/配速必须走墙钟口径（原版 DataComponent.Q0()）：实时面板若拿 move_sec（只在移动时
         # 累加）算，一停下来时长与配速就冻住——这是 m02443 的实际故障，静态守一条。
-        js_text = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        # 源码里查（bundle 会被压缩改名，守卫文本只在源码里稳定）。
+        guard_src = ROOT / "web" / "src" / "pages" / "RunPage.jsx"
+        js_text = guard_src.read_text(encoding="utf-8") if guard_src.exists() else ""
         check("实时面板的时长/配速用 elapsed_sec（不用 move_sec）",
               "st.elapsed_sec || st.move_sec" in js_text
               and "pace_s_per_km: st.dist_m > 0 ? (st.move_sec" not in js_text,
-              "pumpWalk 里要写成 duration_s: durSec / pace: durSec")
+              "RunPage 里要写成 dur = st.elapsed_sec || st.move_sec")
 
         st = post_api(api_url, "status")
         check(isinstance(st, dict) and "mode" in st, "桥可用：status() 返回结构正确",

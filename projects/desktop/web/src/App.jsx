@@ -679,7 +679,8 @@ export default function App() {
     tiles: params.tiles,
     onTiles: (v) => setParams((p) => ({ ...p, tiles: v })),
 
-    fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${(status && status.start_point && status.start_point.lat) || ''}|${fitNonce}`,
+    // 不要带 start_point：选起点只挪标记，不能触发 fitBounds 把缩放重置掉
+    fitKey: `${(status && status.fence_code) || ''}|${(status && status.fences && status.fences.length) || 0}|${fitNonce}`,
     onClick: view === 'pick' ? onMapClick : undefined,
   };
 
