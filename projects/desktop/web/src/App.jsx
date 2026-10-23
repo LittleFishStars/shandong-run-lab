@@ -536,11 +536,17 @@ export default function App() {
   };
 
   /* 摇杆 */
-  /* 跑步页配速输入：改计划配速，同时在跑时立刻把速度切过去 */
+  /* 跑步页配速输入：改计划配速，同时在跑时立刻把速度切过去；
+     输入值夹在规则配速区间 [minPace（最快）, maxPace（最慢）] 内 */
   const setPace = (text) => {
-    setParams((p) => ({ ...p, pace: text }));
     const sec = parsePace(text);
-    if (sec > 0) Bridge.call('walk_speed', paceToSpeed(sec)).catch(() => {});
+    const rule = (statusRef.current && statusRef.current.rule) || {};
+    const lo = Number(rule.minPace) || 0;
+    const hi = Number(rule.maxPace) || 0;
+    let paceSec = sec;
+    if (sec > 0 && lo > 0 && hi > lo) paceSec = Math.min(Math.max(sec, lo), hi);
+    setParams((p) => ({ ...p, pace: paceSec > 0 ? fmtPaceInput(paceSec) : text }));
+    if (paceSec > 0) Bridge.call('walk_speed', paceToSpeed(paceSec)).catch(() => {});
   };
 
   const joystick = (dx, dy, mag) => {

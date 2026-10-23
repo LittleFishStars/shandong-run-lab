@@ -579,9 +579,18 @@ class App:
         return self.walk.set_auto(bool(on))
 
     def walk_speed(self, speed_mps: float) -> Dict[str, Any]:
-        """运行中实时调整配速（m/s）：改的是摇杆推满时的目标速度"""
+        """运行中实时调整配速（m/s）：改的是摇杆推满时的目标速度
+
+        速度会夹在学校规则的配速区间内（minPace 最快、maxPace 最慢）。
+        """
         try:
-            return self.walk.set_target_speed(float(speed_mps))
+            mps = float(speed_mps)
+            rule = getattr(self.client, "rule", None) if self.client else None
+            if rule and rule.min_pace > 0 and rule.max_pace > rule.min_pace:
+                lo = 1000.0 / rule.max_pace      # 最慢配速 → 最小速度
+                hi = 1000.0 / rule.min_pace      # 最快配速 → 最大速度
+                mps = min(max(mps, lo), hi)
+            return self.walk.set_target_speed(mps)
         except Exception as exc:  # noqa: BLE001
             return {"code": -1, "message": str(exc), "data": None}
 
