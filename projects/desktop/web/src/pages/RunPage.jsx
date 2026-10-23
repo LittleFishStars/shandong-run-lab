@@ -22,9 +22,9 @@ export default function RunPage({ mapProps, walk, params, planDistance, actions 
       <aside className="side-panel">
         <div className="live-stats">
           <div className="live-line"><span>距离</span><b>{dist.toFixed(0)} m</b></div>
+          <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
           <div className="live-line"><span>配速</span><b>{pace ? fmtPaceShort(pace) : '--'}</b></div>
           <div className="live-line"><span>实时配速</span><b>{livePace ? fmtPaceShort(livePace) : '--'}</b></div>
-          <div className="live-line"><span>计划距离</span><b>{Math.round(Number(planDistance) || 0)} m</b></div>
         </div>
         <div className="run-ctl">
           <Joystick onMove={actions.joystick} onEnd={actions.joystickEnd} />

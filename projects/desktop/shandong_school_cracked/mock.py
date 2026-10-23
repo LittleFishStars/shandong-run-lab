@@ -49,6 +49,25 @@ MOCK_SCHOOL = {
 MOCK_CENTER = (36.661_500, 117.026_500)     # 围栏中心
 MOCK_FENCE_CODE = "FENCE_MOCK_001"
 
+def _hdr(headers: Dict[str, str], name: str) -> str:
+    """大小写不敏感取请求头。
+
+    HTTP 头名本就不区分大小写（真服务端 Spring 亦然）；而 Python 的 urllib
+    在 3.12 及以前会把头名首字母大写（Sign/E/App），3.13+ 才保留原样 ——
+    Mock 守门绝不能依赖大小写，否则同一客户端换个 Python 版本就「预检失败」。
+    """
+    want = name.lower()
+    for k, v in (headers or {}).items():
+        if str(k).lower() == want:
+            return str(v)
+    return ""
+
+
+def _has_hdr(headers: Dict[str, str], name: str) -> bool:
+    """头是否存在（与 _hdr 配套，用于「带 e 头」这类存在性判断）"""
+    want = name.lower()
+    return any(str(k).lower() == want for k in (headers or {}))
+
 
 def _rect_polygon(lat: float, lng: float, half_m: float = 260.0) -> List[List[float]]:
     """以中心点为原点生成一个矩形围栏（经纬度顺序：[lat, lng]）"""
