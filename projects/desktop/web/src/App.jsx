@@ -536,6 +536,13 @@ export default function App() {
   };
 
   /* 摇杆 */
+  /* 跑步页配速输入：改计划配速，同时在跑时立刻把速度切过去 */
+  const setPace = (text) => {
+    setParams((p) => ({ ...p, pace: text }));
+    const sec = parsePace(text);
+    if (sec > 0) Bridge.call('walk_speed', paceToSpeed(sec)).catch(() => {});
+  };
+
   const joystick = (dx, dy, mag) => {
     // 用户推摇杆：清掉所有计划路径点，复制点回到人的位置
     if (ghostPathRef.current.length) {
@@ -692,7 +699,7 @@ export default function App() {
     saveParams, resetDevice, openDataDir, reloadRule,
     startRun, endRun, dryRun, stopWalk, pauseWalk, uploadWalk, saveDraft,
     runAuto, resumeRun, toggleAuto,
-    joystick, joystickEnd,
+    joystick, joystickEnd, setPace,
     toPick, confirmPick, clearStart, fitHome,
     loadRuns: refreshRuns, pickRun,
     clearLog: () => setLog([]),
@@ -802,7 +809,7 @@ export default function App() {
       )}
       {view === 'pick' && <PickPage mapProps={mapProps} actions={actions} />}
       {view === 'run' && (
-        <RunPage mapProps={mapProps} walk={walk} planDistance={(Number(walk && walk.state && walk.state.dist_m) || 0) + planRemain} actions={actions} />
+        <RunPage mapProps={mapProps} walk={walk} params={params} planDistance={(Number(walk && walk.state && walk.state.dist_m) || 0) + planRemain} actions={actions} />
       )}
       {view === 'account' && (
         <AccountPage status={status} runs={runs} actions={actions} />

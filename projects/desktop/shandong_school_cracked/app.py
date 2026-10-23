@@ -578,6 +578,13 @@ class App:
         """
         return self.walk.set_auto(bool(on))
 
+    def walk_speed(self, speed_mps: float) -> Dict[str, Any]:
+        """运行中实时调整配速（m/s）：改的是摇杆推满时的目标速度"""
+        try:
+            return self.walk.set_target_speed(float(speed_mps))
+        except Exception as exc:  # noqa: BLE001
+            return {"code": -1, "message": str(exc), "data": None}
+
     def walk_pause(self, on: bool = True) -> Dict[str, Any]:
         """暂停 / 继续：暂停期间不计时、不计步、不采样（原版 userPause）。
 

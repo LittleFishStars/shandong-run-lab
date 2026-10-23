@@ -378,3 +378,8 @@ button { font-family: inherit; }
   background: #fafafa; border-radius: 8px; font-size: 12px; line-height: 1.6;
   white-space: pre-wrap; word-break: break-word; color: #595959;
 }
+
+/* 跑步页：摇杆下方的实时配速输入 */
+.run-pace { margin-top: 14px; display: flex; align-items: center; gap: 8px; width: 220px; }
+.run-pace > span { color: #8c8c8c; font-size: 13px; white-space: nowrap; }
+.run-pace .ant-input { text-align: center; }

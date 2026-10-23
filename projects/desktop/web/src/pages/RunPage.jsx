@@ -1,10 +1,10 @@
 import React from 'react';
-import { Button } from 'antd';
+import { Button, Input } from 'antd';
 import MapCanvas from '../MapCanvas';
 import Joystick from '../Joystick';
 import { fmtPaceShort } from '../format';
 
-export default function RunPage({ mapProps, walk, planDistance, actions }) {
+export default function RunPage({ mapProps, walk, params, planDistance, actions }) {
   const st = (walk && walk.state) || {};
   const dist = Number(st.dist_m) || 0;
   const dur = Number(st.elapsed_sec || st.move_sec) || 0;
@@ -22,6 +22,14 @@ export default function RunPage({ mapProps, walk, planDistance, actions }) {
         </div>
         <div className="run-ctl">
           <Joystick onMove={actions.joystick} onEnd={actions.joystickEnd} />
+        </div>
+        <div className="run-pace">
+          <span>配速</span>
+          <Input
+            value={(params && params.pace) || ''}
+            placeholder={'6\'40"'}
+            onChange={(e) => actions.setPace(e.target.value)}
+          />
         </div>
         <Button
           type="primary"

@@ -130,6 +130,9 @@ class JsApi:
     def walk_auto(self, on: bool = True) -> Dict[str, Any]:
         return self.app.walk_auto(bool(on))
 
+    def walk_speed(self, speed_mps: float) -> Dict[str, Any]:
+        return self.app.walk_speed(float(speed_mps))
+
     def walk_pause(self, on: bool = True) -> Dict[str, Any]:
         return self.app.walk_pause(bool(on))
 
