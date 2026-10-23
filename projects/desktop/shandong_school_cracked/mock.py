@@ -173,7 +173,7 @@ class MockWorld:
                 break
         with self.lock:
             self.calls.append({"path": path, "ts": int(time.time() * 1000),
-                               "sign": headers.get("sign", "")})
+                               "sign": _hdr(headers, "sign")})
         if self.latency_ms:
             time.sleep(self.latency_ms / 1000.0)
         if self.fail_rate and self.rng.random() < self.fail_rate and path != "captcha/get":
@@ -199,7 +199,7 @@ class MockWorld:
         """像真服务端一样校验 sign（仅 uploadRunRecord 会调用）"""
         if not self.verify_sign:
             return True
-        sign_value = headers.get("sign", "")
+        sign_value = _hdr(headers, "sign")
         if not sign_value or len(sign_value) != 108:
             self.emit("✗ Mock 拒绝：sign 缺失或长度不是 108（" + str(len(sign_value)) + "）", "warn")
             return False
@@ -211,7 +211,8 @@ class MockWorld:
 
     def require_login(self, headers: Dict[str, str]) -> bool:
         # BAD_TOKEN 用于模拟「历史账号登录态已过期」，方便自测自动重登
-        return bool(headers.get("Authorization")) and headers.get("Authorization") != "BAD_TOKEN"
+        auth = _hdr(headers, "Authorization")
+        return bool(auth) and auth != "BAD_TOKEN"
 
     def require_headers(self, headers: Dict[str, str]) -> bool:
         """校验原版拦截器必须注入的头（Mock 侧的一致性守门）
@@ -223,9 +224,9 @@ class MockWorld:
         """
         if not self.verify_sign:
             return True
-        if not headers.get("sign"):
+        if not _hdr(headers, "sign"):
             return False
-        if "e" in headers and not headers.get("app"):
+        if _has_hdr(headers, "e") and not _hdr(headers, "app"):
             return False
         return True
 
@@ -305,7 +306,7 @@ def _user_info(w: MockWorld, path: str, h: Dict[str, str], b: Dict[str, Any]):
     if not w.require_login(h):
         return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
     # 回显本次登录会话的身份（多个账号切换时 userId 必须对得上）
-    sess = w.sessions.get(str(h.get("Authorization") or "")) or {}
+    sess = w.sessions.get(_hdr(h, "Authorization")) or {}
     return {"code": CODE_OK, "message": "成功", "data": {
         "userId": sess.get("userId") or "UMOCK001",
         "userName": sess.get("userName") or "本地仿真用户",
