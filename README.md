@@ -6,8 +6,7 @@
 - 逆向结论：[`report/`](report/README.md)（报告 01–24 唯一出处）
 - 桌面工程：[`projects/desktop/`](projects/desktop/)（闪动校园·阳光跑 工作台）
 
-> ⚠️ **用途声明**：本仓库仅用于**个人学习、协议研究与本地仿真调试**。请勿用于任何影响真实校园跑数据、
-> 或与自身无关的账号的用途。默认运行在**真实模式**（直连 `api.huachenjie.com`）；想纯本地调试请把登录方式切成「本地登录」。
+> ⚠️ **用途声明**：本仓库仅用于**个人学习、协议研究**。请勿用于任何影响真实校园跑数据、或与自身无关的账号的用途。
 
 ---
 
@@ -62,7 +61,6 @@ python3 -m venv .venv
 .venv/bin/pip install pycryptodome                 # 密码学后端（可选，没有则用 cryptography）
 .venv/bin/python -m shandong_school_cracked        # 图形界面
 .venv/bin/python -m shandong_school_cracked run -d 2000          # CLI：跑 2 公里并上传
-.venv/bin/python -m shandong_school_cracked mock --port 8899     # CLI：只起本地 Mock 服务端
 .venv/bin/python -m shandong_school_cracked info                 # 环境信息（后端、数据目录）
 .venv/bin/python -m shandong_school_cracked --help               # 全部 CLI 子命令
 ```
@@ -107,26 +105,19 @@ jadx -d work/dex/jadx_FULL --no-res samples/com.huachenjie.shandong_school.apk
 到达目标里程会自动结算，同样回到首页。
 
 > 提示：启动总是先进登录页（即使本地会话还在）——点「**选择已有账号**」即可免密进入。
-> 「运行模式（真实服务端 / 本地 Mock）」在「更多 → 跑步参数」里切；
-> 选起始点入口在「更多 → 地图与起点」。想纯本地调试就把登录方式切成「本地登录」。
+> 选起始点入口在「更多 → 地图与起点」。
 
 ### 命令行（CLI）
 
 ```bash
-# ① 桌面窗口（默认；真实模式，登录卡片里可切本地登录）
+# ① 桌面窗口
 ./shandong-school_cracked-<平台> gui
 
-# ② 纯本地仿真，不碰真实服务端
-./shandong-school_cracked-<平台> --mode mock gui
-
-# ③ 跑一次完整流程（不开界面，适合脚本化 / 排错）
+# ② 跑一次完整流程（不开界面，适合脚本化 / 排错）
 ./shandong-school_cracked-<平台> run -d 2000                 # 跑 2 公里并上传
 ./shandong-school_cracked-<平台> run -d 1500 --no-upload --json | tail -40
 
-# ④ 只起本地 Mock 服务端
-./shandong-school_cracked-<平台> mock --port 8899
-
-# ⑤ 环境信息（后端、数据目录、默认目标）
+# ③ 环境信息（后端、数据目录、默认目标）
 ./shandong-school_cracked-<平台> info
 ```
 
@@ -142,7 +133,7 @@ jadx -d work/dex/jadx_FULL --no-res samples/com.huachenjie.shandong_school.apk
 
 - 本项目是**逆向学习与协议研究**的产物，与「闪动校园 / 华辰杰（hewc / huachenjie）」**官方及其作者无关**。
 - 协议细节来自对本机 APK（`com.huachenjie.shandong_school` v8.7.7）的**静态分析**与**服务端常量交叉验证**。
-- **仅用于**个人学习、协议研究与本地仿真调试。**请勿**：
+- **仅用于**个人学习与协议研究。**请勿**：
   - 用于模拟/伪造真实成绩，影响任何平台的公平性与数据真实性；
   - 用于与自身无关的账号，或任何违反校规、平台条款或法律法规的用途。
 - 本项目按「AS-IS」提供，**不提供任何形式的担保**；使用者对其任何形式的**后果自负**（学业、平台、法律风险）。

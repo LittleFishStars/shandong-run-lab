@@ -59,6 +59,18 @@ cd projects/desktop
 .venv/bin/python -m shandong_school_cracked check        # 两个自检一起跑
 ```
 
+### 本地 Mock 模式（仅测试用）
+
+内置一个**离线 Mock 服务端**（`mock.py`），不碰真实网络，用于单元 / 端到端调试与测试：
+
+```bash
+cd projects/desktop
+.venv/bin/python -m shandong_school_cracked --mode mock gui     # 纯本地仿真，真接口一根毛都不碰
+.venv/bin/python -m shandong_school_cracked mock --port 8899     # 只起本地 Mock 服务端
+```
+
+- 登录方式切到「本地 Mock」即走 Mock 通道；`session_mock` 与真实会话分开存本地，来回切换不用反复登录。
+- 可在界面/脚本里注入延迟、随机失败率，配合测试用例模拟弱网与失败重试。
 ### 打包与发布
 
 ```bash
