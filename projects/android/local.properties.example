@@ -1,0 +1,2 @@
+# 复制为 local.properties 并按本机实际路径修改
+sdk.dir=/home/ylxc/Android/Sdk

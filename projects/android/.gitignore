@@ -1,0 +1,9 @@
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+.DS_Store
+app/src/main/python/**/__pycache__/
+app/src/main/assets/web/app.bundle.js.map
+web/node_modules/
