@@ -49,6 +49,7 @@ export default function App() {
   const seqRef = useRef(0);
   const walkSinceRef = useRef(0);
   const walkTimerRef = useRef(null);
+  const walkTickRef = useRef(0);
   const paramsLoadedRef = useRef(false);
   const statusRef = useRef(null);
   const viewRef = useRef(view);
@@ -156,6 +157,13 @@ export default function App() {
         const r = await Bridge.call('walk_status', walkSinceRef.current);
         if (!r) return;
         setWalk(r);
+        // 真实服务端的打卡点偶尔比开跑晚一点下发：targets 还空时定时补一次 status
+        if (!(Array.isArray(r.targets) && r.targets.length)) {
+          walkTickRef.current += 1;
+          if (walkTickRef.current % 4 === 0) {
+            try { const st = await Bridge.call('status'); if (st) setStatus(st); } catch (_) { /* 忽略 */ }
+          }
+        }
         if (Array.isArray(r.points) && r.points.length) {
           walkSinceRef.current = Number(r.total) || (walkSinceRef.current + r.points.length);
           setWalkPoints((prev) => [...prev, ...r.points]);
@@ -510,16 +518,14 @@ export default function App() {
     return [];
   }, [detail, status]);
 
-  // 跑步时打卡点与路线以实时快照为准（walk_status.targets / route），开跑后才有
+  // 跑步时打卡点以实时快照为准（walk_status.targets），开跑后才有
   const mapCheckpoints = (walk && Array.isArray(walk.targets) && walk.targets.length)
     ? walk.targets
     : ((status && status.checkpoints) || (status && status.preview_points) || []);
-  const mapRoute = (walk && Array.isArray(walk.route) && walk.route.length) ? walk.route : route;
 
   const mapProps = {
     status,
     walkPoints,
-    route: mapRoute,
     checkpoints: mapCheckpoints,
     waypoints,
     tiles: params.tiles,

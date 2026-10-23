@@ -81,13 +81,8 @@ export function renderMap(map, data) {
     }).addTo(layers.start);
   }
 
-  /* 规划路线 / 路点 */
+  /* 路点（规划的整条路线不再画，只保留手动点选的路点） */
   layers.route.clearLayers();
-  if (Array.isArray(route) && route.length > 1) {
-    L.polyline(route.map((p) => [Number(p[0]), Number(p[1])]), {
-      color: '#faad14', weight: 3, dashArray: '6 6',
-    }).addTo(layers.route);
-  }
   layers.wpt.clearLayers();
   (waypoints || []).forEach((p) => {
     L.circleMarker([Number(p[0]), Number(p[1])], {
