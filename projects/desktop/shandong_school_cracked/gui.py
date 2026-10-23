@@ -184,6 +184,20 @@ class JsApi:
     def switch_mode(self, mode: str) -> Dict[str, Any]:
         return self.app.switch_mode(str(mode))
 
+    def check_update(self) -> Dict[str, Any]:
+        return self.app.check_update()
+
+    def open_url(self, url: str) -> Dict[str, Any]:
+        """用系统浏览器打开链接（更新弹窗里的「前往下载」用）"""
+        url = str(url or "").strip()
+        if not url.lower().startswith(("http://", "https://")):
+            return {"code": -1, "message": "链接无效", "data": None}
+        try:
+            webbrowser.open(url)
+            return {"code": 0, "message": "ok", "data": {"url": url}}
+        except Exception as exc:  # noqa: BLE001
+            return {"code": -1, "message": str(exc), "data": None}
+
     def relogin_account(self, user_id: str) -> Dict[str, Any]:
         return self.app.relogin_account(str(user_id))
 

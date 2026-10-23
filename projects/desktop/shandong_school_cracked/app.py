@@ -226,6 +226,11 @@ class App:
         self.bus.emit("state", "配置已保存")
         return self.cfg
 
+    def check_update(self) -> Dict[str, Any]:
+        """启动检查更新：查 GitHub Releases 最新 tag，只提示不强制"""
+        from .updater import check_update
+        return check_update()
+
     def relogin_account(self, user_id: str) -> Dict[str, Any]:
         """历史账号登录态失效：用保存的账号密码重新登录"""
         res = self.client.relogin_account(str(user_id or ""))

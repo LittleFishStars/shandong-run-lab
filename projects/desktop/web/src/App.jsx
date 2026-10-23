@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { message, Modal, Spin } from 'antd';
+import { message, Modal, Spin, Button } from 'antd';
 import { Bridge } from './bridge';
 import {
   parsePace, paceToSpeed, fmtPaceInput, fmtPaceShort, fmtDur, fmtKm, fmtDateTime,
@@ -28,6 +28,7 @@ export default function App() {
   const [accounts, setAccounts] = useState([]);
   const [savedOpen, setSavedOpen] = useState(false);
   const [fencePickOpen, setFencePickOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState(null);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -123,6 +124,18 @@ export default function App() {
     } catch (e) {
       setRuns({ items: [], page, hasNext: false, error: String((e && e.message) || e) });
     }
+  }, []);
+
+  /* 启动时后台查一次新版本，有新版本再弹窗（不强制、不阻塞） */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await Bridge.call('check_update');
+        if (alive && r && r.has_update) setUpdateInfo(r);
+      } catch (_) { /* 网络不可用时静默 */ }
+    })();
+    return () => { alive = false; };
   }, []);
 
   /* 启动：有上次的登录会话就直接进选起始点页；会话失效才回登录页 */
@@ -741,6 +754,24 @@ export default function App() {
               <span>{f.fenceName || f.fenceCode || `围栏 ${i + 1}`}</span>
             </button>
           ))}
+        </div>
+      </Modal>
+
+      <Modal
+        title="发现新版本"
+        open={!!updateInfo}
+        onCancel={() => setUpdateInfo(null)}
+        footer={[
+          <Button key="later" onClick={() => setUpdateInfo(null)}>稍后</Button>,
+          <Button key="go" type="primary" onClick={() => {
+            if (updateInfo && updateInfo.url) Bridge.call('open_url', updateInfo.url).catch(() => {});
+            setUpdateInfo(null);
+          }}>前往下载</Button>,
+        ]}
+      >
+        <div className="update-body">
+          <p>当前版本 <b>{updateInfo ? updateInfo.current : ''}</b>　最新版本 <b>{updateInfo ? updateInfo.latest : ''}</b></p>
+          {updateInfo && updateInfo.notes ? <pre className="update-notes">{updateInfo.notes}</pre> : null}
         </div>
       </Modal>
 
