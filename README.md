@@ -53,29 +53,39 @@ ShanDong/
 
 ### 源码拉起来（Python 3.10+）
 
+需要 Python 3.10+（本机 Arch 实测 3.14）。`pywebview` 与 `pycryptodome` 都可选，缺失时自动降级（密码学后端兜底到纯标准库 AES）：
+
 ```bash
 cd projects/desktop
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt          # 若有；否则按需装
+python3 -m venv --system-site-packages .venv        # Arch：继承系统包，省一次下载
 .venv/bin/pip install pywebview                    # 桌面窗口（可选，缺了自动走浏览器）
-.venv/bin/pip install pycryptodome                 # 密码学后端（可选，没有则用 cryptography）
+.venv/bin/pip install pycryptodome                 # 密码学后端（可选，没有则用 cryptography/纯标准库）
 .venv/bin/python -m shandong_school_cracked        # 图形界面
 .venv/bin/python -m shandong_school_cracked run -d 2000          # CLI：跑 2 公里并上传
 .venv/bin/python -m shandong_school_cracked info                 # 环境信息（后端、数据目录）
 .venv/bin/python -m shandong_school_cracked --help               # 全部 CLI 子命令
 ```
 
+密码学后端 `pycryptodome → cryptography → 纯标准库` 自动择优，全部缺失也能跑（内置纯 Python AES）。
+
 ### 逆向复现
 
 ```bash
-# 样本里的壳 classes.dex（work/ 已清理，按需现场解包）
+# 脱壳主 DEX（work/dex/ 下已存有全量结果，可跳过直达分析）
 unzip -p samples/com.huachenjie.shandong_school.apk classes.dex > /tmp/classes.dex
 
 # jadx 全量反编译（work/dex/jadx_FULL 的再生方式）
 jadx -d work/dex/jadx_FULL --no-res samples/com.huachenjie.shandong_school.apk
 
-# 清单类脚本（产出统一进 work/meta/）——见 work/README.md 的「常用复现命令」
+# 清单类脚本（产出统一进 work/meta/）：扫三方 SDK（默认 arm64-v8a）/ 资产与域名盘点
+python3 scripts/sdk_inventory.py
+python3 scripts/assets_inventory.py
+
+# 解析 manifest（需先 aapt dump xmltree，产物可喂给 parse_manifest.py 生成摘要）
+aapt dump xmltree samples/com.huachenjie.shandong_school.apk AndroidManifest.xml > /tmp/manifest.xmltree.json
 ```
+
+更多复现命令见 `work/README.md` 的「常用复现命令」。
 
 ---
 
@@ -110,14 +120,18 @@ jadx -d work/dex/jadx_FULL --no-res samples/com.huachenjie.shandong_school.apk
 ### 命令行（CLI）
 
 ```bash
-# ① 桌面窗口
-./shandong-school_cracked-<平台> gui
+# ① 桌面窗口（不带子命令默认就开窗口，等同 ./shandong-school_cracked-<平台>）
+./shandong-school_cracked-<平台>
 
 # ② 跑一次完整流程（不开界面，适合脚本化 / 排错）
 ./shandong-school_cracked-<平台> run -d 2000                 # 跑 2 公里并上传
-./shandong-school_cracked-<平台> run -d 1500 --no-upload --json | tail -40
+./shandong-school_cracked-<平台> run -d 1500 --no-upload --json | tail -40   # 只生成不上传
 
-# ③ 环境信息（后端、数据目录、默认目标）
+# ③ 纯本地仿真：不碰真实服务端，全程打内置 Mock（127.0.0.1 随机端口），适合离线调试
+./shandong-school_cracked-<平台> --mode mock gui        # Mock 开窗口
+./shandong-school_cracked-<平台> --mode mock run -d 2000
+
+# ④ 环境信息（后端、数据目录、默认目标）
 ./shandong-school_cracked-<平台> info
 ```
 
