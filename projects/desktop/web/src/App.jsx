@@ -514,7 +514,6 @@ export default function App() {
     if (viewRef.current !== 'pick') return;
     const r = await Bridge.call('set_start_point', lat, lng);
     if (r && r.code === 0) {
-      setWaypoints([]);
       await refreshStatus();
       toast('起点已设置', 'ok');
     } else if (r && r.code !== 0) toast((r && r.message) || '设置失败', 'err');
