@@ -94,6 +94,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "base_url": "https://api.huachenjie.com/run-front",
     "transport": "direct",          # direct / proxy
     "proxy": "",
+    # TLS 指纹伪装（curl_cffi 预设名，空串 = 不伪装；默认 chrome110）
+    "tls_impersonate": "chrome110",
     "timeout": 20,
     "retry": 2,
     # 设备指纹（15 个公开 Build 字段 + 9 个公共报文字段）
@@ -122,6 +124,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "stride_m": 0.85,
         "sample_s": 3.0,
         "upload_batch": 50,
+        # 人脸扫脸（报告二十四）：real = 底图加工后上传 OSS face/run/；
+        # reuse = 直接用底图 URL（muccc526 方案）；off = 不上送 faceCheckRecordList
+        "face_check": {
+            "mode": "real",
+        },
     },
     # 仿真（FUCK-RUN- 移植）
     "sim": {

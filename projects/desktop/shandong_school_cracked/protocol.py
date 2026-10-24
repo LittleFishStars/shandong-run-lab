@@ -927,3 +927,104 @@ class TrackGenerator:
 def new_run_code(prefix: str = "SDLAB") -> str:
     """本地生成的 runRecordCode（离线模式下用；真实模式由服务端下发）"""
     return f"{prefix}{uuid.uuid4().hex[:16].upper()}"
+
+
+# ══════════════════ 人脸检查点（报告二十四） ══════════════════
+def face_snapshots_from_track(plan: Sequence[Dict[str, Any]],
+                              pts: Sequence[RunLatLng]) -> List[Dict[str, Any]]:
+    """按检查点里程从已生成轨迹里取「扫脸时刻」快照
+
+    原版 DataComponent（:268-300、:918-928）：跑中每帧比对
+    ``S0() >= faceCheckRecordList[i].randomDistance``，命中即记录
+    popTime（弹出时刻 ms）/ checkDistance（当时累计里程 m）/
+    checkLng / checkLat（当时坐标）。
+
+    这里在轨迹生成后一次性回放：按点序累加 haversine 距离，
+    每个检查点取「首个累计里程 >= randomDistance」的点作为快照。
+    跑步里程没够到的检查点 → hasChecked=False，字段留空
+    （原版未弹出的记录也是 null 字段，同样会随结算上送）。
+    """
+    snaps: List[Dict[str, Any]] = []
+    if not plan or not pts:
+        return snaps
+    ordered = sorted(pts, key=lambda p: (p.run_time, p.lat_lng_index))
+    cum = 0.0
+    prev: Optional[RunLatLng] = None
+    targets = sorted(plan, key=lambda r: int(r.get("randomDistance") or 0))
+    queue = list(targets)
+    for p in ordered:
+        if prev is not None:
+            cum += haversine(prev.lat, prev.lng, p.lat, p.lng)
+        prev = p
+        while queue and 0 < int(queue[0].get("randomDistance") or 0) <= int(cum):
+            rec = queue.pop(0)
+            snaps.append({
+                "checkIndex": int(rec.get("checkIndex") or 0),
+                "randomDistance": int(rec.get("randomDistance") or 0),
+                "hasChecked": True,
+                "popTime": int(p.collect_time),
+                "checkDistance": int(round(cum)),
+                "checkLng": float(p.lng),
+                "checkLat": float(p.lat),
+            })
+    # 没够到的检查点：照原版语义上送 null 字段
+    for rec in queue:
+        snaps.append({
+            "checkIndex": int(rec.get("checkIndex") or 0),
+            "randomDistance": int(rec.get("randomDistance") or 0),
+            "hasChecked": False,
+            "popTime": None, "checkDistance": None,
+            "checkLng": None, "checkLat": None,
+        })
+    snaps.sort(key=lambda s: s["checkIndex"])
+    return snaps
+
+
+def build_face_check_records(snapshots: Sequence[Dict[str, Any]],
+                             run_face_img: str,
+                             similarity_value: int,
+                             rng: Optional[random.Random] = None,
+                             body_rate: int = 0) -> List[Dict[str, Any]]:
+    """构造结算报文的 faceCheckRecordList（ SunshineRunFaceRecord 的线缆形态）
+
+    原版 DataComponent.c2()/e2() 落的字段 + t1() 只在 runScene==20 && faceAuth
+    时 put 整表。confidence 参考阿里云 CompareFace 返回（0-100 float），
+    取 [阈值+5, min(97, 阈值+15)] 均匀分布——刚好过阈值但不像同一张图
+    比对出来的 100 分。rate/label 对应 DetectLivingFace 的 results[0]
+    （muccc526 实测：rate=1.0、无 requestId 也能过）。
+    extendParam = RunFaceDetectStatus 的 fastjson 序列化（vw3.u()），
+    8 个状态位全 1 = 各阶段成功。
+    """
+    rng = rng or random.Random()
+    lo = float(similarity_value) + 5.0
+    hi = min(97.0, float(similarity_value) + 15.0)
+    if hi <= lo:
+        hi = lo + 2.0
+    records: List[Dict[str, Any]] = []
+    for s in snapshots:
+        checked = bool(s.get("hasChecked"))
+        rec: Dict[str, Any] = {
+            "checkIndex": int(s.get("checkIndex") or 0),
+            "randomDistance": int(s.get("randomDistance") or 0),
+            "hasChecked": checked,
+            "finishFaceCheck": checked,
+            "popTime": s.get("popTime"),
+            "checkDistance": s.get("checkDistance"),
+            "checkLng": s.get("checkLng"),
+            "checkLat": s.get("checkLat"),
+            "runFaceUpload": checked and bool(run_face_img),
+            "runFaceImg": run_face_img if checked else "",
+            "confidence": round(rng.uniform(lo, hi), 2) if checked else None,
+            "rate": 1.0 if checked else None,
+            "label": "liveness" if checked else None,
+            "faceRequestId": "",
+            "bodyRequestId": "",
+            "faceCheckErrorCode": "",
+            "bodyCheckErrorCode": "",
+            "extendParam": ("{\"baseImageDownload\":1,\"baseImageParse\":1,"
+                            "\"bestImageCapture\":1,\"cameraStart\":1,"
+                            "\"livenessCheck\":1,\"modelInit\":1,"
+                            "\"similarityCheck\":1,\"uploadImage\":1}") if checked else "",
+        }
+        records.append(rec)
+    return records

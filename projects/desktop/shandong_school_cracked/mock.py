@@ -110,6 +110,10 @@ class MockWorld:
         # 服务端侧的时间校准偏移（原版 common/syncTime 的 reduceTimes）；
         # 真实环境是服务端算的，本地仿真固定 0，测试时可直接改这个字段。
         self.time_offset_ms = 0
+        # 人脸扫脸仿真开关（测试里直接置 True；默认关，保持旧行为）。
+        # 开启后 checkSunRunConfig 会下发 faceCheck* 配置与底图 URL。
+        self.face_enabled = False
+        self.face_img = "https://mock.local/face/user/base.jpg"
 
         self.runs: Dict[str, MockRun] = {}
         self.sessions: Dict[str, Dict[str, Any]] = {}
@@ -368,15 +372,55 @@ def _run_abstract(w: MockWorld, path: str, h, b):
     }}
 
 
+def _user_face_img(w: MockWorld, path: str, h, b):
+    """face/getUserFaceImg：与 checkSunRunConfig 同源的底库照信息（CompatApi.i）"""
+    if not w.require_login(h):
+        return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
+    return {"code": CODE_OK, "message": "成功", "data": {
+        "faceImg": w.face_img if getattr(w, "face_enabled", False) else "",
+        "faceEnabled": 1 if getattr(w, "face_enabled", False) else 0,
+        "similarityValue": 75,
+        "faceModelType": 1,
+    }}
+
+
+def _oss_token(w: MockWorld, path: str, h, b):
+    """aliyun/oss/getToken：本地仿真返回假 STS（真实链路在 client 里走 oss2）"""
+    if not w.require_login(h):
+        return {"code": CODE_NEED_LOGIN, "message": "未登录", "data": None}
+    return {"code": CODE_OK, "message": "成功", "data": {
+        "accessKeyId": "STS.mock", "accessKeySecret": "mock-secret",
+        "securityToken": "mock-token", "expiration": "2099-01-01 00:00:00",
+        "domain": "https://mock-oss.local", "directory": "school",
+    }}
+
+
 def _sunrun_config(w: MockWorld, path: str, h, b):
+    face = {"faceImg": "", "faceEnabled": 0, "runScene": 1}
+    if getattr(w, "face_enabled", False):
+        # 开启人脸核验的学校：CheckRunConfig 会带 faceCheck* 字段（报告二十四）。
+        # 区间对应 3km 跑两个检查点；faceModelType=1 = 阿里云比对模式。
+        face = {
+            "faceImg": w.face_img,
+            "faceEnabled": 1,
+            "faceAuth": True,
+            "similarityValue": 75,
+            "faceTime": 30,
+            "bodyEnable": False,
+            "bodyRate": 0,
+            "faceModelType": 1,
+            "runScene": 20,
+            "faceCheckConfigList": [
+                {"lowerLimit": 600, "upperLimit": 900},
+                {"lowerLimit": 1500, "upperLimit": 1800},
+            ],
+        }
     return {"code": CODE_OK, "message": "成功", "data": {
         "fenceCode": b.get("fenceCode", MOCK_FENCE_CODE),
         "targetDistance": b.get("targetDistance", "2000"),
         "schoolRule": w.rule,
         "geoFenceDetail": w.fence,
-        "faceImg": "",           # 非空表示需要人脸核验
-        "faceEnabled": 0,
-        "runScene": 1,
+        **face,
     }}
 
 
@@ -689,6 +733,8 @@ _ROUTES = {
     "school/filterUsableFence": _fence_filter,
     "run/querySunRunAbstractInfoV2": _run_abstract,
     "run/checkSunRunConfig": _sunrun_config,
+    "face/getUserFaceImg": _user_face_img,
+    "aliyun/oss/getToken": _oss_token,
     "run/getPreRunCheckIn": _sunrun_config,
     "run/plan/selectList": _plan_list,
     "run/startSunRun_v2": _start_sun_run,

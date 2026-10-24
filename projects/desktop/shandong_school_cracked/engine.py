@@ -241,6 +241,13 @@ class RunEngine:
             c.store.add_checkpoints(code, self.checkpoints)
             self._emit("log", f"服务端未下发打卡点，按围栏预估 {len(self.checkpoints)} 个",
                        level="warn")
+        # 人脸检查点计划（原版在 checkRunRule 后生成，服务端只发区间；报告二十四）。
+        # 计划存 kv：结算时与 simulate 落的快照合并成 faceCheckRecordList。
+        plan = c.plan_face_checks()
+        if plan:
+            c.store.kv_set(f"faceplan:{code}", plan)
+            self._emit("log", f"已生成 {len(plan)} 个人脸检查点（里程 "
+                        + "、".join(f"{p['randomDistance']}m" for p in plan) + "）")
         self.last = {"run_code": code, "target_m": target, "started_at": int(time.time() * 1000)}
         self._emit("run_started", f"已开跑：{code}", run_code=code, target_m=target)
         return code
@@ -314,6 +321,19 @@ class RunEngine:
         self.store.add_steps(run_code, steps)
         self.store.add_paces(run_code, paces)
         self.store.add_strides(run_code, strides)
+
+        # 人脸检查点快照：轨迹回放，取「累计里程 ≥ randomDistance」的首个点
+        # 作为扫脸时刻（popTime/checkDistance/checkLng/checkLat），存 kv 供结算用。
+        plan = self.store.kv_get(f"faceplan:{run_code}") or []
+        if plan:
+            snaps = protocol.face_snapshots_from_track(plan, pts)
+            self.store.kv_set(f"facecheck:{run_code}", snaps)
+            missed = [s for s in snaps if not s.get("hasChecked")]
+            if missed:
+                self._emit("log", f"⚠ {len(missed)} 个人脸检查点里程未跑到"
+                            f"（目标距离不足），对应记录将以未完成状态上送", level="warn")
+            else:
+                self._emit("log", f"人脸检查点快照完成：{len(snaps)}/{len(snaps)}")
 
         hits = self.match_checkpoints(run_code, pts)
         total_step = sum(int(s.step) for s in steps)

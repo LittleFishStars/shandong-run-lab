@@ -36,6 +36,7 @@ from .constants import (
     HEADER_APP,
     HEADER_E_ENC,
     HEADER_PV,
+    DEFAULT_TLS_IMPERSONATE,
     USER_AGENT_PREFIX,
     EP,
     Endpoint,
@@ -50,6 +51,13 @@ try:  # 优先 requests（自动处理 gzip / 连接复用）
 except Exception:  # pragma: no cover
     _HAS_REQUESTS = False
 
+try:  # TLS 指纹伪装（curl_cffi；chrome110 预设经 muccc526 项目实测可过服务端）
+    from curl_cffi import requests as _cffi_requests  # type: ignore
+
+    _HAS_CURL_CFFI = True
+except Exception:  # pragma: no cover
+    _cffi_requests = None
+    _HAS_CURL_CFFI = False
 
 class TransportError(Exception):
     pass
@@ -75,6 +83,16 @@ class Transport:
         self.timeout = float(self.cfg.get("timeout", 20))
         self.retry = int(self.cfg.get("retry", 2))
         self.proxy = (self.cfg.get("proxy") or "").strip()
+        # TLS 指纹伪装：空串 = 关闭（原生 urllib/requests 指纹）。
+        # 默认 chrome110——服务端目前不校验 JA3（2026-10 实测原生指纹可过），
+        # 但伪装成本为零，防患于未然；curl_cffi 缺席时自动降级并留告警。
+        imp = str(self.cfg.get("tls_impersonate", DEFAULT_TLS_IMPERSONATE) or "").strip()
+        self.tls_impersonate = imp if (_HAS_CURL_CFFI or not imp) else ""
+        self._cffi_session = (_cffi_requests.Session()
+                              if (self.tls_impersonate and _HAS_CURL_CFFI) else None)
+        if imp and not self.tls_impersonate and self.bus:
+            self.bus.emit("log", "⚠ curl_cffi 未安装，TLS 指纹伪装未生效"
+                                 "（pip install curl_cffi）", level="warn")
         # clock：毫秒时钟。原版 SignInterceptor 发 timestamp 时用的是
         # (System.currentTimeMillis() + hq1.f3188a)，而 hq1.f3188a 由
         # r24.java:95 `hq1VarA.c(r90.D(), ...)` 注入 = SyncTimeIntentService
@@ -333,10 +351,16 @@ class Transport:
             url = "https:" + url
         elif url.startswith("http://"):
             url = "https://" + url[7:]
-        req = urllib.request.Request(url, headers={"User-Agent": f"{USER_AGENT_PREFIX}/{APP_VERSION}"})
+        hdrs = {"User-Agent": f"{USER_AGENT_PREFIX}/{APP_VERSION}"}
         try:
-            with _open(req, self.timeout, self.proxy) as r:
-                data = r.read()
+            if self._cffi_session is not None:
+                r = self._cffi_session.get(url, headers=hdrs, timeout=self.timeout,
+                                           impersonate=self.tls_impersonate)
+                data = r.content
+            else:
+                req = urllib.request.Request(url, headers=hdrs)
+                with _open(req, self.timeout, self.proxy) as r:
+                    data = r.read()
             if self.bus:
                 self.bus.emit("log", f"↓ 资源 {len(data)} B  {url[:72]}")
             return data
@@ -348,8 +372,20 @@ class Transport:
     # ══════════════════ 底层 ══════════════════
     def _send(self, url: str, headers: Dict[str, str], body: Optional[bytes]
               ) -> Tuple[int, str]:
+        proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
+        # TLS 指纹伪装优先（curl_cffi）；验证码图片下载等二进制资源同走
+        # _cffi_get/_cffi_post，保证对外 HTTP 指纹全链路一致
+        if self._cffi_session is not None:
+            if body is not None:
+                r = self._cffi_session.post(url, data=body, headers=headers,
+                                            timeout=self.timeout, proxies=proxies,
+                                            impersonate=self.tls_impersonate)
+            else:
+                r = self._cffi_session.get(url, headers=headers, timeout=self.timeout,
+                                           proxies=proxies,
+                                           impersonate=self.tls_impersonate)
+            return r.status_code, r.text
         if _HAS_REQUESTS:
-            proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
             r = requests.post(url, data=body, headers=headers,
                               timeout=self.timeout, proxies=proxies) if body is not None else \
                 requests.get(url, headers=headers, timeout=self.timeout, proxies=proxies)

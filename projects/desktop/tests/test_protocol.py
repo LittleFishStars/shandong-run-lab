@@ -6,7 +6,6 @@
   2. 报文构造：轨迹点、步频段、配速段、步幅段、打卡点
   3. 有效性判定：复刻客户端 DataComponent.W0 的判定顺序与失效码
 """
-import math
 import unittest
 
 from shandong_school_cracked import constants as C

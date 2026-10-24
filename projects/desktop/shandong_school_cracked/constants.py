@@ -72,6 +72,16 @@ HEADER_PV = "2"
 HEADER_E = "0"              # 请求体字段不加密（原样上送）
 HEADER_E_ENC = "1"          # 请求体字段按 ENCRYPT_FIELDS 加密后上送
 
+# TLS 指纹伪装默认预设（curl_cffi）。空串 = 不伪装。
+# 参考 muccc526 项目的 chrome110 预设（实测可过服务端）；
+# 本项目原生 urllib 指纹同样可过（2026-10 实测），伪装属冗余防御。
+DEFAULT_TLS_IMPERSONATE = "chrome110"
+
+# OSS 上传（k66.java:31-32）：bucket 与 endpoint 硬编码在原版；
+# 对象键 = <token.directory>/<UploadFileType>/<md5>.jpg，最终 URL 域名来自 STS 的 domain
+OSS_BUCKET = "sd-campus-badge"
+OSS_ENDPOINT = "https://oss-cn-hangzhou.aliyuncs.com"
+
 # ══════════════════ 请求体字段加密（e 头）══════════════════
 # APK：EncryptInterceptor 只在「请求头 e 存在且不等于 "0"」时加密请求体字段，
 # 字段表由 com/zj/adlib/r24.java:104 的 h33.d(...) 注册（列表见下），
@@ -235,6 +245,13 @@ EP = {
     "reward_list":      Endpoint("run/listUserReward",       "listUserReward",    "run"),
     "rank_distance":    Endpoint("rank/distance",            "distance",          "rank"),
     "rank_progress":    Endpoint("rank/runProgress",         "runProgress",       "rank"),
+
+    # ── 人脸 / OSS（报告二十四：扫脸链路）──
+    # face/getUserFaceImg：CompatApi.i()，返回底库照 URL 与学校人脸配置
+    "user_face_img":    Endpoint("face/getUserFaceImg",      "getUserFaceImg",    "face"),
+    # aliyun/oss/getToken：CommonApi.i(tokenType)，OSS 上传用 STS；
+    # 原版 k66.f()=""（OSS 上传）/ ml2.f()="1"（facebody 比对）
+    "oss_token":        Endpoint("aliyun/oss/getToken",      "getToken",          "aliyun"),
 
     # ── 验证码（AJ-Captcha）──
     # 原版 20 个 *Api.java 里没有 captcha 路由，它由 H5/WebView 侧发起；
