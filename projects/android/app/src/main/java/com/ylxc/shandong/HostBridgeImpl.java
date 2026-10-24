@@ -8,8 +8,6 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
-import java.util.Locale;
-
 /**
  * HostBridge 的默认实现。
  *
@@ -60,14 +58,15 @@ public class HostBridgeImpl implements HostBridge {
             JSONObject o = new JSONObject();
             o.put("manufacturer", Build.MANUFACTURER);
             o.put("model", Build.MODEL);
-            o.put("brand", Build.BRAND);
+            o.put("brand", Build.BRAND);        // UA 里的品牌取 Build.BRAND（原版 r24.c）
             o.put("release", Build.VERSION.RELEASE);
             o.put("sdkInt", Build.VERSION.SDK_INT);
             o.put("modelName", Build.MANUFACTURER + "|" + Build.MODEL);
-            // 与桌面版 UA 对齐：ShanDong/<ver> (<brand>;Android <release>)
-            o.put("ua", String.format(Locale.US, "ShanDong/1.0.0 (%s;Android %s)",
-                    Build.BRAND, Build.VERSION.RELEASE));
-            o.put("platform", "android");
+            // 不在此上报 platform / ua：
+            //   · platform 是协议数字码（原版 c31.i = "2"），不是平台名，
+            //     由 Python 侧回落 constants.DEFAULT_PLATFORM；
+            //   · UA 里的版本号必须是协议 APP_VERSION（8.7.7），
+            //     由 net.user_agent() 统一拼，Java 侧不猜。
             return o.toString();
         } catch (Exception e) {
             // 序列化失败返回最小对象，供上层容错

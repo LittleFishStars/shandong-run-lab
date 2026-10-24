@@ -70,9 +70,11 @@ def _device_patch() -> Dict[str, Any]:
     键名必须与 net.py 读取的一致（net.py:public_fields / user_agent）：
       · device.model           modelName = Build.MANUFACTURER + "|" + Build.MODEL
       · device.system_version  systemVersion = Build.VERSION.RELEASE
-      · device.platform        platform（原版 DEFAULT_PLATFORM；Android 路径注入 "android"，
-                               与契约 §5 对齐——net.py 的 device.platform 缺省即空出时
-                               才会回落 DEFAULT_PLATFORM，这里显式给值）
+      · device.platform        **不注入**：原版 platform 是数字码（c31.java 的 i = "2"，
+                               经 r24.c(..., PLATFORM, ...) 传入），不是平台名；
+                               留空即回落 constants.DEFAULT_PLATFORM = "2"。
+                               （曾误注入 "android" → 服务端 loginCheck 返回
+                               code=1002「参数不合法」，真实登录失败）
       · device.brand           用户代理 (UA) 品牌 = Build.BRAND
     """
     info = device_info() or {}
@@ -89,8 +91,8 @@ def _device_patch() -> Dict[str, Any]:
     if release:
         dev["system_version"] = release
 
-    # 契约显式规定：Android 注入 platform="android"
-    dev["platform"] = "android"
+    # platform 不注入：它是数字码 "2"（原版 c31.i），不是平台名。
+    # 写错会被服务端判为参数不合法（code=1002），故交给 DEFAULT_PLATFORM 兼底。
 
     brand = str(info.get("brand") or "").strip()
     if brand:
