@@ -5,6 +5,14 @@ plugins {
     id 'com.chaquo.python'
 }
 
+// 正式签名材料只放 local.properties（.gitignore 已忽略），口令不进仓库
+def keystoreProps = new Properties()
+def lpFile = rootProject.file('local.properties')
+if (lpFile.exists()) {
+    lpFile.withInputStream { keystoreProps.load(it) }
+}
+def hasReleaseKey = keystoreProps.getProperty('shandong.storeFile') != null
+
 android {
     namespace 'com.ylxc.shandong'
     compileSdk 36
@@ -22,10 +30,24 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            if (hasReleaseKey) {
+                storeFile file(keystoreProps.getProperty('shandong.storeFile'))
+                storePassword keystoreProps.getProperty('shandong.storePassword')
+                keyAlias keystoreProps.getProperty('shandong.keyAlias')
+                keyPassword keystoreProps.getProperty('shandong.keyPassword')
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // 演示用，不签名也可安装（debug 签名即可）；此处仅控制压缩混淆
             minifyEnabled false
+            // 有正式密钥就用正式签名；没配（例如别人克隆仓库）则保持未签名
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

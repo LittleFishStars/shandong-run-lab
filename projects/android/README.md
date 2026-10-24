@@ -81,3 +81,28 @@ python3 scripts/android_check.py               # 对 android_api.dispatch 走 mo
   （与桌面版行为一致，未加前台服务保活）。
 - 前端 `bridge.js` 三级降级：SDAndroid（原生桥）→ pywebview（桌面壳）→ POST /api（浏览器/HTTP 桥），
   因此同一份 bundle 也能直接用桌面 `--mode mock` + 浏览器打开调试。
+
+## 构建正式版（release）
+
+正式签名材料放在 `local.properties`（已被 `.gitignore` 忽略）：
+
+```
+shandong.storeFile=/home/ylxc/.android/keys/shandong-release.jks
+shandong.storePassword=…
+shandong.keyAlias=shandong
+shandong.keyPassword=…
+```
+
+本机固定组合：**JDK 21 + 项目本地 Gradle 缓存**（系统默认 JDK 27 会报
+`Unsupported class file major version 71`；`~/.gradle` 里没有 AGP 缓存）：
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+GRADLE_USER_HOME=$PWD/../../tmp/gh \
+./gradlew --offline assembleRelease -x lintVitalRelease
+```
+
+- `-x lintVitalRelease` 是因为离线缓存里缺 `com.android.tools.lint:lint-gradle:31.13.2`；
+  联网环境去掉该参数即可跑完整 lint。
+- 产物：`app/build/outputs/apk/release/app-release.apk`，
+  用 `build-tools/36.0.0/apksigner verify --print-certs` 核对证书。

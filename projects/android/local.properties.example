@@ -1,2 +1,9 @@
 # 复制为 local.properties 并按本机实际路径修改
 sdk.dir=/home/ylxc/Android/Sdk
+
+# 正式签名（可选）：不填则 assembleRelease 产出未签名 APK
+# 密钥口令只写在 local.properties（已被 .gitignore 忽略），不要提交
+shandong.storeFile=/home/ylxc/.android/keys/shandong-release.jks
+shandong.storePassword=改成你的口令
+shandong.keyAlias=shandong
+shandong.keyPassword=改成你的口令
