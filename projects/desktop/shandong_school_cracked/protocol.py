@@ -630,7 +630,8 @@ def evaluate_run(pts: Sequence[RunLatLng], duration_s: int, total_step: int,
 #   v(t) = v0 × [热身斜坡 + 疲劳衰减 + 1/f 慢漂移 + 低频加减速事件 + 微抖]
 #   积分出弧长 → 坐标；GPS 噪声叠加在坐标上（速度序列方差的主要来源）。
 SPEED_DRIFT_AMP = 0.13          # 1/f 慢漂移幅度（±10%，体能状态自然波动）
-SPEED_MICRO_AMP = 0.012         # 逐点真速度微抖
+SPEED_MICRO_AMP = 0.012
+SPEED_OU_AMP = 0.20             # 中频节奏波动 σ（步频摆动，10s 窗配速波动主源）         # 逐点真速度微抖
 SPEED_WARMUP_FRAC = 0.12        # 热身段占比（速度从 85% 爬到 100%）
 SPEED_WARMUP_FROM = 0.78
 SPEED_FATIGUE_FRAC = 0.35       # 疲劳段占比（末段线性衰减到 92%）
@@ -638,6 +639,89 @@ SPEED_FATIGUE_TO = 0.86
 GPS_BIAS_SIGMA_M = 1.5          # GPS 慢偏置游走 σ（米）：时间相关噪声（多径/滤波）
 GPS_BIAS_DECAY = 0.90           # 每采样点衰减（τ≈10 点 ≈ 30 秒）
 GPS_WHITE_SIGMA_M = 0.34         # GPS 白噪声 σ（米）：逐点速度噪声的主要来源
+
+
+class SpeedDynamics:
+    """真人速度动力学（流式）：TrackGenerator（批量）与 Walker（实走）共用
+
+    报告二十六的 v(t) 模型拆成可流式推进的形态：tick 时刻的乘性因子
+    factor(t) ≈ 1.0，由四路分量构成——
+      · 热身斜坡：前 90 秒从 78% 爬到 100%
+      · 1/f 慢漂移：慢 OU（τ≈150s，σ=13%），体能状态的自然波动
+      · 中频节奏：OU（τ≈12s，σ=20%），步频节奏摆动——10s 窗配速波动
+        的主要来源，且自带正 lag-1 自相关
+      · 低频事件：随机到达的减速（72-90%，24-66s）与偶尔的冲刺（105-112%）
+    批量路径（TrackGenerator）在因子之上再叠疲劳衰减并做积分守恒归一化；
+    实走路径（Walker）开放结尾，不做全局归一化（真跑也不精确踩点）。
+
+    GPS 噪声同源：慢偏置游走（时间相关，多径/滤波，差分进速度序列不产生
+    负自相关）+ 小白噪声。白噪声单独用会给速度序列 -0.5 的 lag-1 负自相关
+    （真人实测是 +0.49~0.78），这是旧生成器的指纹级破绽。
+    """
+
+    def __init__(self, rng: random.Random, warmup_s: float = 90.0):
+        self.rng = rng
+        self.t = 0.0
+        self.warmup_s = max(1.0, warmup_s)
+        # 分量状态（OU：x = x·decay + gauss(0, σ·sqrt(1-decay²))）
+        self._ou = 0.0            # 中频节奏
+        self._drift = 0.0         # 1/f 慢漂移
+        self._bias_x = 0.0        # GPS 慢偏置
+        self._bias_y = 0.0
+        # 事件调度
+        self._event_until = -1.0
+        self._event_f = 1.0
+        self._next_event_at = self._schedule_event()
+
+    # ── 事件 ──
+    def _schedule_event(self) -> float:
+        return self.t + self.rng.uniform(60.0, 420.0)
+
+    def _advance_events(self) -> None:
+        if self.t >= self._next_event_at:
+            if self._event_until < self.t:
+                if self.rng.random() < 0.8:        # 减速为主，偶有冲刺
+                    self._event_f = self.rng.uniform(0.72, 0.90)
+                else:
+                    self._event_f = self.rng.uniform(1.05, 1.12)
+                self._event_until = self.t + self.rng.uniform(24.0, 66.0)
+            self._next_event_at = self._schedule_event()
+        if self._event_until >= 0 and self.t > self._event_until:
+            self._event_f = 1.0
+            self._event_until = -1.0
+
+    # ── 主推进 ──
+    def advance(self, dt: float) -> None:
+        """推进 dt 秒（虚拟时间）；暂停时不调即时间冻结"""
+        if dt <= 0:
+            return
+        self.t += dt
+        for attr, tau, sigma in (("_ou", 12.0, SPEED_OU_AMP),
+                                  ("_drift", 150.0, SPEED_DRIFT_AMP)):
+            decay = math.exp(-dt / tau)
+            step = sigma * (1.0 - decay * decay) ** 0.5
+            setattr(self, attr, getattr(self, attr) * decay
+                    + self.rng.gauss(0.0, step))
+        # 慢漂移幅度约束在 ±SPEED_DRIFT_AMP（OU 本身有界，软截断防尾部过大）
+        self._drift = max(-SPEED_DRIFT_AMP, min(SPEED_DRIFT_AMP, self._drift))
+        # GPS 慢偏置游走
+        decay = math.exp(-dt / 30.0)
+        step = GPS_BIAS_SIGMA_M * (1.0 - decay * decay) ** 0.5
+        self._bias_x = self._bias_x * decay + self.rng.gauss(0.0, step)
+        self._bias_y = self._bias_y * decay + self.rng.gauss(0.0, step)
+        self._advance_events()
+
+    def factor(self) -> float:
+        """当前时刻的乘性速度因子（≈1.0，含热身/漂移/节奏/事件）"""
+        warm = 1.0
+        if self.t < self.warmup_s:
+            warm = SPEED_WARMUP_FROM + (1.0 - SPEED_WARMUP_FROM) * self.t / self.warmup_s
+        return warm * (1.0 + self._drift + self._ou) * self._event_f
+
+    def noise(self) -> Tuple[float, float]:
+        """当前时刻的 GPS 噪声（米，两分量：慢偏置 + 白噪声）"""
+        return (self._bias_x + self.rng.gauss(0.0, GPS_WHITE_SIGMA_M),
+                self._bias_y + self.rng.gauss(0.0, GPS_WHITE_SIGMA_M))
 
 
 class TrackGenerator:
@@ -730,11 +814,10 @@ class TrackGenerator:
         drift = [SPEED_DRIFT_AMP * v / wmax for v in walk]
         # 中频节奏波动（OU 过程，τ≈8s）：跑者步频节奏的自然摆动，
         # 是 10 秒窗配速波动的主要来源，且自带正 lag-1 自相关
-        PACE_OU_AMP = 0.20
         ou_decay = math.exp(-self.sample_s / 12.0)
         ou: List[float] = []
         cur = 0.0
-        ou_step = PACE_OU_AMP * (1.0 - ou_decay ** 2) ** 0.5
+        ou_step = SPEED_OU_AMP * (1.0 - ou_decay ** 2) ** 0.5
         for _ in range(n):
             cur = cur * ou_decay + rng.gauss(0.0, ou_step)
             ou.append(cur)

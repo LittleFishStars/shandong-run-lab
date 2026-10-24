@@ -152,6 +152,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "pace_interval_m": 50,  # CommonConfig.paceInterval（米）：超 50 米封一段配速
         "poi_interval_s": 15,   # CommonConfig.poiInterval（秒）：轨迹点上报节流
         "auto_settle": True,    # 到达目标里程自动结束后，直接补传并结算（否则只停不结）
+        "dynamics": True,      # 真人速度动力学（报告二十六）：摇杆/手绘的速度序列落真人带
     },
 }
 

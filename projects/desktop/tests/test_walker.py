@@ -16,6 +16,7 @@ from shandong_school_cracked import constants as C
 from shandong_school_cracked.protocol import EARTH_M_PER_DEG_LAT
 from shandong_school_cracked.store import RecordStore
 from shandong_school_cracked.walk import WalkSession, build_walk_targets
+from shandong_school_cracked.protocol import haversine
 from shandong_school_cracked.walker import (DEFAULT_SPEED_MPS, JOYSTICK_DEADZONE, MAX_LAPS,
                           SAMPLE_INTERVAL_S, WAYPOINT_REACH_M, Walker,
                           route_from_checkpoints)
@@ -34,7 +35,7 @@ def 走(w: Walker, 秒: float, 步长: float = 0.1) -> None:
 
 class 摇杆推进测试(unittest.TestCase):
     def test_向东推等于经度增加(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(3.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -43,7 +44,7 @@ class 摇杆推进测试(unittest.TestCase):
         self.assertAlmostEqual(w.lat, LAT0, places=6)
 
     def test_向北推等于纬度增加(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(3.0)
         w.start(LAT0, LNG0)
         w.set_joystick(0.0, 1.0, 1.0)
@@ -52,7 +53,7 @@ class 摇杆推进测试(unittest.TestCase):
         self.assertAlmostEqual(w.lng, LNG0, places=6)
 
     def test_距离与时间严格按速度累积(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -64,13 +65,13 @@ class 摇杆推进测试(unittest.TestCase):
         self.assertAlmostEqual(w.elapsed_sec, 10.0, places=3)
 
     def test_推杆幅度线性缩速度(self):
-        a = Walker(sim=FuckRunSim(seed=1))
+        a = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         a.set_target_speed(3.0)
         a.start(LAT0, LNG0)
         a.set_joystick(1.0, 0.0, 1.0)
         走(a, 10.0)
 
-        b = Walker(sim=FuckRunSim(seed=1))
+        b = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         b.set_target_speed(3.0)
         b.start(LAT0, LNG0)
         b.set_joystick(1.0, 0.0, 0.5)
@@ -79,7 +80,7 @@ class 摇杆推进测试(unittest.TestCase):
         self.assertAlmostEqual(b.dist_m, a.dist_m / 2, places=3)
 
     def test_死区内不推进但也不报错(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, JOYSTICK_DEADZONE / 2)
         走(w, 10.0)
@@ -88,7 +89,7 @@ class 摇杆推进测试(unittest.TestCase):
         self.assertEqual(w.state().speed_mps, 0.0)
 
     def test_松杆后速度为0但位置保留(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -101,7 +102,7 @@ class 摇杆推进测试(unittest.TestCase):
 
     def test_位置公式与Android侧一致(self):
         """lat += dy·v·dt/111320，lng += dx·v·dt/(111320·cos lat)"""
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(1.0)
         w.start(LAT0, LNG0)
         w.set_joystick(0.0, 1.0, 1.0)
@@ -112,7 +113,7 @@ class 摇杆推进测试(unittest.TestCase):
 
 class 采样与产出测试(unittest.TestCase):
     def test_每三秒落一个点(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -120,7 +121,7 @@ class 采样与产出测试(unittest.TestCase):
         self.assertEqual(len(w.samples), int(30.0 / SAMPLE_INTERVAL_S))
 
     def test_采样间隔可配置(self):
-        w = Walker(sim=FuckRunSim(seed=1), sample_s=1.0)
+        w = Walker(sim=FuckRunSim(seed=1), sample_s=1.0, dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -128,7 +129,7 @@ class 采样与产出测试(unittest.TestCase):
         self.assertEqual(len(w.samples), 10)
 
     def test_轨迹点字段齐全且序号递增(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0, start_ms=1700000000000)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -148,7 +149,7 @@ class 采样与产出测试(unittest.TestCase):
 
     def test_起始序号在150到300之间(self):
         """与原版一致：随机起点，避免多条记录序号都一样"""
-        w = Walker(sim=FuckRunSim(seed=7))
+        w = Walker(sim=FuckRunSim(seed=7), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -159,7 +160,7 @@ class 采样与产出测试(unittest.TestCase):
         self.assertLessEqual(pts[0].lat_lng_index, 300)
 
     def test_取走后不再重复产出(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -171,7 +172,7 @@ class 采样与产出测试(unittest.TestCase):
         """原版 W1() 收到的 outFenceDisM 常态就是 -1（只有刚回围栏那一点才是进出围栏总距离）"""
         poly = [[LAT0 - 0.01, LNG0 - 0.01], [LAT0 - 0.01, LNG0 + 0.01],
                 [LAT0 + 0.01, LNG0 + 0.01], [LAT0 + 0.01, LNG0 - 0.01]]
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_polygon(poly)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
@@ -185,7 +186,7 @@ class 采样与产出测试(unittest.TestCase):
 
 class 打卡判定测试(unittest.TestCase):
     def _带桩(self, 桩距_米: float) -> Walker:
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         目标 = {"index": 0, "lat": LAT0, "lng": LNG0 + 桩距_米 / (
             EARTH_M_PER_DEG_LAT * math.cos(math.radians(LAT0))), "radius_m": 12.0}
         w.set_target_points([目标])
@@ -207,7 +208,7 @@ class 打卡判定测试(unittest.TestCase):
         self.assertEqual(w.state().passed, 0)
 
     def test_打卡半径可按桩覆盖(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_points([{"index": 0, "lat": LAT0, "lng": LNG0 + 0.0005,
                               "radius_m": 200.0}])
         w.set_target_speed(1.0)
@@ -250,7 +251,7 @@ class 打卡判定测试(unittest.TestCase):
 
 class 路径跟随测试(unittest.TestCase):
     def test_自动沿路点走(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(3.0)
         w.set_route([[LAT0 + 0.002, LNG0], [LAT0 + 0.002, LNG0 + 0.002]])
         w.set_auto_route(True)
@@ -260,7 +261,7 @@ class 路径跟随测试(unittest.TestCase):
         self.assertLessEqual(w.route_index, len(w.route) * MAX_LAPS + 1)
 
     def test_路点接近后自动切下一个(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_route([[LAT0 + 0.0001, LNG0], [LAT0, LNG0 + 0.01]])
         w.set_auto_route(True)
         w.start(LAT0, LNG0)
@@ -268,7 +269,7 @@ class 路径跟随测试(unittest.TestCase):
         self.assertGreaterEqual(w.route_index, 1)
 
     def test_路点未到不切换(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_route([[LAT0 + 0.01, LNG0]])
         w.set_auto_route(True)
         w.start(LAT0, LNG0)
@@ -279,7 +280,7 @@ class 路径跟随测试(unittest.TestCase):
 
     def test_摇杆会关掉路径跟随(self):
         """手动推杆优先于自动路径，否则两者互相覆盖方向"""
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_route([[LAT0, LNG0 + 0.01]])
         w.set_auto_route(True)
         w.start(LAT0, LNG0)
@@ -303,7 +304,7 @@ class 路径跟随测试(unittest.TestCase):
         self.assertEqual(w.arrived, "路径已走完")
 
     def test_空路径不崩(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_auto_route(True)
         w.start(LAT0, LNG0)
         st = w.tick(1.0)
@@ -311,7 +312,7 @@ class 路径跟随测试(unittest.TestCase):
         self.assertEqual(st.arrived, "路径已走完")
 
     def test_重复路点不卡死(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(3.0)
         w.set_route([[LAT0, LNG0], [LAT0, LNG0], [LAT0 + 0.001, LNG0]])
         w.set_auto_route(True)
@@ -322,7 +323,7 @@ class 路径跟随测试(unittest.TestCase):
 
 class 距离与状态测试(unittest.TestCase):
     def test_达到目标距离后停(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.set_target_distance(50.0)
         w.start(LAT0, LNG0)
@@ -333,7 +334,7 @@ class 距离与状态测试(unittest.TestCase):
         self.assertGreaterEqual(w.dist_m, 50.0)
 
     def test_目标距离为零表示不限(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.set_target_distance(0)
         w.start(LAT0, LNG0)
@@ -342,7 +343,7 @@ class 距离与状态测试(unittest.TestCase):
         self.assertTrue(w.running)
 
     def test_summary口径与一键跑一致(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.5)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -355,7 +356,7 @@ class 距离与状态测试(unittest.TestCase):
         self.assertGreater(s["stride_m"], 0)
 
     def test_步数来自仿真层单调不减(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(2.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -368,7 +369,7 @@ class 距离与状态测试(unittest.TestCase):
                 上一步 = 步
 
     def test_速度上限可改(self):
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_speed(10.0)
         self.assertAlmostEqual(w.target_speed_mps, 10.0)
         w.set_target_speed(0.01)             # 下限保护
@@ -519,7 +520,7 @@ class 会话落库测试(unittest.TestCase):
         self.assertEqual(s.points_since(0)["points"], [])
 
     def test_目标距离决定进度百分比(self):
-        s = WalkSession(cfg={}, store=self.store)
+        s = WalkSession(cfg={"walk": {"dynamics": False}}, store=self.store)
         s.start("dry", lat=LAT0, lng=LNG0, target_m=100.0, speed_mps=5.0, speed=1.0)
         s.joystick(1.0, 0.0, 1.0)
         _推进(s, 10.0)                  # 原版口径：3 秒采样一次，10 秒只落 3 个点
@@ -755,7 +756,7 @@ class 目标装配测试(unittest.TestCase):
         out = build_walk_targets([{"index": 0, "lat": 1.0, "lng": 2.0, "passed": 1}])
         # 装配层保留库里的打卡状态（历史记录），清空是 Walker.start() 的职责
         self.assertEqual(out[0]["passed"], 1)
-        w = Walker(sim=FuckRunSim(seed=1))
+        w = Walker(sim=FuckRunSim(seed=1), dynamics=False)
         w.set_target_points(out)
         w.start(1.0, 2.0)
         self.assertEqual(w.state().passed, 0)
@@ -775,7 +776,7 @@ class 暂停恢复测试(unittest.TestCase):
     结算上报 pauseCount / pauseTimes（DataComponent.t1()）。"""
 
     def test_暂停期间不计时不计步不采样(self):
-        w = Walker(sim=FuckRunSim(seed=7))
+        w = Walker(sim=FuckRunSim(seed=7), dynamics=False)
         w.set_target_speed(3.0)
         w.start(LAT0, LNG0)
         w.set_joystick(1.0, 0.0, 1.0)
@@ -802,7 +803,7 @@ class 暂停恢复测试(unittest.TestCase):
         self.assertFalse(s["paused"])
 
     def test_多次暂停累计次数与时长(self):
-        w = Walker(sim=FuckRunSim(seed=7))
+        w = Walker(sim=FuckRunSim(seed=7), dynamics=False)
         w.start(LAT0, LNG0)
         w.pause()
         走(w, 4.0)
@@ -815,10 +816,103 @@ class 暂停恢复测试(unittest.TestCase):
         self.assertAlmostEqual(s["pause_times_s"], 10.0, places=6)
 
     def test_未开跑时的暂停被忽略(self):
-        w = Walker(sim=FuckRunSim(seed=7))
+        w = Walker(sim=FuckRunSim(seed=7), dynamics=False)
         w.pause()
         self.assertFalse(w.paused)
         self.assertEqual(w.pause_count, 0)
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 真人动力学测试(unittest.TestCase):
+    """报告二十六：摇杆/手绘实走的速度序列也要落真人 GPX 实测带
+
+    真人带（3 条 Strava 真跑）：逐点速度 CV 0.24-0.34、lag-1 自相关
+    0.49-0.78、10s 窗配速 CV 0.12-0.28。一键跑（TrackGenerator）已由
+    test_protocol 把关，这里管实走引擎（Walker）两条路径。
+    """
+
+    @staticmethod
+    def _指标(w):
+        import statistics
+        pts = w.drain_points()
+        times = [p.collect_time / 1000 for p in pts]
+        距 = [haversine(a.lat, a.lng, b.lat, b.lng) for a, b in zip(pts, pts[1:])]
+        隙 = [b - a for a, b in zip(times, times[1:])]
+        速度 = [d / g for d, g in zip(距, 隙) if g > 0]
+        均 = statistics.mean(速度)
+        变 = statistics.pstdev(速度) ** 2
+        ac1 = (sum((a - 均) * (b - 均) for a, b in zip(速度, 速度[1:]))
+               / len(速度) / 变) if 变 > 0 else 0.0
+        W = 3
+        窗 = [sum(速度[i:i + W]) / W for i in range(0, len(速度) - W + 1, W)]
+        cv10 = statistics.pstdev(窗) / 均 if 窗 else 0.0
+        return statistics.pstdev(速度) / 均, ac1, cv10
+
+    def _跑一趟(self, walker, total_s):
+        t = 0.0
+        while t < total_s:
+            walker.tick(0.5)
+            t += 0.5
+
+    def test_摇杆实走动力学进带(self):
+        import statistics as st
+        cvs, ac1s, cv10s = [], [], []
+        for seed in range(6):
+            w = Walker(sim=FuckRunSim(seed=seed), seed=seed)
+            w.start(30.2867, 120.0861)
+            w.set_target_speed(2.4)
+            w.set_joystick(1.0, 0.0, 1.0)     # 推满杆直走：真人因子调制出节奏
+            self._跑一趟(w, 1350)
+            cv, ac1, cv10 = self._指标(w)
+            cvs.append(cv); ac1s.append(ac1); cv10s.append(cv10)
+        self.assertGreater(st.mean(cvs), 0.20, f"CV {st.mean(cvs):.3f} 恒速回归")
+        self.assertGreater(st.mean(ac1s), 0.35, f"ac1 {st.mean(ac1s):.3f} 负自相关回归")
+        self.assertGreater(st.mean(cv10s), 0.10, f"cv10 {st.mean(cv10s):.3f}")
+
+    def test_自动路径动力学进带(self):
+        import statistics as st
+        route = [(30.2867, 120.0861), (30.2887, 120.0861),
+                 (30.2887, 120.0881), (30.2867, 120.0881)]
+        cvs, ac1s, cv10s = [], [], []
+        for seed in range(6):
+            w = Walker(sim=FuckRunSim(seed=seed), seed=seed)
+            w.start(30.2867, 120.0861)
+            w.set_route(route)
+            w.set_auto_route(True)
+            w.set_target_speed(2.4)
+            self._跑一趟(w, 1350)
+            cv, ac1, cv10 = self._指标(w)
+            cvs.append(cv); ac1s.append(ac1); cv10s.append(cv10)
+        self.assertGreater(st.mean(cvs), 0.20, f"CV {st.mean(cvs):.3f}")
+        self.assertGreater(st.mean(ac1s), 0.35, f"ac1 {st.mean(ac1s):.3f}")
+        self.assertGreater(st.mean(cv10s), 0.10, f"cv10 {st.mean(cv10s):.3f}")
+
+    def test_动力学只污染上报点不动真实位置(self):
+        w = Walker(sim=FuckRunSim(seed=3), seed=3)
+        w.start(30.2867, 120.0861)
+        w.set_target_speed(2.4)
+        w.set_joystick(1.0, 0.0, 1.0)
+        t = 0.0
+        while t < 60:
+            w.tick(0.5)
+            t += 0.5
+        # 真实位置按恒定运动学推进：60s × 2.4m/s ×（热身因子<1 会略少，
+        # 但绝不该出现 GPS 噪声级的米级跳动）；上报点与真实位置差在 5m 内
+        pts = w.drain_points()
+        # 旧采样点天然落后于当前位置（采样间隔×速度），只比对最后一点：
+        # 其偏差 = GPS 噪声（慢偏置≤1.5m×3 + 白噪声）≈ <6m
+        d = haversine(pts[-1].lat, pts[-1].lng, w.lat, w.lng)
+        self.assertLess(d, 6.0, f"最后上报点偏离真实位置 {d:.1f}m")
+
+    def test_关动力学即恒速直走(self):
+        w = Walker(sim=FuckRunSim(seed=1), seed=1, dynamics=False)
+        w.start(30.2867, 120.0861)
+        w.set_target_speed(2.0)
+        w.set_joystick(1.0, 0.0, 1.0)
+        t = 0.0
+        while t < 30:
+            w.tick(0.5)
+            t += 0.5
+        self.assertAlmostEqual(w.dist_m, 54.0, delta=2.0)   # 9 段×6m（首点距离 0）

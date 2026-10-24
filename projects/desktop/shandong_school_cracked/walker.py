@@ -44,6 +44,7 @@ from .constants import (
 )
 from .protocol import (
     EARTH_M_PER_DEG_LAT,
+    SpeedDynamics,
     IntervalPace,
     IntervalStep,
     RunLatLng,
@@ -109,11 +110,17 @@ class Walker:
     def __init__(self, sim: Optional[FuckRunSim] = None,
                  sample_s: float = SAMPLE_INTERVAL_S,
                  checkin_radius_m: float = CHECKPOINT_HIT_RADIUS_M,
-                 seed: Optional[int] = None):
+                 seed: Optional[int] = None,
+                 dynamics: bool = True):
         self.sim = sim if sim is not None else FuckRunSim(seed=seed)
         self.sample_s = max(0.5, float(sample_s))
         self.checkin_radius_m = float(checkin_radius_m)
         self.rng = random.Random(seed)
+        # 真人速度动力学（报告二十六）：默认开。批量路径（TrackGenerator）
+        # 与这里共用同一个 SpeedDynamics 模型——摇杆/手绘实走出来的速度
+        # 序列与一键跑同样落在真人 GPX 实测带内。运动学单测可关。
+        self.dynamics = bool(dynamics)
+        self.dyn = SpeedDynamics(self.rng)
 
         self.lat = 0.0
         self.lng = 0.0
@@ -322,8 +329,15 @@ class Walker:
             dx, dy, mag = nxt[0], nxt[1], 1.0
 
         speed = 0.0
+        if self.dynamics:
+            # 真人动力学：用户控制方向/停走与目标速度，因子只做 ±20% 级
+            # 的节奏调制（漂移/节奏摆动/事件）——手感仍是"推多快跑多快"，
+            # 但速度序列不再是指纹级的恒速直线
+            self.dyn.advance(dt)
         if mag > JOYSTICK_DEADZONE:
             speed = self.target_speed_mps * mag
+            if self.dynamics:
+                speed *= self.dyn.factor()
             move = speed * dt
             self.lat += (dy * move) / EARTH_M_PER_DEG_LAT
             self.lng += (dx * move) / (EARTH_M_PER_DEG_LAT *
@@ -378,9 +392,10 @@ class Walker:
         """最近一帧的速度：站着不动就是 0（界面靠它显示"正在跑 / 已停下"）"""
         if self.mag <= JOYSTICK_DEADZONE and not self.auto_route:
             return 0.0
+        factor = self.dyn.factor() if self.dynamics else 1.0
         if self.auto_route:
-            return self.target_speed_mps
-        return self.target_speed_mps * self.mag
+            return self.target_speed_mps * factor
+        return self.target_speed_mps * self.mag * factor
 
     # ══════════════════ 路径导航 ══════════════════
     def _direction_to_next_waypoint(self) -> Optional[Tuple[float, float]]:
@@ -455,8 +470,16 @@ class Walker:
         self._last_sample_at = self.elapsed_sec
         # 原版 K() 的顺序是 x2() → D()：先按本次定位判打卡，再走围栏过滤
         self._check_targets()
-        lat = _round6(self.lat)
-        lng = _round6(self.lng)
+        lat, lng = self.lat, self.lng
+        if self.dynamics:
+            # GPS 噪声（两分量：慢偏置游走 + 白噪声）只污染上报点——
+            # 真实位置（摇杆推进的 self.lat/lng）保持干净，与真机一致
+            #（设备真实位置不可知，GPS fix 才是上报物）
+            dx, dy = self.dyn.noise()
+            lat += dy / EARTH_M_PER_DEG_LAT
+            lng += dx / (EARTH_M_PER_DEG_LAT * max(1e-6, math.cos(math.radians(lat))))
+        lat = _round6(lat)
+        lng = _round6(lng)
 
         if self.polygon and not point_in_polygon(lat, lng, self.polygon):
             self.dropped_outside += 1

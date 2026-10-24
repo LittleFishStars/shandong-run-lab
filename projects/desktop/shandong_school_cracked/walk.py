@@ -123,7 +123,8 @@ class WalkSession:
             from .simulator import FuckRunSim
             sim = FuckRunSim(min_cadence=c_lo, max_cadence=c_hi,
                              dropout_rate=float((self.cfg.get("sim") or {}).get("dropout_rate", 0.0) or 0.0))
-        w = Walker(sim=sim, sample_s=sample_s)
+        w = Walker(sim=sim, sample_s=sample_s,
+                   dynamics=bool(self._wcfg("dynamics", True)))
         w.step_interval_s = step_interval_s
         w.pace_interval_m = pace_interval_m
         # 服务端 common/getConfig 的真实阈值优先（实测 runFilterAccuracy=30）
