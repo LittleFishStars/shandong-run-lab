@@ -374,6 +374,25 @@ button { font-family: inherit; }
 }
 .loading-text { color: #8c8c8c; font-size: 13px; }
 
+/* ═══ 全局加载遮罩（耗时操作反馈）═══
+   z-index 需高于模态框(2000)与底部面板(1000)，否则会被盖住看不到；
+   touch-action:none 吃掉指针事件，防止重复点击提交。 */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0, 0, 0, .35);
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+.loading-box {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  min-width: 160px; max-width: 76%; padding: 22px 24px;
+  background: rgba(255, 255, 255, .96); border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .18);
+}
+.loading-overlay-text {
+  color: #1f1f1f; font-size: 14px; line-height: 1.4; text-align: center;
+}
+
 /* ═══ 新版本提醒 ═══ */
 .update-body p { margin: 0 0 10px; color: #1f1f1f; }
 .update-notes {

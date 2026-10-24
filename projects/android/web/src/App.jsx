@@ -17,6 +17,46 @@ const toast = (text, kind) => {
   fn(text);
 };
 
+/* 全局加载遮罩：很多耗时动作是多次网络请求串行，没有反馈时用户会以为卡死。
+   用法：await withLoading('正在加载…', async (setText) => { ... })
+   setText 可在中途换成更具体的一句话（如「正在取围栅…」）。
+   模块级 setter 由 App 挂载时注入，避免逐层传参。 */
+let __setLoading = () => {};
+let __loadingDepth = 0;   // 并发计数：嵌套调用时只有最外层结束后才收起遮罩
+const MIN_LOADING_MS = 450;   // 太短的遮罩一闪而过，反而像闪屏；至少停留这么久
+
+/* 等浏览器真正画出下一帧。
+   ★ 关键：window.SDAndroid.call 是 **同步** 的（Java 侧 future.get() 阻塞），
+   调用期间 WebView 的 JS 主线程被占满，React 的 setState 根本刷不下去。
+   所以必须先等两帧（rAF→rAF），把遮罩画到屏幕上，再发起桥调用，
+   否则会出现「逻辑跑了、日志也打了，但屏幕上什么也没变」。 */
+const nextPaint = () => new Promise((resolve) => {
+  let done = false;
+  const fin = () => { if (!done) { done = true; resolve(); } };
+  requestAnimationFrame(() => requestAnimationFrame(fin));
+  // 兜底：页面不可见（切后台）时 rAF 不触发，不能让操作挂死
+  setTimeout(fin, 80);
+});
+
+const withLoading = async (initialText, fn) => {
+  __loadingDepth += 1;
+  const startedAt = Date.now();
+  console.log('[loading] start:', initialText);
+  __setLoading(initialText);
+  await nextPaint();          // ★ 先把遮罩画出来，再干阻塞的活
+  try {
+    return await fn((t) => __setLoading(t));
+  } finally {
+    __loadingDepth -= 1;
+    if (__loadingDepth <= 0) {
+      const left = MIN_LOADING_MS - (Date.now() - startedAt);
+      if (left > 0) await new Promise((r) => setTimeout(r, left));
+      __loadingDepth = 0;
+      __setLoading(null);
+    }
+  }
+};
+
 const pad = (n, w = 2) => String(n).padStart(w, '0');
 const fmtEventTime = (ts) => {
   const d = new Date(ts || Date.now());
@@ -33,6 +73,9 @@ export default function App() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  // 全局加载遮罩文案（null = 不显示）。切账号 / 选围栅 / 开跑 / 结算 等动作
+  // 都是多次网络请求串行，没有即时反馈时用户会以为界面卡死。
+  const [loading, setLoading] = useState(null);
   const [log, setLog] = useState([]);
   const [progress, setProgress] = useState({ percent: 0, text: '就绪' });
   const [runs, setRuns] = useState({ items: [], page: 1, hasNext: false, error: null });
@@ -128,6 +171,9 @@ export default function App() {
       setRuns({ items: [], page, hasNext: false, error: String((e && e.message) || e) });
     }
   }, []);
+
+  /* 把全局加载遮罩的 setter 注入给 withLoading（模块级单例） */
+  useEffect(() => { __setLoading = setLoading; console.log('[loading] setter injected'); }, []);
 
   /* 启动时后台查一次新版本，有新版本再弹窗（不强制、不阻塞） */
   useEffect(() => {
@@ -324,19 +370,25 @@ export default function App() {
   const login = async () => {
     setBusy(true);
     try {
-      const want = params.mode || 'real';
-      const cur = (statusRef.current && statusRef.current.mode) || 'real';
-      if (want !== cur) { await Bridge.call('switch_mode', want); await refreshStatus(); }
-      const r = await Bridge.call('login', phone, password, true);
-      if (r && r.code === 0) {
-        toast('登录成功', 'ok');
-        await refreshStatus();
-        await autoPrepare();        // 先把围栏拉下来，才能判断是否有多个
-        const st0 = await refreshStatus();
-        setView('pick');            // 登录后先进选起始点页，确认再回首页
-        if (st0 && !st0.fence_chosen && (st0.fences || []).length > 1) setFencePickOpen(true);
-        refreshRuns(1);
-      } else toast((r && r.message) || '登录失败', 'err');
+      await withLoading('正在登录…', async (setText) => {
+        const want = params.mode || 'real';
+        const cur = (statusRef.current && statusRef.current.mode) || 'real';
+        if (want !== cur) { await Bridge.call('switch_mode', want); await refreshStatus(); }
+        setText('正在校验账号（含滑块）…');
+        const r = await Bridge.call('login', phone, password, true);
+        if (r && r.code === 0) {
+          toast('登录成功', 'ok');
+          await refreshStatus();
+          setText('正在拉取围栅与规则…');
+          await autoPrepare();        // 先把围栅拉下来，才能判断是否有多个
+          const st0 = await refreshStatus();
+          setView('pick');            // 登录后先进选起始点页，确认再回首页
+          if (st0 && !st0.fence_chosen && (st0.fences || []).length > 1) setFencePickOpen(true);
+          refreshRuns(1);             // 不阻塞跳转，后台拉记录
+          return;
+        }
+        toast((r && r.message) || '登录失败', 'err');
+      });
     } finally { setBusy(false); }
   };
 
@@ -345,22 +397,27 @@ export default function App() {
     if (!uid) return;
     setBusy(true);
     try {
-      let r = await Bridge.call('switch_account', uid);
-      if (!(r && r.code === 0)) {
-        r = await Bridge.call('relogin_account', uid);
+      await withLoading('正在切换账号…', async (setText) => {
+        let r = await Bridge.call('switch_account', uid);
         if (!(r && r.code === 0)) {
-          toast((r && r.message) || '登录失败', 'err');
-          return;
+          setText('登录已失效，正在重新登录（含滑块）…');
+          r = await Bridge.call('relogin_account', uid);
+          if (!(r && r.code === 0)) {
+            toast((r && r.message) || '登录失败', 'err');
+            return;
+          }
+          toast('历史登录已失效，已用保存的账号密码重新登录', 'ok');
+        } else {
+          toast('已切换账号', 'ok');
         }
-        toast('历史登录已失效，已用保存的账号密码重新登录', 'ok');
-      } else {
-        toast('已切换账号', 'ok');
-      }
-      await refreshStatus();
-      await autoPrepare();
-      const st0 = await refreshStatus();
-      setView('pick');            // 登录后先进选起始点页，确认再回首页
-      refreshRuns(1);
+        setText('正在拉取围栅与规则…');
+        await refreshStatus();
+        await autoPrepare();
+        const st0 = await refreshStatus();
+        setView('pick');            // 登录后先进选起始点页，确认再回首页
+        refreshRuns(1);             // 不阻塞跳转，后台拉记录
+        if (st0 && !st0.fence_chosen && (st0.fences || []).length > 1) setFencePickOpen(true);
+      });
     } finally { setBusy(false); }
   };
 
@@ -375,12 +432,16 @@ export default function App() {
   const selectFence = async (index) => {
     setFencePickOpen(false);
     setParams((p) => ({ ...p, fence: index }));
-    try {
-      await Bridge.call('patch_config', JSON.stringify({ fence_index: index, fence_chosen: true }));
-      await Bridge.call('prepare', index);
-    } catch (_) { /* 忽略 */ }
-    await refreshStatus();
-    toast('已选择围栏', 'ok');
+    // prepare 要拉围栅详情 + 打卡点 + POI，是这里的耗时大头；
+    // 以前没有任何反馈，用户看到弹窗一关就「静止」了，以为卡死。
+    await withLoading('正在加载围栅数据…', async () => {
+      try {
+        await Bridge.call('patch_config', JSON.stringify({ fence_index: index, fence_chosen: true }));
+        await Bridge.call('prepare', index);
+      } catch (_) { /* 忽略 */ }
+      await refreshStatus();
+    });
+    toast('已选择围栅', 'ok');
   };
 
   const openSavedAccounts = () => {
@@ -418,10 +479,12 @@ export default function App() {
   };
 
   const resetDevice = async () => {
-    const r = await Bridge.call('reset_device');
-    if (r && r.device_id) toast('新 deviceId：' + r.device_id, 'ok');
-    else toast((r && r.error) || '换设备失败', 'err');
-    await refreshStatus();
+    await withLoading('正在更换设备标识…', async () => {
+      const r = await Bridge.call('reset_device');
+      if (r && r.device_id) toast('新 deviceId：' + r.device_id, 'ok');
+      else toast((r && r.error) || '换设备失败', 'err');
+      await refreshStatus();
+    });
   };
 
   const openDataDir = async () => {
@@ -430,9 +493,11 @@ export default function App() {
   };
 
   const reloadRule = async () => {
-    const r = await Bridge.call('reload_rule');
-    toast(r && r.code === 0 ? '学校规则已刷新' : ((r && r.message) || '刷新失败'), r && r.code === 0 ? 'ok' : 'err');
-    await refreshStatus();
+    await withLoading('正在拉取学校规则…', async () => {
+      const r = await Bridge.call('reload_rule');
+      toast(r && r.code === 0 ? '学校规则已刷新' : ((r && r.message) || '刷新失败'), r && r.code === 0 ? 'ok' : 'err');
+      await refreshStatus();
+    });
   };
 
   const setMode = async (v) => {
@@ -449,43 +514,50 @@ export default function App() {
   const startRun = async () => {
     setBusy(true);
     try {
-      await saveParams();
-      const speed = paceToSpeed(parsePace(params.pace));
-      await Bridge.call('walk_route', '[]', !!params.auto, false);
-      const r = await Bridge.call('walk_start', 'real', params.distance, params.fence, speed, !!params.auto, true, 1);
-      if (!r || r.code !== 0) { toast((r && r.message) || '启动失败', 'err'); return; }
-      setWalk(r.data || {});
-      walkSinceRef.current = 0;
-      setWalkPoints([]);
-      setView('run');
-      startWalkPoll();
+      await withLoading('正在启动…', async (setText) => {
+        await saveParams();
+        const speed = paceToSpeed(parsePace(params.pace));
+        await Bridge.call('walk_route', '[]', !!params.auto, false);
+        setText('正在向服务端开跑…');
+        const r = await Bridge.call('walk_start', 'real', params.distance, params.fence, speed, !!params.auto, true, 1);
+        if (!r || r.code !== 0) { toast((r && r.message) || '启动失败', 'err'); return; }
+        setWalk(r.data || {});
+        walkSinceRef.current = 0;
+        setWalkPoints([]);
+        setView('run');
+        startWalkPoll();
+      });
     } finally { setBusy(false); }
   };
 
   const endRun = async () => {
     setBusy(true);
     try {
-      const r = await Bridge.call('walk_stop');
-      setWalk(r || null);
-      stopWalkPoll();
-      const up = await Bridge.call('walk_upload', true);
-      toast((up && up.message) || '已提交上传结算', up && up.code === 0 ? 'ok' : 'err');
-      setView('home');
-      await refreshStatus();
-      refreshRuns(1);
+      await withLoading('正在结束并提交结算…', async () => {
+        const r = await Bridge.call('walk_stop');
+        setWalk(r || null);
+        stopWalkPoll();
+        const up = await Bridge.call('walk_upload', true);
+        toast((up && up.message) || '已提交上传结算', up && up.code === 0 ? 'ok' : 'err');
+        setView('home');
+        await refreshStatus();
+        refreshRuns(1);            // 不阻塞跳转，后台拉记录
+      });
     } finally { setBusy(false); }
   };
 
   const dryRun = async () => {
-    const r = await Bridge.call('walk_start', 'dry', params.distance, params.fence,
-      paceToSpeed(parsePace(params.pace)), !!params.auto, true, 1);
-    if (r && r.code === 0) {
-      setWalk(r.data || {});
-      walkSinceRef.current = 0;
-      setWalkPoints([]);
-      setView('run');
-      startWalkPoll();
-    } else toast((r && r.message) || '干跑启动失败', 'err');
+    await withLoading('正在启动干跑…', async () => {
+      const r = await Bridge.call('walk_start', 'dry', params.distance, params.fence,
+        paceToSpeed(parsePace(params.pace)), !!params.auto, true, 1);
+      if (r && r.code === 0) {
+        setWalk(r.data || {});
+        walkSinceRef.current = 0;
+        setWalkPoints([]);
+        setView('run');
+        startWalkPoll();
+      } else toast((r && r.message) || '干跑启动失败', 'err');
+    });
   };
 
   const stopWalk = async () => {
@@ -506,10 +578,12 @@ export default function App() {
   };
 
   const uploadWalk = async () => {
-    const r = await Bridge.call('walk_upload', true);
-    toast((r && r.message) || '已上传结算', r && r.code === 0 ? 'ok' : 'err');
-    await refreshStatus();
-    refreshRuns(1);
+    await withLoading('正在上传结算…', async () => {
+      const r = await Bridge.call('walk_upload', true);
+      toast((r && r.message) || '已上传结算', r && r.code === 0 ? 'ok' : 'err');
+      await refreshStatus();
+      refreshRuns(1);
+    });
   };
 
   const saveDraft = async () => {
@@ -518,9 +592,11 @@ export default function App() {
   };
 
   const runAuto = async () => {
-    const r = await Bridge.call('run_auto', params.distance, params.fence, true, true, 1);
-    toast((r && r.message) || '一键跑已启动', r && r.code === 0 ? 'ok' : 'err');
-    if (r && r.code === 0) refreshStatus();
+    await withLoading('正在启动一键跑…', async () => {
+      const r = await Bridge.call('run_auto', params.distance, params.fence, true, true, 1);
+      toast((r && r.message) || '一键跑已启动', r && r.code === 0 ? 'ok' : 'err');
+      if (r && r.code === 0) refreshStatus();
+    });
   };
 
   const resumeRun = async () => {
@@ -859,6 +935,16 @@ export default function App() {
           <img className="app-icon" src="assets/app-icon.png" alt="闪动校园" />
           <Spin size="large" />
           <div className="loading-text">正在登录上次的账号…</div>
+        </div>
+      )}
+
+      {/* 全局加载遮罩：盖住整屏并挡住点击，避免重复提交或误以为卡死 */}
+      {loading && (
+        <div className="loading-overlay" role="status" aria-live="polite">
+          <div className="loading-box">
+            <Spin size="large" />
+            <div className="loading-overlay-text">{loading}</div>
+          </div>
         </div>
       )}
       {view === 'login' && (
