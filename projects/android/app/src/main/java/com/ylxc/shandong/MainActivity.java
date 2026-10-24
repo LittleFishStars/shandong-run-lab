@@ -26,6 +26,8 @@ public class MainActivity extends Activity {
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // ★ 必须先调 super.onCreate：漏掉会让 ActivityThread 抛 SuperNotCalledException 直接闪退
+        super.onCreate(savedInstanceState);
 
         // 全屏，无状态栏沉浸模式
         getWindow().getDecorView().setSystemUiVisibility(
