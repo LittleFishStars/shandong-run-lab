@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
     private static final String TAG = "SDMain";
 
     private WebView webView;
+    private JsApiBridge jsBridge;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -55,7 +56,10 @@ public class MainActivity extends Activity {
         HostBridge hostBridge = new HostBridgeImpl(this);
 
         // JS 桥：window.SDAndroid —— 由 JS 侧 bridge.js 调用
-        webView.addJavascriptInterface(new JsApiBridge(this, hostBridge), "SDAndroid");
+        // 异步桥需要 WebView 引用来调用 evaluateJavascript 回传结果
+        jsBridge = new JsApiBridge(this, hostBridge);
+        jsBridge.setWebView(webView);
+        webView.addJavascriptInterface(jsBridge, "SDAndroid");
 
         // 处理 JS 的 alert，避免阻塞 WebView
         webView.setWebChromeClient(new WebChromeClient() {
@@ -94,6 +98,11 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        // 先停桥：避免执行器里的任务向已销毁的 WebView 回调
+        if (jsBridge != null) {
+            jsBridge.shutdown();
+            jsBridge = null;
+        }
         if (webView != null) {
             webView.destroy();
             webView = null;

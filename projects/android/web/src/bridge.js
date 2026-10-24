@@ -1,18 +1,77 @@
 /*
  * 前后端桥：安卓原生桥（window.SDAndroid）优先，其次 pywebview，最后 HTTP 降级（POST /api）。
  *
- * 原生桥约定（见 JsApiBridge.kt）：
- *   window.SDAndroid.call(method, argsJson)  —— argsJson 是 JSON 数组字符串，返回 JSON 字符串（需 JSON.parse）
+ * 原生桥两种形态（见 JsApiBridge.java）：
+ *   1) 异步（首选）：window.SDAndroid.callAsync(method, argsJson, cbId) -> void
+ *      结果由 Java 在 UI 线程回调 window.__sdBridgeResolve(cbId, payloadJsonString)。
+ *      ★ 不阻塞 JS 主线程，遮罩/转圈/点击反馈都能正常渲染。
+ *   2) 同步（降级）：window.SDAndroid.call(method, argsJson) -> JSON 字符串
+ *      ★ 会同步阻塞 JS 主线程直到 Python 返回，界面完全冻住，仅作兜底。
+ *
  * pywebview（桌面壳，保留以兼容）：window.pywebview.api[method](...args) 返回对象
  * HTTP 降级（浏览器调试用）：POST /api  {"method": "...", "args": [...]} 返回 JSON
  */
+
+/* ── 异步回调登记表 ── */
+const pending = new Map();
+let cbSeq = 0;
+
+/* Java 侧通过 evaluateJavascript 调用此函数投递结果。
+   页面刷新后旧 id 自然失效（表已清空），此处静默忽略即可。 */
+window.__sdBridgeResolve = function (cbId, payload) {
+  const fn = pending.get(cbId);
+  if (!fn) return;
+  pending.delete(cbId);
+  fn(payload);
+};
+
+/* 单次桥调用超时：登录含滑块、结算上传都可能较久，给足 3 分钟。
+   超时后 reject，避免页面被切走或 App 重启导致 Promise 永久悬挂。 */
+const BRIDGE_TIMEOUT_MS = 180000;
+
+function nativeCallAsync(method, argsJson) {
+  return new Promise((resolve, reject) => {
+    const cbId = 'cb' + (++cbSeq) + '_' + Date.now().toString(36);
+    const timer = setTimeout(() => {
+      pending.delete(cbId);
+      reject(new Error(`桥调用超时（${method}）`));
+    }, BRIDGE_TIMEOUT_MS);
+    pending.set(cbId, (payload) => {
+      clearTimeout(timer);
+      resolve(payload);
+    });
+    try {
+      window.SDAndroid.callAsync(method, argsJson, cbId);
+    } catch (e) {
+      clearTimeout(timer);
+      pending.delete(cbId);
+      reject(e);
+    }
+  });
+}
+
 export const Bridge = {
   ready: false,
   mode: '未知',
 
-  /* 是否有原生安卓桥（window.SDAndroid.call 是同步返回字符串的函数） */
+  /* 是否有原生安卓桥 */
   _hasNative() {
-    return !!(window.SDAndroid && typeof window.SDAndroid.call === 'function');
+    return !!(window.SDAndroid && (typeof window.SDAndroid.callAsync === 'function'
+      || typeof window.SDAndroid.call === 'function'));
+  },
+
+  /* 是否支持异步桥（新版 APK）；否则退化到同步 */
+  _hasNativeAsync() {
+    return !!(window.SDAndroid && typeof window.SDAndroid.callAsync === 'function');
+  },
+
+  /* 统一的原生桥调用：异步优先 */
+  async _nativeCall(method, args) {
+    const argsJson = JSON.stringify(args);
+    const raw = this._hasNativeAsync()
+      ? await nativeCallAsync(method, argsJson)
+      : window.SDAndroid.call(method, argsJson);
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
   },
 
   async waitReady(timeoutMs = 15000) {
@@ -22,8 +81,7 @@ export const Bridge = {
       // 1) 安卓原生桥：存在即 ping 判定
       if (this._hasNative()) {
         try {
-          const raw = window.SDAndroid.call('ping', '[]');
-          const r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const r = await this._nativeCall('ping', []);
           if (r && r.ok) { this.ready = true; this.mode = 'native'; return true; }
         } catch (_) { /* ping 失败，继续等待 */ }
       }
@@ -53,21 +111,18 @@ export const Bridge = {
   async call(method, ...args) {
     if (!this.ready) await this.waitReady();
 
-    // 1) 安卓原生桥（最高优先级）
+    // 1) 安卓原生桥（最高优先级，异步）
     if (this._hasNative()) {
       try {
-        const argsJson = JSON.stringify(args);
-        const raw = window.SDAndroid.call(method, argsJson);
-        // 原生桥规定返回 JSON 字符串；若返回对象（防御）直接可用
-        const out = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const out = await this._nativeCall(method, args);
         if (out !== undefined) return out;
-      } catch (_) {
-        // 桥调用抛错：回退到下一优先级（原生桥已就绪但该方法失败时不降级，交给内层）
+      } catch (e) {
+        // 超时不重试（重试只会再等一个超时周期），其余错误重置就绪态重试一次
+        if (e && /超时/.test(String((e && e.message) || e))) throw e;
         this.ready = false;
         if (await this.waitReady(5000)) return await this.call(method, ...args);
         throw new Error(`原生桥调用 ${method} 失败`);
       }
-      // 原生桥存在且返回 undefined → 重置重试一次
       if (this._hasNative()) return undefined;
     }
 
