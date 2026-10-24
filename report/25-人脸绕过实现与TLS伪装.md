@@ -102,7 +102,33 @@ client.finish_run()
   注意 checkSunRunConfig 的人脸明细字段可能依赖 runPlanCode/注册态，与 getUserFaceImg
   的返回粒度不同。
 
-## 四、遗留与风险
+## 四、逐行一致性核对（2026-10-24 二次核对，无法真机验证后的补救）
+
+> 背景：本机学校不开扫脸，服务端不会给人脸链路任何反馈，**唯一判据是 jadx 静态保真**。
+> 本节把每一处可对齐点都列出来；剩余偏差全部是不可消除项（无真摄像头/无真阿里云调用）。
+
+| 环节 | 原版判据（jadx） | 本实现 | 结论 |
+| --- | --- | --- | --- |
+| 检查点生成 | `checkRunRule$2:95-108`：i2 从 0 起 → checkIndex 从 1；`nextInt(upper-lower)+lower`（upper≤lower 用 lower） | `plan_face_checks`：`randint(lower, upper-1)`，同条件 | **一致** |
+| 触发时机 | `DataComponent:300`：`!hasChecked && S0()>=randomDistance`，S0=RunData.getDistance 累计里程 | 轨迹回放取首个累计里程≥randomDistance 的点 | **一致** |
+| 弹窗快照 | `f2():918-928`：popTime=当前墙钟、checkDistance=S0()、checkLng/Lat=当前位置 | 越界点 collect_time / 累计里程 / 该点坐标 | 一致（popTime 差 <1 个采样间隔） |
+| hasChecked | `u2():1224-1228`：进入识别态置 true | hasChecked=完成即 true | 一致 |
+| 注入门控 | `t1()`：`runScene==20 && faceAuth` 才 put | 同条件 + mode/快照/底图必要条件 | **一致**（本轮修正） |
+| 字段省略 | 序列化器跳过 null（bean 走 Gson，Map 走 fastjson，两者默认都跳）；c2() 只在非空时 set | 未赋值字段**键不出现**（不发空串不发 null） | **一致**（本轮修正） |
+| rate | `DetectFaceDelegate.v`：detectRate = isSuccess?1.0f:0.0f，非活体分 | 恒 1.0 | **一致**（本轮修正语义） |
+| label | 仅 `detectLivingFace$2$a.b` 真调阿里云活体才有 | 省略 | 一致（不调活体则原版也为 null） |
+| extendParam(阿里云) | `u()` 进度串：uploading→->success→->compare→->success(→->living→->success) | 逐字拼接 | **一致**（本轮修正） |
+| extendParam(本地) | `t()`=Gson(RunFaceDetectStatus)：8 键全在（int 原始类型），modelInit 成功=0、livenessCheck=bodyEnable?1:0 | 同值同序 | **一致**（本轮修正） |
+| OSS 对象键 | `n66.g`：`<directory>/face/run/<md5>.jpg` | 同 | 一致 |
+| 结算注入位置 | t1()：invalidReasons 后 | 同 | 一致 |
+
+**不可消除的偏差**（无真摄像头/真调用，全部明示）：
+1. confidence 是合成值（真值来自阿里云 CompareFace / InspireFace 比对）；
+2. faceRequestId 缺席（真值来自阿里云响应；muccc526 证明不校验）；
+3. 现场照 = 底图重编码（真值是摄像头实拍；重编码保视览内容、变 md5）；
+4. 相机端本地预门控（FaceCameraFragment 的相似度门）不上线缆，不影响报文。
+
+## 五、遗留与风险
 
 1. **未做真实阿里云比对调用**（facebody CompareFace / DetectLivingFace）。
    当前 confidence 为合成值；muccc526 证明 requestId/confidence 不被强校验。若日后服务端

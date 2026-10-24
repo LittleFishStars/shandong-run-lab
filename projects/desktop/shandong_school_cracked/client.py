@@ -948,7 +948,13 @@ class ShandongClient:
         mode = str(fc.get("mode") or "real")
         snaps = self.store.kv_get(f"facecheck:{run_code}") or []
         face = self.face_check or {}
-        if mode == "off" or not snaps or not face.get("faceImg"):
+        # 门控逐字对齐 DataComponent.t1()：runScene==20 && faceAuth 才 put 整表；
+        # 加上我们自己的必要条件（模式关 / 没跑过快照 / 没底图都构不成记录）。
+        # 注：原版里 faceAuth=false 时跑步根本开不了（StartRunUtils.C 强制先认证），
+        # 所以正常样本永远满足前两条；这里保留判定以防配置异常的服务端。
+        if (mode == "off" or not snaps or not face.get("faceImg")
+                or int(face.get("runScene") or 0) != 20
+                or not bool(face.get("faceAuth"))):
             return None
         if self.local_mode and mode == "real":
             mode = "reuse"      # 本地仿真没有真 OSS
@@ -970,7 +976,8 @@ class ShandongClient:
             run_face_img = face["faceImg"]
         return protocol.build_face_check_records(
             snaps, run_face_img, int(face.get("similarityValue") or 0),
-            body_rate=int(face.get("bodyRate") or 0))
+            face_model_type=int(face.get("faceModelType") or 1),
+            body_enable=bool(face.get("bodyEnable")))
 
     def finish_run(self, run_code: str, sport_type: int = SPORT_TYPE_SUN,
                    sun: bool = True, abnormal_code: int = 0) -> Dict[str, Any]:

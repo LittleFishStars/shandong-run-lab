@@ -85,39 +85,109 @@ class 线缆记录构造测试(unittest.TestCase):
          "popTime": None, "checkDistance": None, "checkLng": None, "checkLat": None},
     ]
 
-    def test_字段集与SunshineRunFaceRecord一致(self):
+    def test_阿里云模式完成记录字段集(self):
+        """fastjson 默认跳过 null：未赋值的 label/faceRequestId 等键不出现"""
         recs = protocol.build_face_check_records(self.SNAP, "https://x/y.jpg", 75)
-        self.assertEqual(len(recs), 2)
         want = {"checkIndex", "randomDistance", "hasChecked", "finishFaceCheck",
-                "popTime", "checkDistance", "checkLng", "checkLat",
-                "runFaceUpload", "runFaceImg", "confidence", "rate", "label",
-                "faceRequestId", "bodyRequestId", "faceCheckErrorCode",
-                "bodyCheckErrorCode", "extendParam"}
+                "runFaceUpload", "popTime", "checkDistance", "checkLng", "checkLat",
+                "runFaceImg", "confidence", "rate", "extendParam"}
         self.assertEqual(set(recs[0]), want)
-        self.assertEqual(set(recs[1]), want)
+
+    def test_未触发记录只有五个恒序列化键(self):
+        recs = protocol.build_face_check_records(self.SNAP, "https://x/y.jpg", 75)
+        self.assertEqual(set(recs[1]),
+                         {"checkIndex", "randomDistance", "hasChecked",
+                          "finishFaceCheck", "runFaceUpload"})
+        self.assertFalse(recs[1]["hasChecked"])
+        self.assertFalse(recs[1]["runFaceUpload"])
 
     def test_置信度过阈值且不到满分(self):
         recs = protocol.build_face_check_records(self.SNAP, "https://x/y.jpg", 75)
         conf = recs[0]["confidence"]
         self.assertGreaterEqual(conf, 75.0)
         self.assertLess(conf, 100.0)
-        self.assertIsNone(recs[1]["confidence"])
 
-    def test_未完成记录不上送照片(self):
-        recs = protocol.build_face_check_records(self.SNAP, "https://x/y.jpg", 75)
-        self.assertEqual(recs[0]["runFaceImg"], "https://x/y.jpg")
-        self.assertTrue(recs[0]["runFaceUpload"])
-        self.assertEqual(recs[1]["runFaceImg"], "")
-        self.assertFalse(recs[1]["runFaceUpload"])
-
-    def test_extendParam是八个状态位(self):
+    def test_rate是detectRate不是活体分(self):
+        """DetectFaceDelegate.v：rate = isSuccess ? 1.0f : 0.0f，与活体无关"""
         recs = protocol.build_face_check_records(self.SNAP, "u", 75)
+        self.assertEqual(recs[0]["rate"], 1.0)
+        self.assertNotIn("label", recs[0])     # 不调活体 → detectLabel=null → 不序列化
+
+    def test_阿里云模式extendParam是进度串(self):
+        """DetectFaceDelegate.u 的 progressStr：上传→比对（→活体）各步拼接"""
+        recs = protocol.build_face_check_records(self.SNAP, "u", 75,
+                                                 face_model_type=1, body_enable=False)
+        self.assertEqual(recs[0]["extendParam"], "uploading->success->compare->success")
+        recs = protocol.build_face_check_records(self.SNAP, "u", 75,
+                                                 face_model_type=1, body_enable=True)
+        self.assertEqual(recs[0]["extendParam"],
+                         "uploading->success->compare->success->living->success")
+
+    def test_本地模式extendParam是状态JSON(self):
+        """t() 广播 RunFaceDetectStatus：modelInit 成功是 0（原版 !k()?1:0 照抄），
+        livenessCheck 只有 bodyEnable 才置 1"""
+        recs = protocol.build_face_check_records(self.SNAP, "u", 75,
+                                                 face_model_type=2, body_enable=False)
         ext = json.loads(recs[0]["extendParam"])
         self.assertEqual(set(ext), {"baseImageDownload", "baseImageParse",
                                     "bestImageCapture", "cameraStart",
                                     "livenessCheck", "modelInit",
                                     "similarityCheck", "uploadImage"})
-        self.assertTrue(all(v == 1 for v in ext.values()))
+        self.assertEqual(ext["modelInit"], 0)
+        self.assertEqual(ext["livenessCheck"], 0)
+        for k in ("baseImageDownload", "baseImageParse", "bestImageCapture",
+                  "cameraStart", "similarityCheck", "uploadImage"):
+            self.assertEqual(ext[k], 1, k)
+        # 键序按 fastjson 字母序
+        self.assertEqual(recs[0]["extendParam"].index('"baseImageDownload"')
+                         < recs[0]["extendParam"].index('"uploadImage"'), True)
+        recs = protocol.build_face_check_records(self.SNAP, "u", 75,
+                                                 face_model_type=2, body_enable=True)
+        self.assertEqual(json.loads(recs[0]["extendParam"])["livenessCheck"], 1)
+
+    def test_未完成记录不上送照片(self):
+        recs = protocol.build_face_check_records(self.SNAP, "https://x/y.jpg", 75)
+        self.assertEqual(recs[0]["runFaceImg"], "https://x/y.jpg")
+        self.assertTrue(recs[0]["runFaceUpload"])
+        self.assertNotIn("runFaceImg", recs[1])
+
+class 门控测试(unittest.TestCase):
+    """DataComponent.t1()：runScene==20 && faceAuth 才 put faceCheckRecordList"""
+
+    def setUp(self):
+        from shandong_school_cracked.client import ShandongClient
+        from shandong_school_cracked.store import RecordStore
+        self.c = ShandongClient.__new__(ShandongClient)
+        self.c.cfg = {}
+        self.c.local_mode = True
+        self.c.bus = None
+        self.c._oss_token = {}
+        self.c.store = RecordStore(Path(tempfile.mkdtemp(prefix="face-gate-")) / "r.db")
+        self.c.store.kv_set("facecheck:R1", [
+            {"checkIndex": 1, "randomDistance": 700, "hasChecked": True,
+             "popTime": 1, "checkDistance": 705, "checkLng": 1.0, "checkLat": 2.0}])
+
+    def test_runScene非20不注入(self):
+        self.c.face_check = {"faceImg": "x", "faceAuth": True, "runScene": 1,
+                             "similarityValue": 75, "faceModelType": 1}
+        self.assertIsNone(self.c.build_face_check_list("R1"))
+
+    def test_未认证不注入(self):
+        self.c.face_check = {"faceImg": "x", "faceAuth": False, "runScene": 20,
+                             "similarityValue": 75, "faceModelType": 1}
+        self.assertIsNone(self.c.build_face_check_list("R1"))
+
+    def test_无底图不注入(self):
+        self.c.face_check = {"faceImg": "", "faceAuth": True, "runScene": 20,
+                             "similarityValue": 75, "faceModelType": 1}
+        self.assertIsNone(self.c.build_face_check_list("R1"))
+
+    def test_条件齐备才注入(self):
+        self.c.face_check = {"faceImg": "https://mock.local/base.jpg", "faceAuth": True,
+                             "runScene": 20, "similarityValue": 75, "faceModelType": 1}
+        lst = self.c.build_face_check_list("R1")
+        self.assertIsNotNone(lst)
+        self.assertEqual(lst[0]["extendParam"], "uploading->success->compare->success")
 
 
 class 检查点计划测试(unittest.TestCase):
