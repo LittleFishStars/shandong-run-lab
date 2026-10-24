@@ -35,6 +35,9 @@ from .constants import (
     DEFAULT_UPLOAD_BATCH,
     OSS_BUCKET,
     OSS_ENDPOINT,
+    FACE_PHOTO_W,
+    FACE_PHOTO_H,
+    FACE_PHOTO_QUALITY,
     PACE_INTERVAL_M,
     POI_UPLOAD_MIN_POINTS,
     SEGMENT_UPLOAD_MIN,
@@ -60,6 +63,33 @@ from .protocol import (
 from .store import RecordStore
 
 KV_TOKEN = "session"
+
+
+def process_face_photo(raw: bytes) -> bytes:
+    """底图字节流 → 真机规格「现场照」（192x256 / 3:4 / JPEG q82）
+
+    纯函数（可离线单测）：居中裁成 3:4 竖版 → 缩放到 FACE_PHOTO_W×H →
+    JPEG 重编码。任何异常（PIL 缺席、非图像）都返回原字节——退化为
+    muccc526 的「底图原样上送」方案，流程不中断。
+    """
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        w, h = img.size
+        target_ratio = FACE_PHOTO_W / FACE_PHOTO_H       # 3:4
+        # 居中裁成 3:4 竖版（宽不足裁高，高不足裁宽）
+        if w / h > target_ratio:
+            cw = int(h * target_ratio)
+            img = img.crop(((w - cw) // 2, 0, (w + cw) // 2, h))
+        else:
+            ch = int(w / target_ratio)
+            img = img.crop((0, (h - ch) // 2, w, (h + ch) // 2))
+        img = img.resize((FACE_PHOTO_W, FACE_PHOTO_H))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=FACE_PHOTO_QUALITY)
+        return buf.getvalue()
+    except Exception:
+        return raw
 
 
 class ShandongClient:
@@ -722,13 +752,26 @@ class ShandongClient:
         data["uploaded"] = int(uploaded)
         data["count"] = int(total)
         return {**res, "data": data}
+    def step_interval(self) -> int:
+        """步频段周期（秒）：服务端 common/getConfig 若下发 stepInterval 则用之
+        （真实服务端 2026-10 实测不下发，回落 APK 默认 20；ShandongTool 真机
+        HAR 观察到 iOS 端 60 秒分片——那是平台差异，Android 口径以 getConfig 为准）。
+        """
+        common = self.cfg.get("common", {}) or {}
+        try:
+            return int(common.get("stepInterval") or STEP_INTERVAL_S)
+        except (TypeError, ValueError):
+            return STEP_INTERVAL_S
+
     def upload_steps(self, run_code: str,
-                     interval_s: int = STEP_INTERVAL_S) -> Dict[str, Any]:
+                     interval_s: Optional[int] = None) -> Dict[str, Any]:
         """上传步频段：照抄 ApiDataComponent.d0()
 
         原版只取 is_uploaded=false 的段（StepDao.b 不带 isValid 条件），
         且不足 3 段直接 onCompleted 不发。stepInterval 是**秒**（CommonConfig 默认 20）。
         """
+        if interval_s is None:
+            interval_s = self.step_interval()
         steps = self.store.get_steps(run_code, only_pending=True)
         if not steps:
             return {"code": CODE_OK, "message": "无待上传步频", "data": None}
@@ -914,27 +957,17 @@ class ShandongClient:
     def prepare_face_photo(self, face_img_url: str) -> Optional[bytes]:
         """下载底库照并加工成「现场照」字节流
 
-        原版跑中照是 rw0.d(trackingInfo, 256, 256, filePath) 存的 256×256
-        JPEG。这里下载底图 → 居中裁方 → 缩放到 256×256 → 重编码 JPEG(85)。
-        重编码还有个副作用：md5 与底图对象名不同，现场照/底图在服务端
-        侧不会是同一个 OSS 对象。
+        真机实测（ShandongTool 两次阳光跑的 runFaceImg）：SDK 输出是
+        192x256（3:4 竖版）、JPEG q82、约 8KB 的小图；rw0.d(…, 256, 256, …)
+        的 256 是上界，等比输出 3:4。这里：下载底图 → 居中裁成 3:4 竖版 →
+        缩放到 192x256 → 重编码 JPEG(82)。重编码的副作用：md5 与底图对象名
+        不同，现场照/底图在服务端侧不会是同一个 OSS 对象。
+        PIL 缺席 / 图像异常时退化为原样上送（md5 与底图相同，muccc526 方案）。
         """
         raw = self.transport.download(face_img_url)
         if not raw:
             return None
-        try:
-            from PIL import Image
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
-            w, h = img.size
-            side = min(w, h)
-            img = img.crop(((w - side) // 2, (h - side) // 2,
-                            (w + side) // 2, (h + side) // 2)).resize((256, 256))
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=85)
-            return buf.getvalue()
-        except Exception:
-            # PIL 缺席 / 图像异常：原样上送（md5 会与底图相同，退化为 muccc526 方案）
-            return raw
+        return process_face_photo(raw)
 
     def build_face_check_list(self, run_code: str) -> Optional[List[Dict[str, Any]]]:
         """结算用 faceCheckRecordList（跑前计划 + 跑中快照 → 线缆形态）
@@ -1027,7 +1060,7 @@ class ShandongClient:
             "duration": str(duration),
             "totalStep": str(max(0, total_step)),
             "status": int(is_valid),
-            "stepInterval": int(common_cfg.get("stepInterval") or STEP_INTERVAL_S),
+            "stepInterval": self.step_interval(),
             "paceInterval": int(common_cfg.get("paceInterval") or PACE_INTERVAL_M),
             "targetPoints": self.store.checkpoint_targets(run_code),
             "alignType": align_type,

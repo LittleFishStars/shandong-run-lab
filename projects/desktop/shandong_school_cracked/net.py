@@ -16,6 +16,8 @@
 from __future__ import annotations
 
 import json
+import os
+import random
 import time
 import urllib.error
 import urllib.parse
@@ -42,7 +44,8 @@ from .constants import (
     Endpoint,
     endpoint,
 )
-from .simulator import build_device_fingerprint, random_device_id
+from .simulator import (build_device_fingerprint, random_device_id,
+                        resolve_device_profile)
 
 try:  # 优先 requests（自动处理 gzip / 连接复用）
     import requests  # type: ignore
@@ -75,9 +78,21 @@ class Transport:
         self.cfg = config or {}
         self.bus = bus
         self.store = store
-        dev = self.cfg.get("device", {}) or {}
-        fp = build_device_fingerprint(dev)
-        self.device_id = self.cfg.get("device_id") or fp["deviceId"] or random_device_id()
+        # 设备档案：机型池模式（cfg.device 未显式写 model 时启用）——
+        # 按 deviceId 确定性选机型，多账号自然散开，防「全部账号同一机型」聚类。
+        dev_raw = self.cfg.get("device", {}) or {}
+        if dev_raw.get("model"):
+            dev = dict(dev_raw)
+            fp = build_device_fingerprint(dev)
+            self.device_id = str(self.cfg.get("device_id") or "") or \
+                fp["deviceId"] or random_device_id()
+        else:
+            # 池模式：deviceId 独立于 Build 字段（真实设备是 ANDROID_ID/缓存 UUID），
+            # 先有 id 再选机型；同账号永远同机型（ShandongTool 同款语义）
+            self.device_id = str(self.cfg.get("device_id") or "") or random_device_id()
+            dev = resolve_device_profile(dev_raw, self.device_id)
+            fp = build_device_fingerprint(dev)
+        self.device_profile = dev
         self.finger = fp["finger"]
         self.base_url = (base_url or self.cfg.get("base_url") or BASE_URL).rstrip("/")
         self.timeout = float(self.cfg.get("timeout", 20))
@@ -100,6 +115,22 @@ class Transport:
         # 存同一个偏移量，clock() 自动加上——公共字段与结算 timestamp 同源。
         self.time_offset_ms = 0
         self.clock = clock or self._now
+        # 请求节流（吸收 ShandongTool：真机用户操作节奏天然带间隔，毫秒级连发
+        # 是可判定的机器人特征）。真实服务端默认开；本地 Mock / 环境变量
+        # SHANDONG_THROTTLE=0 / cfg throttle=false 任一即关。
+        _env_off = os.environ.get("SHANDONG_THROTTLE", "").strip().lower() in ("0", "false", "no")
+        _local = "127.0.0.1" in self.base_url or "localhost" in self.base_url
+        self.throttle_enabled = (not _env_off and not _local
+                                 and bool(self.cfg.get("throttle", True)))
+        rng_range = self.cfg.get("throttle_range") or (0.4, 2.2)
+        try:
+            self.throttle_range = (float(rng_range[0]), float(rng_range[1]))
+        except Exception:
+            self.throttle_range = (0.4, 2.2)
+        self._last_request_at = 0.0
+        if self.throttle_enabled and self.bus:
+            self.bus.emit("log", f"请求节流已开启："
+                          f"{self.throttle_range[0]}~{self.throttle_range[1]}s 随机间隔")
         # 会话态
         self.token = ""
         self.satoken = ""
@@ -370,8 +401,30 @@ class Transport:
             return None
 
     # ══════════════════ 底层 ══════════════════
+    def _throttle(self) -> None:
+        """请求间隔节流：距上次请求不足随机间隔时补足等待（仅真实服务端）"""
+        if not self.throttle_enabled:
+            return
+        lo, hi = self.throttle_range
+        need = lo + (hi - lo) * random.random()
+        gap = time.monotonic() - self._last_request_at
+        if gap < need and self._last_request_at > 0:
+            time.sleep(need - gap)
+        self._last_request_at = time.monotonic()
+
+    def refresh_device_profile(self) -> None:
+        """device_id 变更后重析机型档案（池模式下机型跟随 deviceId）"""
+        dev_raw = self.cfg.get("device", {}) or {}
+        if dev_raw.get("model"):
+            return
+        dev = resolve_device_profile(dev_raw, self.device_id)
+        fp = build_device_fingerprint(dev)
+        self.device_profile = dev
+        self.finger = fp["finger"]
+
     def _send(self, url: str, headers: Dict[str, str], body: Optional[bytes]
               ) -> Tuple[int, str]:
+        self._throttle()
         proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
         # TLS 指纹伪装优先（curl_cffi）；验证码图片下载等二进制资源同走
         # _cffi_get/_cffi_post，保证对外 HTTP 指纹全链路一致

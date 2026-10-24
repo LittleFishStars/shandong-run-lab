@@ -307,7 +307,8 @@ class RunEngine:
         sim.start(start_ms=start_ms)
         timeline = sim.step_timeline(duration_s=seconds, interval_s=gen.sample_s,
                                      start_ms=start_ms)
-        steps: List[IntervalStep] = gen.build_steps(timeline, start_ms=start_ms)
+        steps: List[IntervalStep] = gen.build_steps(
+            timeline, start_ms=start_ms, interval_s=c.step_interval())
         paces: List[IntervalPace] = gen.generate_paces(start_ms=start_ms)
         stride_interval = int((self.cfg.get("common") or {}).get("strideStatisticsInterval")
                               or STRIDE_STATISTICS_M)

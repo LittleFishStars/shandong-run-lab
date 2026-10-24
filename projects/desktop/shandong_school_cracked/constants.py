@@ -145,6 +145,57 @@ DEFAULT_UPLOAD_BATCH = 200    # 轨迹分批上传粒度（原版按 200 个一�
 STRIDE_STATISTICS_M = 100     # 步幅统计间隔（米），DataComponent 每满这段就上报一次
 POI_UPLOAD_MIN_POINTS = 4     # 轨迹点上传门槛：原版 size<=3 直接 onCompleted
 SEGMENT_UPLOAD_MIN = 3        # 步频/配速段上传门槛：原版 size<3 不上传
+# ── 人脸现场照规格（真机实测：ShandongTool 项目两次阳光跑的 runFaceImg 均为
+# SDK 输出的 192×256 小图；rw0.d(…, 256, 256, …) 的 256 是上界，等比输出 3:4）──
+FACE_PHOTO_W = 192
+FACE_PHOTO_H = 256
+FACE_PHOTO_QUALITY = 82
+
+# ── 设备机型池（吸收 ShandongTool device_identity 思路）──
+# 目的：多账号不同机型，避免「全部账号同一 model」的作弊聚类特征。
+# 每项绑定该机型真实出现过的 Android 大版本区间；机型与版本禁止跨项混搭。
+# board/hardware 等字段取公开近似值——它们只进 deviceId 指纹熵，不上报服务端。
+MODEL_POOL: Tuple[Dict[str, Any], ...] = (
+    {"model": "SM-A5460", "brand": "samsung", "manufacturer": "samsung",
+     "device": "a54x", "product": "a54xnsxx", "board": "a54x",
+     "hardware": "mt6985", "versions": ("13", "14")},
+    {"model": "2210132C", "brand": "Xiaomi", "manufacturer": "Xiaomi",
+     "device": "marble", "product": "marble", "board": "tungsten",
+     "hardware": "qcom", "versions": ("13", "14")},
+    {"model": "23013RK75C", "brand": "Xiaomi", "manufacturer": "Xiaomi",
+     "device": "manet", "product": "manet", "board": "kalama",
+     "hardware": "qcom", "versions": ("13", "14", "15")},
+    {"model": "M2102K1C", "brand": "Redmi", "manufacturer": "Xiaomi",
+     "device": "alioth", "product": "alioth", "board": "sm6150",
+     "hardware": "qcom", "versions": ("11", "12", "13")},
+    {"model": "23090RA98C", "brand": "Redmi", "manufacturer": "Xiaomi",
+     "device": "skywalker", "product": "skywalker", "board": "crow",
+     "hardware": "qcom", "versions": ("13", "14")},
+    {"model": "PGKM10", "brand": "OPPO", "manufacturer": "OPPO",
+     "device": "OP5961L", "product": "OP5961L", "board": "kalama",
+     "hardware": "qcom", "versions": ("13", "14")},
+    {"model": "PHK110", "brand": "OPPO", "manufacturer": "OPPO",
+     "device": "OP5D5AL", "product": "OP5D5AL", "board": "lagoon",
+     "hardware": "qcom", "versions": ("13", "14", "15")},
+    {"model": "V2312A", "brand": "vivo", "manufacturer": "vivo",
+     "device": "PD2312", "product": "PD2312", "board": "k6985",
+     "hardware": "qcom", "versions": ("14", "15")},
+    {"model": "V2324A", "brand": "iQOO", "manufacturer": "vivo",
+     "device": "PD2324", "product": "PD2324", "board": "kalama",
+     "hardware": "qcom", "versions": ("14", "15")},
+    {"model": "ANY-AN00", "brand": "HONOR", "manufacturer": "HONOR",
+     "device": "ANY", "product": "ANY-AN00", "board": "ANY",
+     "hardware": "qcom", "versions": ("13", "14")},
+    {"model": "PLK-AL10", "brand": "HUAWEI", "manufacturer": "HUAWEI",
+     "device": "hwPLK", "product": "PLK-AL10", "board": "PLK",
+     "hardware": "hi3650", "versions": ("10", "11", "12")},
+    {"model": "CPH2583", "brand": "OnePlus", "manufacturer": "OnePlus",
+     "device": "OP594BL1", "product": "OP594BL1", "board": "kalama",
+     "hardware": "qcom", "versions": ("13", "14")},
+    {"model": "RMX3708", "brand": "realme", "manufacturer": "realme",
+     "device": "RE58C4L1", "product": "RE58C4L1", "board": "crow",
+     "hardware": "qcom", "versions": ("13", "14")},
+)
 
 # 打卡点判定半径（米）：DataComponent 用 validDistance 判定 isInFence
 CHECKPOINT_HIT_RADIUS_M = VALID_DISTANCE_M

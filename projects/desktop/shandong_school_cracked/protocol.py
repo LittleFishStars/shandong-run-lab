@@ -811,14 +811,15 @@ class TrackGenerator:
 
     # ── 步频段（由仿真器产生的步数时间线切段）──
     def build_steps(self, step_timeline: Sequence[Tuple[int, int]],
-                    start_ms: Optional[int] = None) -> List[IntervalStep]:
+                    start_ms: Optional[int] = None,
+                    interval_s: int = STEP_INTERVAL_S) -> List[IntervalStep]:
         """把 (相对毫秒, 累计步数) 时间线切成固定时长段
 
         原版按 `Q0() % stepInterval == 0` 切（Q0() 是跑步内整秒），
         所以段长恒为 STEP_INTERVAL_S 秒、起止时间也是「跑步内秒」。
         """
         out: List[IntervalStep] = []
-        seg_ms = int(STEP_INTERVAL_S * 1000)
+        seg_ms = int(interval_s * 1000)
         buf_start_t, buf_start_s = None, 0
         for idx, (rel_ms, cum_step) in enumerate(step_timeline):
             if buf_start_t is None:

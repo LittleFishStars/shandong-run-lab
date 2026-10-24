@@ -223,6 +223,8 @@ class App:
         if "device" in patch or "device_id" in patch:
             self.client.transport.device_id = str(self.cfg.get("device_id", "")) or \
                 self.client.transport.device_id
+            # 机型池模式：机型跟随 deviceId，id 变了档案要重析
+            self.client.transport.refresh_device_profile()
         self.bus.emit("state", "配置已保存")
         return self.cfg
 
