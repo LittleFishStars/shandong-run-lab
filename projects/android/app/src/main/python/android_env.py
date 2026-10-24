@@ -63,6 +63,17 @@ def device_info() -> Dict[str, Any]:
         info = {}
     return info if isinstance(info, dict) else {}
 
+def _platform_code() -> str:
+    """协议里的 platform 是**数字码**（原版 c31.java 的 i = "2"），不是平台名。
+
+    从 constants 取，避免本文件硬编码；万一导入失败（不该发生）回退 "2"。
+    """
+    try:
+        from shandong_school_cracked.constants import DEFAULT_PLATFORM
+        return str(DEFAULT_PLATFORM)
+    except Exception:  # noqa: BLE001
+        return "2"
+
 
 def _device_patch() -> Dict[str, Any]:
     """从设备指纹构造 config 的 device 补丁（只含本层允许注入的键）。
@@ -91,8 +102,11 @@ def _device_patch() -> Dict[str, Any]:
     if release:
         dev["system_version"] = release
 
-    # platform 不注入：它是数字码 "2"（原版 c31.i），不是平台名。
-    # 写错会被服务端判为参数不合法（code=1002），故交给 DEFAULT_PLATFORM 兼底。
+    # ★ platform **必须显式回写常量值**，不能「不管」。
+    #   原因：App.patch_config 走 _deep_merge，而历史版本曾误把 platform="android"
+    #   写进 config.json；不写就不会覆盖，残留值会让 auth/loginCheck 继续 code=1002。
+    #   值取自 constants.DEFAULT_PLATFORM（原版 c31.java 的 i = "2"），不在本文件硬编码。
+    dev["platform"] = _platform_code()
 
     brand = str(info.get("brand") or "").strip()
     if brand:
