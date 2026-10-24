@@ -623,6 +623,23 @@ def evaluate_run(pts: Sequence[RunLatLng], duration_s: int, total_step: int,
 
 
 # ══════════════════ 轨迹生成 ══════════════════
+# ══════════════════ 轨迹速度动力学（报告二十六：真人基准校准） ══════════════════
+# 基准：3 条真实跑步 GPX（Strava 导出）实测——逐点速度 CV 0.24-0.34、
+# lag-1 自相关 0.49-0.78、10s 窗真实配速 CV 0.12-0.28。
+# v(t) 单源物理模型（吸收 ShandongTool trajectory_engine 思路）：
+#   v(t) = v0 × [热身斜坡 + 疲劳衰减 + 1/f 慢漂移 + 低频加减速事件 + 微抖]
+#   积分出弧长 → 坐标；GPS 噪声叠加在坐标上（速度序列方差的主要来源）。
+SPEED_DRIFT_AMP = 0.13          # 1/f 慢漂移幅度（±10%，体能状态自然波动）
+SPEED_MICRO_AMP = 0.012         # 逐点真速度微抖
+SPEED_WARMUP_FRAC = 0.12        # 热身段占比（速度从 85% 爬到 100%）
+SPEED_WARMUP_FROM = 0.78
+SPEED_FATIGUE_FRAC = 0.35       # 疲劳段占比（末段线性衰减到 92%）
+SPEED_FATIGUE_TO = 0.86
+GPS_BIAS_SIGMA_M = 1.5          # GPS 慢偏置游走 σ（米）：时间相关噪声（多径/滤波）
+GPS_BIAS_DECAY = 0.90           # 每采样点衰减（τ≈10 点 ≈ 30 秒）
+GPS_WHITE_SIGMA_M = 0.34         # GPS 白噪声 σ（米）：逐点速度噪声的主要来源
+
+
 class TrackGenerator:
     """生成符合校园跑步特征的轨迹
 
@@ -677,6 +694,112 @@ class TrackGenerator:
     def _fits(self, lat: float, lng: float) -> bool:
         return point_in_polygon(lat, lng, self.polygon) if self.polygon else True
 
+    def _noisy_offset(self, x: float, y: float) -> Tuple[float, float]:
+        """(x, y) 米制坐标 + GPS 噪声 → 经纬度；出围栏则减半重试（≤3 次）"""
+        for _ in range(3):
+            dx, dy = self._gps_noise()
+            lat, lng = self._offset(x + dx, y + dy)
+            if not self.polygon or self._fits(lat, lng):
+                return lat, lng
+        return self._offset(x, y)
+
+    # ── 速度动力学（v(t) 单源模型，报告二十六）──
+    def _speed_profile(self, n: int) -> List[float]:
+        """n 个采样点的真速度序列（积分守恒：Σv·dt == 目标距离）
+
+        构成（对齐真人 GPX 实测的三个统计特征）：
+          · 热身斜坡：前 SPEED_WARMUP_FRAC 从 85% 爬到 100%
+          · 疲劳衰减：末 SPEED_FATIGUE_FRAC 线性降到 92%
+          · 1/f 慢漂移：随机游走 + 三次低通（体能状态的自然波动，
+            上一秒快下一秒也快 → lag-1 自相关为强正，真人 0.5-0.8）
+          · 低频事件：0-2 次减速（等红灯/避让，降到 75-90%）、
+            0-1 次加速冲刺（105-112%）
+          · 逐点微抖：真速度本身的秒级小波动
+        最后整体归一化，保证几何推进总量恒等于申报距离。
+        """
+        rng = self.rng
+        v0 = self.distance / self.seconds
+        # 1/f 慢漂移：随机游走三次低通
+        walk = [rng.gauss(0.0, 1.0) for _ in range(n)]
+        for _ in range(3):
+            sm = [walk[0]]
+            for a, b in zip(walk, walk[1:]):
+                sm.append(sm[-1] * 0.6 + b * 0.4)
+            walk = sm
+        wmax = max(1e-9, max(abs(v) for v in walk))
+        drift = [SPEED_DRIFT_AMP * v / wmax for v in walk]
+        # 中频节奏波动（OU 过程，τ≈8s）：跑者步频节奏的自然摆动，
+        # 是 10 秒窗配速波动的主要来源，且自带正 lag-1 自相关
+        PACE_OU_AMP = 0.20
+        ou_decay = math.exp(-self.sample_s / 12.0)
+        ou: List[float] = []
+        cur = 0.0
+        ou_step = PACE_OU_AMP * (1.0 - ou_decay ** 2) ** 0.5
+        for _ in range(n):
+            cur = cur * ou_decay + rng.gauss(0.0, ou_step)
+            ou.append(cur)
+        # 低频事件
+        events = [0.0] * n
+        for _ in range(rng.randint(0, 2)):
+            i0 = rng.randrange(0, max(1, n - 16))
+            i1 = min(n, i0 + rng.randrange(8, 22))       # ~24-66s
+            f = rng.uniform(0.72, 0.90)
+            for k in range(i0, i1):
+                events[k] = f - 1.0
+        if rng.random() < 0.5:
+            i0 = rng.randrange(0, max(1, n - 12))
+            i1 = min(n, i0 + rng.randrange(4, 12))
+            f = rng.uniform(1.05, 1.12)
+            for k in range(i0, i1):
+                events[k] += f - 1.0
+        # 合成 + 积分守恒归一化
+        warm_n = max(1, int(n * SPEED_WARMUP_FRAC))
+        fat_n = max(1, int(n * SPEED_FATIGUE_FRAC))
+        vs: List[float] = []
+        for i in range(n):
+            shape = 1.0
+            if i < warm_n:                                # 热身斜坡
+                shape *= (SPEED_WARMUP_FROM
+                          + (1.0 - SPEED_WARMUP_FROM) * i / warm_n)
+            if i >= n - fat_n:                            # 疲劳衰减
+                shape *= (1.0 - (1.0 - SPEED_FATIGUE_TO)
+                          * (i - (n - fat_n)) / fat_n)
+            vs.append(v0 * shape * (1.0 + drift[i] + ou[i] + events[i]
+                                    + rng.gauss(0.0, SPEED_MICRO_AMP)))
+        scale = (v0 * n) / max(1e-9, sum(vs))
+        return [v * scale for v in vs]
+
+    def _gps_noise(self) -> Tuple[float, float]:
+        """逐点 GPS 噪声（米）＝慢偏置游走 + 小白噪声（两分量模型）
+
+        为什么不能只用白噪声：白噪声经差分进入速度序列会带来 -0.5 的
+        lag-1 负自相关（相邻速度共享噪声项的差），而真人 GPX 实测是
+        +0.49~0.78 的强正——真实 GPS 误差是时间相关的（设备滤波、
+        多径漂移），慢偏置分量在相邻点间近似不变、差分后相互抵消，
+        不产生负自相关。
+        """
+        step = GPS_BIAS_SIGMA_M * (1.0 - GPS_BIAS_DECAY ** 2) ** 0.5
+        self._bias_x = self._bias_x * GPS_BIAS_DECAY + self.rng.gauss(0.0, step)
+        self._bias_y = self._bias_y * GPS_BIAS_DECAY + self.rng.gauss(0.0, step)
+        return (self._bias_x + self.rng.gauss(0.0, GPS_WHITE_SIGMA_M),
+                self._bias_y + self.rng.gauss(0.0, GPS_WHITE_SIGMA_M))
+
+    def _arc_positions(self, n: int) -> List[float]:
+        """把速度剖面积分成 n+1 个累计弧长（首 0 尾 = 目标距离）"""
+        self._bias_x = 0.0
+        self._bias_y = 0.0
+        vs = self._speed_profile(n)
+        dt = self.sample_s
+        s = [0.0]
+        for v in vs:
+            s.append(s[-1] + v * dt)
+        # 末端归一：把积分残差均匀摊回去，保证终点弧长恰为目标距离
+        total = s[-1]
+        if total > 1e-9:
+            k = self.distance / total
+            s = [x * k for x in s]
+        return s
+
     # ── 轨迹点 ──
     def generate_track(self, start_ms: Optional[int] = None) -> List[RunLatLng]:
         """生成闭合环线轨迹，回到起点附近（配速均匀）"""
@@ -694,14 +817,16 @@ class TrackGenerator:
         total = self._ellipse_perimeter(a, b) * laps
 
         pts: List[RunLatLng] = []
+        # 速度剖面 → 累计弧长（v(t) 单源模型，报告二十六）
+        arcs = self._arc_positions(n)
         for i in range(n + 1):
             # 按弧长比例分配参数角：实测周长回到目标距离（椭圆用 Ramanujan 周长）
-            theta = 2 * math.pi * laps * (self.distance / max(1e-6, total)) * i / n
+            theta = 2 * math.pi * laps * (arcs[i] / max(1e-6, total))
             # 形状抖动必须随角度**平滑**变化：每点独立的缩放会把弦长累加成虚假距离
             jitter = 1.0 + self.wobble * math.sin(3 * theta)
-            x = a * math.cos(theta) * jitter + self.rng.uniform(-0.5, 0.5)
-            y = b * math.sin(theta) * jitter + self.rng.uniform(-0.5, 0.5)
-            lat, lng = self._offset(x, y)
+            x = a * math.cos(theta) * jitter
+            y = b * math.sin(theta) * jitter
+            lat, lng = self._noisy_offset(x, y)
             collect = t0 + int(i * self.sample_s * 1000)
             pts.append(RunLatLng(
                 lat=lat, lng=lng, lat_lng_index=i,
@@ -781,10 +906,12 @@ class TrackGenerator:
             cum.append(cum[-1] + d)
 
         pts: List[RunLatLng] = []
+        # 速度剖面 → 累计弧长（v(t) 单源模型，报告二十六）
+        arcs = self._arc_positions(n)
         for i in range(n + 1):
-            # 沿闭合环等弧长取点：总推进量恒为 self.distance（跨圈处 s 回绕，
+            # 沿闭合环按弧长取点：总推进量恒为 self.distance（跨圈处 s 回绕，
             # 而环首尾同为围栏中心，所以回绕不会产生跳变）
-            s = (self.distance * i / n) % lap
+            s = arcs[i] % lap
             j = 0
             while j + 1 < len(cum) - 1 and cum[j + 1] < s:
                 j += 1
@@ -792,10 +919,11 @@ class TrackGenerator:
             f = min(1.0, max(0.0, (s - cum[j]) / span))
             x0, y0 = self._to_xy(loop[j])
             x1, y1 = self._to_xy(loop[j + 1])
-            # 亚米级横向抖动：像真实 GPS 漂移，但不影响 12 米打卡判定
-            x = x0 + (x1 - x0) * f + self.rng.uniform(-0.8, 0.8)
-            y = y0 + (y1 - y0) * f + self.rng.uniform(-0.8, 0.8)
-            lat, lng = self._offset(x, y)
+            # GPS 噪声（σ≈1.1m）：驱动逐点速度 CV 到真人区间；
+            # 围栏约束：噪声把点推出多边形时减半重试，最多 3 次
+            x = x0 + (x1 - x0) * f
+            y = y0 + (y1 - y0) * f
+            lat, lng = self._noisy_offset(x, y)
             pts.append(RunLatLng(
                 lat=lat, lng=lng, lat_lng_index=i,
                 run_time=int(round(i * self.sample_s)),

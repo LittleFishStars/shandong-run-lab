@@ -284,3 +284,75 @@ class 有效性判定测试(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class 速度动力学测试(unittest.TestCase):
+    """报告二十六：v(t) 单源模型要落在真人 GPX 实测的动力学带内
+
+    真人基准（3 条 Strava 真跑）：逐点速度 CV 0.24-0.34、lag-1 自相关
+    0.49-0.78、10s 窗配速 CV 0.12-0.28。断言放宽到「带内或紧贴带边」，
+    均值必须严格进带——防回归到旧的恒速生成器（CV 0.08 / ac1 -0.23）。
+    """
+
+    @staticmethod
+    def _指标(pts):
+        import statistics
+        times = [p.collect_time / 1000 for p in pts]
+        距 = [haversine(a.lat, a.lng, b.lat, b.lng) for a, b in zip(pts, pts[1:])]
+        隙 = [b - a for a, b in zip(times, times[1:])]
+        速度 = [d / g for d, g in zip(距, 隙) if g > 0]
+        均 = statistics.mean(速度)
+        变 = statistics.pstdev(速度) ** 2
+        ac1 = (sum((a - 均) * (b - 均) for a, b in zip(速度, 速度[1:]))
+               / len(速度) / 变) if 变 > 0 else 0.0
+        W = 3   # 3s 采样 → 3 点窗 ≈ 10s
+        窗 = [sum(速度[i:i + W]) / W for i in range(0, len(速度) - W + 1, W)]
+        cv10 = statistics.pstdev(窗) / 均 if 窗 else 0.0
+        return statistics.pstdev(速度) / 均, ac1, cv10
+
+    def test_椭圆轨迹动力学进真人带(self):
+        cvs, ac1s, cv10s = [], [], []
+        for seed in range(10):
+            gen = TrackGenerator(30.2867, 120.0861, target_distance_m=3000,
+                                 target_seconds=1350, fence_radius_m=260, seed=seed)
+            cv, ac1, cv10 = self._指标(gen.generate_track(start_ms=0))
+            cvs.append(cv); ac1s.append(ac1); cv10s.append(cv10)
+        import statistics as st
+        self.assertGreater(st.mean(cvs), 0.22, f"CV 均值 {st.mean(cvs):.3f} 退化回恒速")
+        self.assertLess(st.mean(cvs), 0.36)
+        self.assertGreater(st.mean(ac1s), 0.40, f"ac1 均值 {st.mean(ac1s):.3f} 负自相关回归")
+        self.assertGreater(st.mean(cv10s), 0.11, "配速波动过小")
+        self.assertLess(st.mean(cv10s), 0.30)
+
+    def test_必经点轨迹动力学进真人带(self):
+        途经 = [(30.2887, 120.0861), (30.2867, 120.0881), (30.2847, 120.0841)]
+        cvs, ac1s, cv10s = [], [], []
+        for seed in range(10):
+            gen = TrackGenerator(30.2867, 120.0861, target_distance_m=3000,
+                                 target_seconds=1350, fence_radius_m=260,
+                                 waypoints=途经, seed=seed)
+            cv, ac1, cv10 = self._指标(gen.generate_track(start_ms=0))
+            cvs.append(cv); ac1s.append(ac1); cv10s.append(cv10)
+        import statistics as st
+        self.assertGreater(st.mean(cvs), 0.22)
+        self.assertGreater(st.mean(ac1s), 0.38, f"ac1 均值 {st.mean(ac1s):.3f}")
+        self.assertGreater(st.mean(cv10s), 0.11)
+
+    def test_速度剖面积分守恒(self):
+        """归一化后 Σv·dt == 目标距离（申报与几何一致性的根基）"""
+        gen = TrackGenerator(30.2867, 120.0861, target_distance_m=2000,
+                             target_seconds=800, seed=7)
+        n = 200
+        arcs = gen._arc_positions(n)
+        self.assertAlmostEqual(arcs[-1], 2000.0, delta=0.5)
+        self.assertTrue(all(b > a for a, b in zip(arcs, arcs[1:])), "弧长必须单调")
+
+    def test_GPS噪声不出围栏(self):
+        多边形 = [(30.29, 120.083), (30.29, 120.089), (30.283, 120.089), (30.283, 120.083)]
+        from shandong_school_cracked.protocol import point_in_polygon
+        for seed in range(10):
+            gen = TrackGenerator(30.2867, 120.0861, target_distance_m=1500,
+                                 target_seconds=600, polygon=多边形, seed=seed)
+            pts = gen.generate_track(start_ms=0)
+            出界 = [p for p in pts if not point_in_polygon(p.lat, p.lng, 多边形)]
+            self.assertEqual(len(出界), 0, f"seed={seed} 有 {len(出界)} 个点出围栏")
