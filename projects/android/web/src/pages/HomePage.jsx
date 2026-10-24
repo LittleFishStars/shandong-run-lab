@@ -8,8 +8,10 @@ export default function HomePage({ mapProps, params, distanceOptions, busy, acti
     <div className="run-layout">
       <div className="map-card"><MapCanvas {...mapProps} /></div>
       <aside className="side-panel">
-        <Button size="small" className="repick-entry" onClick={actions.toPick}>重新选择起始点</Button>
-        <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
+        <div className="panel-top-row">
+          <Button size="small" className="repick-entry" onClick={actions.toPick}>重新选择起始点</Button>
+          <Button size="small" className="account-entry" onClick={actions.openAccount}>账户</Button>
+        </div>
         <div className="side-brand">
           <img className="app-icon" src="assets/app-icon.png" alt="闪动校园" />
         </div>

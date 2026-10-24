@@ -45,14 +45,34 @@ python3 scripts/android_check.py               # 对 android_api.dispatch 走 mo
 
 | 验证项 | 结果 |
 | --- | --- |
-| 方法集与契约 §2 / 桌面 `gui.JsApi` 一致 | ✓ 43 个，零偏差 |
-| 43 方法逐一真调（已登录态，mock） | ✓ 42 成功 + 1 白名单（check_update 查 GitHub），0 失败 |
+| 方法集与契约 §2 / 桌面 `gui.JsApi` 一致 | ✓ 44 个，零偏差 |
+| 44 方法逐一真调（已登录态，mock） | ✓ 43 成功 + 1 白名单（check_update 查 GitHub），0 失败 |
 | mock 全流程：登录→选点→开跑→摇杆 300 m→结算→记录→导出 | ✓（Python 3.14 与 3.12 双通过，23/23） |
 | 桌面版回归（同一套业务代码） | ✓ selfcheck 76/76 |
 | 四页 UI 可视化验收（412×915 + HTTP 桥） | ✓ 登录/选起始点/首页/跑步，无 JS 错误 |
 
-> 沙箱里没有设备/模拟器（无 KVM、`adb devices` 为空），**真机运行验证**由
-> `scripts/install.sh` 完成：连接设备后 `adb install -r` + 启动即可。
+### Android 模拟器实测（KVM + AVD，API 34 x86_64）
+
+截图见 [`docs/android/screenshots/emu-*.png`](../../docs/android/screenshots/)：
+
+| 验证项 | 结果 |
+| --- | --- |
+| 安装与启动 | ✓ `Displayed MainActivity +2s857ms`，无 `FATAL`/`AndroidRuntime` |
+| Chaquopy Python 3.12 | ✓ logcat 见 `stdlib-x86_64/_json/_hashlib/_blake2.cpython-312.so` 加载 |
+| Pillow（滑块验证码依赖） | ✓ `requirements/PIL/_imaging.so` 加载 |
+| WebView 前端 | ✓ `chromium: SD_READY injected` |
+| 触摸交互 | ✓ 点输入框弹键盘、文字输入、页面避让正常 |
+| 地图 | ✓ 高德瓦片真实加载、围栏/起点/打卡点渲染正确 |
+| 摇杆推杆 | ✓ 推 5 秒距离 0→5 m，桥→Python→UI 回传链路通 |
+| **摇杆/拖动切换** | ✓ 切拖动后摇杆变提示文案、按钮高亮变「拖动」 |
+| **拖动规划轨迹** | ✓ 青色虚线 + 末端复制点，计划距离 220 m，人开始沿轨迹走 |
+| **切回摇杆保留轨迹** | ✓ 轨迹不丢、继续自动走（距离 3→87 m，实时配速 7'13"） |
+| 免密登录 | ✓ 重启应用直接恢复会话进选点页 |
+| 检查更新 | ✓ 弹窗真实拉到 GitHub release（当前 2.1.1 / 最新 2.2.0） |
+
+> 建模拟器：`android sdk install "system-images;android-34;google_apis;x86_64"`，
+> 手工写 `~/.local/share/android/avd/sdtest{.ini,.avd/config.ini}`（本机无 `avdmanager`），
+> 启动：`emulator -avd sdtest -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect`。
 
 ## 已知边界
 

@@ -152,39 +152,37 @@ button { font-family: inherit; }
 }
 .side-panel {
   position: absolute; bottom: 0; left: 0; right: 0;
-  background: #fff; border-radius: 16px 16px 0 0; padding: 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: #fff; border-radius: 16px 16px 0 0; padding: 14px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -4px 24px rgba(0,0,0,.1); z-index: 1000;   /* 必须 > leaflet 自定义 pane 的 380~440 */
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
-  max-height: 55%; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-height: 64%; overflow-y: auto;   /* 跑步页控件多，给足高度并允许纵向滚动 */
 }
 .side-brand { display: none; }
 .side-actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .btn-start {
-  width: 132px; height: 132px; border-radius: 50% !important;
-  font-size: 22px !important; font-weight: 700; letter-spacing: 2px;
+  width: 108px; height: 108px; border-radius: 50% !important;
+  font-size: 20px !important; font-weight: 700; letter-spacing: 2px;
   box-shadow: 0 8px 24px rgba(22, 119, 255, .35);
 }
 .btn-more {
   width: 52px; height: 52px !important; padding: 0 !important; font-size: 12px;
 }
 .btn-end {
-  width: 72px; height: 72px !important; border-radius: 50% !important;
+  width: 64px; height: 64px !important; border-radius: 50% !important;
   font-size: 14px;
 }
 .btn-mode {
-  width: 56px; height: 56px !important; border-radius: 50% !important;
+  width: 52px; height: 52px !important; border-radius: 50% !important;
   font-size: 12px; border: 2px solid #d9d9d9;
 }
 .btn-mode.active { background: #1677ff; color: #fff; border-color: #1677ff; }
 
-.repick-entry {
-  position: absolute; top: 12px; left: 12px; z-index: 5;
-  min-height: 36px; padding: 0 12px; font-size: 13px;
-}
-.account-entry {
-  position: absolute; top: 12px; right: 12px; z-index: 5;
-  min-height: 36px; padding: 0 12px; font-size: 13px;
+/* 首页两个入口：放在面板内正常流的一行（不用 absolute，避免与下拉框重叠） */
+.panel-top-row { display: flex; gap: 10px; width: 100%; max-width: 340px; }
+.panel-top-row > * { flex: 1 1 0; min-width: 0; }
+.repick-entry, .account-entry {
+  min-height: 36px; padding: 0 10px; font-size: 13px;
 }
 
 .target-pill {
@@ -194,10 +192,13 @@ button { font-family: inherit; }
 .target-pill > span { color: #8c8c8c; font-size: 13px; white-space: nowrap; }
 
 /* ═══ 跑步页 ═══ */
-.live-stats { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.live-line { display: flex; align-items: baseline; gap: 12px; color: #8c8c8c; font-size: 13px; }
-.live-line b { color: #1f1f1f; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.run-ctl { display: flex; justify-content: center; align-items: center; min-height: 140px; }
+/* 统计区两列网格（对齐桌面 v2.2.0）：四行→两行，节省面板高度 */
+.live-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; width: 100%;
+}
+.live-line { display: flex; align-items: baseline; gap: 10px; color: #8c8c8c; font-size: 13px; }
+.live-line b { color: #1f1f1f; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.run-ctl { display: flex; justify-content: center; align-items: center; min-height: 120px; }
 .drag-hint {
   padding: 20px 16px; background: #f0f9ff; border: 1px dashed #91caff;
   border-radius: 12px; color: #1677ff; font-size: 13px; text-align: center; line-height: 1.6;
