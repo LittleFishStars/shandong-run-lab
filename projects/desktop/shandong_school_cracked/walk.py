@@ -25,7 +25,6 @@ from .constants import (CHECKPOINT_HIT_RADIUS_M, PACE_INTERVAL_M, POI_INTERVAL_S
                         SPORT_TYPE_SUN, STATE_FAIL, STATE_INIT, STEP_INTERVAL_S)
 from .protocol import (IntervalPace, IntervalStep, RunLatLng, StrideSegment,
                        evaluate_run)
-from .simulator import FuckRunSim
 from .store import RecordStore
 from .walker import (DEFAULT_SPEED_MPS, SAMPLE_INTERVAL_S, TICK_DEFAULT_S, Walker,
                      WalkState, route_from_checkpoints)

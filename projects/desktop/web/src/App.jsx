@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { message, Modal, Spin, Button } from 'antd';
 import { Bridge } from './bridge';
-import {
-  parsePace, paceToSpeed, fmtPaceInput, fmtPaceShort, fmtDur, fmtKm, fmtDateTime,
-} from './format';
+import { parsePace, paceToSpeed, fmtPaceInput } from './format';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import PickPage from './pages/PickPage';
@@ -35,7 +33,6 @@ export default function App() {
   const [log, setLog] = useState([]);
   const [progress, setProgress] = useState({ percent: 0, text: '就绪' });
   const [runs, setRuns] = useState({ items: [], page: 1, hasNext: false });
-  const [detail, setDetail] = useState(null);
   const [walk, setWalk] = useState(null);
   const [walkPoints, setWalkPoints] = useState([]);
   const [fitNonce, setFitNonce] = useState(0);
@@ -585,15 +582,6 @@ export default function App() {
   };
   const fitHome = () => { setFitNonce((n) => n + 1); setView('home'); };
 
-  /* 记录 */
-  const pickRun = async (item) => {
-    try {
-      const d = await Bridge.call('server_record_detail', item.run_code, item.semester_code || '');
-      if (d && d.ok) setDetail(d);
-      else toast((d && d.error) || '取记录详情失败', 'err');
-    } catch (e) { toast(String((e && e.message) || e), 'err'); }
-  };
-
   /* 目标距离选项：规则单次区间内、从高到低每 1 km */
   const distanceOptions = useMemo(() => {
     const r = (status && status.rule) || {};
@@ -613,67 +601,6 @@ export default function App() {
     }
     return vals.map((v) => ({ value: v, label: `${v / 1000} km` }));
   }, [status, params.distance]);
-
-  const ruleRows = useMemo(() => {
-    const r = (status && status.rule) || {};
-    const fence = (status && (status.fence || (status.fences || [])[0])) || {};
-    const pointCount = Number(fence.requiredPointCounts ?? r.requiredPointCounts ?? 0);
-    const rows = [];
-    if (r.singleMinDistance || r.singleMaxDistance) {
-      rows.push(['单次距离', `${fmtKm(r.singleMinDistance || 0)} – ${fmtKm(r.singleMaxDistance || 0)} km`]);
-    }
-    if (r.minPace || r.maxPace) {
-      rows.push(['配速区间', `${fmtPaceShort(r.minPace || 0)} – ${fmtPaceShort(r.maxPace || 0)}`]);
-    }
-    if (r.strideBase) rows.push(['步幅基准', `${r.strideBase} 厘米`]);
-    const livePoints = (status && status.checkpoints ? status.checkpoints.length : 0);
-    const shownPoints = livePoints || (serverPoints != null ? serverPoints : pointCount);
-    const pointNote = livePoints ? '本次' : (serverPoints != null ? '最近一次记录' : '围栏');
-    if (shownPoints) rows.push(['打卡点', `${shownPoints} 个（${pointNote}）`]);
-    if (r.dayMaxDistance) rows.push(['每日上限', `${fmtKm(r.dayMaxDistance)} km`]);
-    if (status && status.rule_loaded_at) rows.push(['更新于', fmtDateTime(status.rule_loaded_at)]);
-    return rows;
-  }, [status, serverPoints]);
-
-  const userRows = useMemo(() => {
-    const u = (status && status.user) || {};
-    return [
-      ['姓名', u.userName || '--'],
-      ['学校', u.schoolName || '--'],
-      ['学号', u.studentNo || '--'],
-      ['设备', String((status && status.device_id) || '--').slice(0, 12)],
-      ['版本', `v${(status && status.version) || '--'}`],
-    ];
-  }, [status]);
-
-  const runRows = useMemo(() => {
-    if (detail && detail.record) {
-      const r = detail.record;
-      return [
-        ['记录码', r.run_code || '--'],
-        ['距离', r.distance_m ? `${Number(r.distance_m).toFixed(0)} 米` : '--'],
-        ['有效距离', r.valid_distance_m ? `${Number(r.valid_distance_m).toFixed(0)} 米` : '--'],
-        ['时长', r.duration_s ? fmtDur(r.duration_s) : '--'],
-        ['配速', r.pace_s_per_km ? `${fmtPaceShort(r.pace_s_per_km)}/公里` : '--'],
-        ['步数', r.total_step || '--'],
-        ['开始', r.start_ms ? fmtDateTime(r.start_ms) : '--'],
-        ['状态', r.state || '--'],
-      ];
-    }
-    const last = status && status.last;
-    if (last && (last.valid || last.distance_m)) {
-      const v = last.valid || last;
-      return [
-        ['记录码', last.run_code || '--'],
-        ['距离', v.distance_m ? `${Number(v.distance_m).toFixed(0)} 米` : '--'],
-        ['有效距离', v.valid_distance_m ? `${Number(v.valid_distance_m).toFixed(0)} 米` : '--'],
-        ['时长', v.duration_s ? fmtDur(v.duration_s) : '--'],
-        ['配速', v.pace_s_per_km ? `${fmtPaceShort(v.pace_s_per_km)}/公里` : '--'],
-        ['步数', v.total_step || '--'],
-      ];
-    }
-    return [];
-  }, [detail, status]);
 
   // 打卡点只在跑步页显示（开跑后服务端才下发 targetPoints）；首页/选点页只留围栏与起点
   const mapCheckpoints = (view === 'run')
@@ -709,7 +636,7 @@ export default function App() {
     runAuto, resumeRun, toggleAuto,
     joystick, joystickEnd, setPace,
     toPick, confirmPick, clearStart, fitHome,
-    loadRuns: refreshRuns, pickRun,
+    loadRuns: refreshRuns,
     clearLog: () => setLog([]),
     toMore: () => setView('more'),
     refreshUser: async () => {
@@ -826,15 +753,7 @@ export default function App() {
         <MorePage
           status={status}
           params={params}
-          distanceOptions={distanceOptions}
-          ruleRows={ruleRows}
-          userRows={userRows}
-          runRows={runRows}
-          runCode={(detail && detail.record && detail.record.run_code) || (status && status.last && status.last.run_code) || ''}
           log={log}
-          runs={runs}
-          detail={detail}
-          busy={busy}
           actions={actions}
         />
       )}

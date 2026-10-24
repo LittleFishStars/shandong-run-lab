@@ -25,7 +25,7 @@ import urllib.parse
 import uuid
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from . import crypto
 from .captcha import synth_captcha
@@ -37,7 +37,7 @@ from .constants import (
     SLIDER_OFFSET,
     SPORT_TYPE_SUN,
 )
-from .protocol import haversine, point_in_polygon
+from .protocol import point_in_polygon
 
 # ── Mock 世界：一所虚构学校 + 围栏 + 学期 + 计划 ──
 MOCK_SCHOOL = {
@@ -425,7 +425,6 @@ def _upload_record(w: MockWorld, path: str, h, b):
     if run is None:
         return {"code": CODE_MISSING_PARAM, "message": "runRecordCode 无效", "data": None}
     pois = b.get("pois") or []
-    start = len(run.points)
     run.points.extend(pois)
     run.admitted = len(run.points)
     idx_list = [int(p.get("index", i)) for i, p in enumerate(pois)]  # 回显点 index（同真实服务端）

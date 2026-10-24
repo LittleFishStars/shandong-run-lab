@@ -17,11 +17,9 @@ from __future__ import annotations
 
 import base64
 import io
-import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from . import crypto
-from .constants import SLIDER_KEY
 
 try:
     from PIL import Image  # type: ignore

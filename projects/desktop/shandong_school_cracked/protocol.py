@@ -29,11 +29,9 @@ from .constants import (
     PACE_INTERVAL_M,
     SPORT_TYPE_SUN,
     STEP_INTERVAL_S,
-    STATE_FAIL,
     STATE_INIT,
     STRIDE_STATISTICS_M,
     STATE_SUCC,
-    STATE_UPLOADING,
 )
 
 EARTH_M_PER_DEG_LAT = 111_320.0
@@ -781,7 +779,6 @@ class TrackGenerator:
         cum = [0.0]
         for d in seg:
             cum.append(cum[-1] + d)
-        total = lap
 
         pts: List[RunLatLng] = []
         for i in range(n + 1):

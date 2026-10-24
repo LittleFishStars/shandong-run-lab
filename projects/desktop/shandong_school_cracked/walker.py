@@ -29,7 +29,7 @@ from __future__ import annotations
 import math
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .constants import (

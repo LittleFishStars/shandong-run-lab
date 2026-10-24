@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import threading
 import time
-import uuid
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 from . import protocol
 from .constants import (
@@ -22,14 +21,12 @@ from .constants import (
     CODE_OK,
     DEFAULT_SAMPLE_S,
     SPORT_TYPE_SUN,
-    STATE_INIT,
     STRIDE_STATISTICS_M,
 )
 from .protocol import (
     IntervalPace,
     IntervalStep,
     RunLatLng,
-    RuleSet,
     StrideSegment,
     TrackGenerator,
     evaluate_run,
@@ -277,7 +274,6 @@ class RunEngine:
         # 时长由 距离 ÷ 步幅 ÷ 步频 反推，保证三个量自洽
         total_step_est = target / max(0.5, stride)
         seconds = int(round(total_step_est / (cadence / 60.0)))
-        pace = seconds / (target / 1000.0)
 
         self._step(20, f"生成轨迹：{target:.0f} 米 / 预计 {seconds // 60}分{seconds % 60}秒")
 
@@ -536,7 +532,6 @@ class RunEngine:
     # ══════════════════ 导出 ══════════════════
     def export_gpx(self, run_code: str) -> str:
         pts = self.store.get_points(run_code, None)
-        run = self.store.get_run(run_code) or {}
         parts = ['<?xml version="1.0" encoding="UTF-8"?>',
                  '<gpx version="1.1" creator="shandong-school_cracked" '
                  'xmlns="http://www.topografix.com/GPX/1/1">',

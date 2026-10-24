@@ -16,7 +16,7 @@ import threading
 import time
 import webbrowser
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from . import constants as C
 from .app import App

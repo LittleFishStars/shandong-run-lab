@@ -20,7 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from . import crypto
 from .constants import (
@@ -34,7 +34,6 @@ from .constants import (
     DEFAULT_SYS_VER,
     H5_ORIGIN,
     HEADER_APP,
-    HEADER_E,
     HEADER_E_ENC,
     HEADER_PV,
     USER_AGENT_PREFIX,

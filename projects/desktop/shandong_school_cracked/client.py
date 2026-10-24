@@ -50,9 +50,7 @@ from .protocol import (
     build_pace_list,
     build_step_list,
     build_stride_list,
-    build_target_points,
     build_upload_pois,
-    tail_points,
 )
 from .store import RecordStore
 

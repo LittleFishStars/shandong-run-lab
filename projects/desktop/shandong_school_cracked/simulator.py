@@ -30,8 +30,8 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 # 传感器类型（对齐 android.hardware.Sensor）
 TYPE_ACCELEROMETER = 1

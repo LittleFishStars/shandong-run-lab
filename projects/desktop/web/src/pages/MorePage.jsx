@@ -1,7 +1,5 @@
 import React from 'react';
-import { Button, Card, Checkbox, Input, InputNumber, Select, Typography } from 'antd';
-
-const { Text } = Typography;
+import { Button, Card, Checkbox, Input, InputNumber, Select } from 'antd';
 
 export default function MorePage({ status, params, log, actions }) {
   return (
