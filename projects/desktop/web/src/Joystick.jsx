@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 
-/* 摇杆：拖动产生方向与力度（0..1），松手即停；也支持方向键 */
+/* 摇杆：拖动产生方向与力度（0..1），松手即停 */
 export default function Joystick({ onMove, onEnd, disabled }) {
   const boxRef = useRef(null);
   const knobRef = useRef(null);
@@ -36,26 +36,6 @@ export default function Joystick({ onMove, onEnd, disabled }) {
     state.current.down = false;
     onEnd && onEnd();
   };
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (disabled) return;
-      const map = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
-      if (!map[e.key]) return;
-      e.preventDefault();
-      setActive(true);
-      apply(map[e.key][0] * 100, map[e.key][1] * 100);
-    };
-    const onKeyUp = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) reset();
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-  }, [disabled]);
 
   const onPointerDown = (e) => {
     if (disabled) return;
