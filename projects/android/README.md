@@ -27,11 +27,22 @@ MainActivity（WebView 承载移动端前端）
 ## 构建
 
 ```bash
-cp local.properties.example local.properties   # 改成本机 SDK 路径
+cp local.properties.example local.properties   # 改成本机 SDK 路径（并填 shandong.* 签名项）
 ./scripts/build_web.sh                         # 前端 → app/src/main/assets/web/
-./scripts/build_apk.sh                         # → app/build/outputs/apk/debug/（约 40 MB）
-./scripts/install.sh                           # adb 安装并启动
+./scripts/build_apk.sh                         # 默认同时出 debug + release 两版
+./scripts/build_apk.sh debug                   # 只出调试版
+./scripts/build_apk.sh release                 # 只出发布版
+./scripts/install.sh                           # adb 安装并启动（默认装 release）
 ```
+
+> **约定：每次改完代码都要打调试版 + 发布版两套**（`build_apk.sh` 不带参数即如此）。
+> 产物：
+> - `app/build/outputs/apk/debug/app-debug.apk`（约 40 MB）
+> - `app/build/outputs/apk/release/app-release.apk`（约 40 MB，已用 `~/.android/keys/shandong-release.jks` 签名）
+>
+> 签名材料只放 `local.properties`（已被 .gitignore 忽略），口令不进仓库；
+> 未配 `shandong.storeFile` 的环境克隆后仍可构建，只是 release 未签名。
+> 发布版 `versionName` 与桌面版 `__version__` 对齐（当前 2.2.0，versionCode 20200）。
 
 沙箱注意（脚本已内置兜底）：`~/.gradle`、`~/Android/Sdk`、`~/.local/share/android` 只读时，
 `GRADLE_USER_HOME` / `ANDROID_USER_HOME` 自动落到 `<workspace>/tmp/`；JDK 固定 21

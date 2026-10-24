@@ -22,8 +22,10 @@ android {
         applicationId "com.ylxc.shandong"
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName "1.0.0"
+        // 与桌面版 __version__ 对齐（app/src/main/python/shandong_school_cracked/__init__.py）
+        // versionCode 用 MAJOR*10000+MINOR*100+PATCH，递增关系直观且不会回退
+        versionCode 20200
+        versionName "2.2.0"
         ndk {
             // 仅保留真机 + 模拟器两个 ABI，减小包体
             abiFilters 'arm64-v8a', 'x86_64'

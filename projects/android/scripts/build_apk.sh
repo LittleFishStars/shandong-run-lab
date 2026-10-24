@@ -42,22 +42,46 @@ else
     GW="sh ./gradlew"
 fi
 
+# ── 目标变体：默认同时构建调试版 + 发布版（每次改动都出两版）──
+TARGET="${1:-all}"
+# VARIANTS：本次要构建（也即只汇报）的变体，避免把上次残留的旧包当成新产物
+case "${TARGET}" in
+    debug)   TASKS=(assembleDebug);   VARIANTS=(debug) ;;
+    release) TASKS=(assembleRelease); VARIANTS=(release) ;;
+    all)     TASKS=(assembleDebug assembleRelease); VARIANTS=(debug release) ;;
+    *)       echo "[build] 未知目标 ${TARGET}（可选：debug | release | all）" >&2; exit 2 ;;
+esac
+shift || true
+
 echo "==> GRADLE_USER_HOME=${GRADLE_USER_HOME}"
 echo "==> ANDROID_USER_HOME=${ANDROID_USER_HOME}"
 echo "==> JAVA_HOME=${JAVA_HOME}"
 
-# 调用 gradlew（附加用户参数）
-${GW} assembleDebug "$@"
+echo "==> 构建任务：${TASKS[*]}"
 
-# 打印产物与大小
-APK="$(find app/build/outputs/apk -name '*.apk' -type f 2>/dev/null | head -n 1)"
-if [ -n "${APK}" ]; then
-    echo ""
-    echo "=========================================="
-    echo "  APK: ${APK}"
-    echo "  大小: $(du -h "${APK}" | cut -f1)"
-    echo "=========================================="
-else
-    echo "[build] 未找到 APK 产物，请检查上方构建日志。" >&2
+# 调用 gradlew（附加用户参数）
+${GW} "${TASKS[@]}" "$@"
+
+# ── 产物汇报（debug / release 各一份）──
+SIGNER="$(ls -d "${HOME}/Android/Sdk"/build-tools/*/apksigner 2>/dev/null | tail -1 || true)"
+echo ""
+echo "=========================================="
+FOUND=0
+for v in "${VARIANTS[@]}"; do
+    APK="app/build/outputs/apk/${v}/app-${v}.apk"
+    [ -f "${APK}" ] || continue
+    FOUND=1
+    echo "  [${v}] ${APK}  $(du -h "${APK}" | cut -f1)"
+    if [ "${v}" = "release" ] && [ -n "${SIGNER}" ] && [ -x "${SIGNER}" ]; then
+        if "${SIGNER}" verify --print-certs "${APK}" >/dev/null 2>&1; then
+            echo "        签名：已签名 ✓"
+        else
+            echo "        签名：未签名 ✗（检查 local.properties 的 shandong.* 配置）" >&2
+        fi
+    fi
+done
+if [ "${FOUND}" -eq 0 ]; then
+    echo "[build] 未找到任何 APK 产物，请检查上方构建日志。" >&2
     exit 1
 fi
+echo "=========================================="
