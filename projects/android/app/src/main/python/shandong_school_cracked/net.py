@@ -16,11 +16,13 @@
 from __future__ import annotations
 
 import json
+import os
+import random
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from . import crypto
 from .constants import (
@@ -34,15 +36,16 @@ from .constants import (
     DEFAULT_SYS_VER,
     H5_ORIGIN,
     HEADER_APP,
-    HEADER_E,
     HEADER_E_ENC,
     HEADER_PV,
+    DEFAULT_TLS_IMPERSONATE,
     USER_AGENT_PREFIX,
     EP,
     Endpoint,
     endpoint,
 )
-from .simulator import build_device_fingerprint, random_device_id
+from .simulator import (build_device_fingerprint, random_device_id,
+                        resolve_device_profile)
 
 try:  # 优先 requests（自动处理 gzip / 连接复用）
     import requests  # type: ignore
@@ -51,6 +54,13 @@ try:  # 优先 requests（自动处理 gzip / 连接复用）
 except Exception:  # pragma: no cover
     _HAS_REQUESTS = False
 
+try:  # TLS 指纹伪装（curl_cffi；chrome110 预设经 muccc526 项目实测可过服务端）
+    from curl_cffi import requests as _cffi_requests  # type: ignore
+
+    _HAS_CURL_CFFI = True
+except Exception:  # pragma: no cover
+    _cffi_requests = None
+    _HAS_CURL_CFFI = False
 
 class TransportError(Exception):
     pass
@@ -68,14 +78,36 @@ class Transport:
         self.cfg = config or {}
         self.bus = bus
         self.store = store
-        dev = self.cfg.get("device", {}) or {}
-        fp = build_device_fingerprint(dev)
-        self.device_id = self.cfg.get("device_id") or fp["deviceId"] or random_device_id()
+        # 设备档案：机型池模式（cfg.device 未显式写 model 时启用）——
+        # 按 deviceId 确定性选机型，多账号自然散开，防「全部账号同一机型」聚类。
+        dev_raw = self.cfg.get("device", {}) or {}
+        if dev_raw.get("model"):
+            dev = dict(dev_raw)
+            fp = build_device_fingerprint(dev)
+            self.device_id = str(self.cfg.get("device_id") or "") or \
+                fp["deviceId"] or random_device_id()
+        else:
+            # 池模式：deviceId 独立于 Build 字段（真实设备是 ANDROID_ID/缓存 UUID），
+            # 先有 id 再选机型；同账号永远同机型（ShandongTool 同款语义）
+            self.device_id = str(self.cfg.get("device_id") or "") or random_device_id()
+            dev = resolve_device_profile(dev_raw, self.device_id)
+            fp = build_device_fingerprint(dev)
+        self.device_profile = dev
         self.finger = fp["finger"]
         self.base_url = (base_url or self.cfg.get("base_url") or BASE_URL).rstrip("/")
         self.timeout = float(self.cfg.get("timeout", 20))
         self.retry = int(self.cfg.get("retry", 2))
         self.proxy = (self.cfg.get("proxy") or "").strip()
+        # TLS 指纹伪装：空串 = 关闭（原生 urllib/requests 指纹）。
+        # 默认 chrome110——服务端目前不校验 JA3（2026-10 实测原生指纹可过），
+        # 但伪装成本为零，防患于未然；curl_cffi 缺席时自动降级并留告警。
+        imp = str(self.cfg.get("tls_impersonate", DEFAULT_TLS_IMPERSONATE) or "").strip()
+        self.tls_impersonate = imp if (_HAS_CURL_CFFI or not imp) else ""
+        self._cffi_session = (_cffi_requests.Session()
+                              if (self.tls_impersonate and _HAS_CURL_CFFI) else None)
+        if imp and not self.tls_impersonate and self.bus:
+            self.bus.emit("log", "⚠ curl_cffi 未安装，TLS 指纹伪装未生效"
+                                 "（pip install curl_cffi）", level="warn")
         # clock：毫秒时钟。原版 SignInterceptor 发 timestamp 时用的是
         # (System.currentTimeMillis() + hq1.f3188a)，而 hq1.f3188a 由
         # r24.java:95 `hq1VarA.c(r90.D(), ...)` 注入 = SyncTimeIntentService
@@ -83,6 +115,22 @@ class Transport:
         # 存同一个偏移量，clock() 自动加上——公共字段与结算 timestamp 同源。
         self.time_offset_ms = 0
         self.clock = clock or self._now
+        # 请求节流（吸收 ShandongTool：真机用户操作节奏天然带间隔，毫秒级连发
+        # 是可判定的机器人特征）。真实服务端默认开；本地 Mock / 环境变量
+        # SHANDONG_THROTTLE=0 / cfg throttle=false 任一即关。
+        _env_off = os.environ.get("SHANDONG_THROTTLE", "").strip().lower() in ("0", "false", "no")
+        _local = "127.0.0.1" in self.base_url or "localhost" in self.base_url
+        self.throttle_enabled = (not _env_off and not _local
+                                 and bool(self.cfg.get("throttle", True)))
+        rng_range = self.cfg.get("throttle_range") or (0.4, 2.2)
+        try:
+            self.throttle_range = (float(rng_range[0]), float(rng_range[1]))
+        except Exception:
+            self.throttle_range = (0.4, 2.2)
+        self._last_request_at = 0.0
+        if self.throttle_enabled and self.bus:
+            self.bus.emit("log", f"请求节流已开启："
+                          f"{self.throttle_range[0]}~{self.throttle_range[1]}s 随机间隔")
         # 会话态
         self.token = ""
         self.satoken = ""
@@ -334,10 +382,16 @@ class Transport:
             url = "https:" + url
         elif url.startswith("http://"):
             url = "https://" + url[7:]
-        req = urllib.request.Request(url, headers={"User-Agent": f"{USER_AGENT_PREFIX}/{APP_VERSION}"})
+        hdrs = {"User-Agent": f"{USER_AGENT_PREFIX}/{APP_VERSION}"}
         try:
-            with _open(req, self.timeout, self.proxy) as r:
-                data = r.read()
+            if self._cffi_session is not None:
+                r = self._cffi_session.get(url, headers=hdrs, timeout=self.timeout,
+                                           impersonate=self.tls_impersonate)
+                data = r.content
+            else:
+                req = urllib.request.Request(url, headers=hdrs)
+                with _open(req, self.timeout, self.proxy) as r:
+                    data = r.read()
             if self.bus:
                 self.bus.emit("log", f"↓ 资源 {len(data)} B  {url[:72]}")
             return data
@@ -347,10 +401,44 @@ class Transport:
             return None
 
     # ══════════════════ 底层 ══════════════════
+    def _throttle(self) -> None:
+        """请求间隔节流：距上次请求不足随机间隔时补足等待（仅真实服务端）"""
+        if not self.throttle_enabled:
+            return
+        lo, hi = self.throttle_range
+        need = lo + (hi - lo) * random.random()
+        gap = time.monotonic() - self._last_request_at
+        if gap < need and self._last_request_at > 0:
+            time.sleep(need - gap)
+        self._last_request_at = time.monotonic()
+
+    def refresh_device_profile(self) -> None:
+        """device_id 变更后重析机型档案（池模式下机型跟随 deviceId）"""
+        dev_raw = self.cfg.get("device", {}) or {}
+        if dev_raw.get("model"):
+            return
+        dev = resolve_device_profile(dev_raw, self.device_id)
+        fp = build_device_fingerprint(dev)
+        self.device_profile = dev
+        self.finger = fp["finger"]
+
     def _send(self, url: str, headers: Dict[str, str], body: Optional[bytes]
               ) -> Tuple[int, str]:
+        self._throttle()
+        proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
+        # TLS 指纹伪装优先（curl_cffi）；验证码图片下载等二进制资源同走
+        # _cffi_get/_cffi_post，保证对外 HTTP 指纹全链路一致
+        if self._cffi_session is not None:
+            if body is not None:
+                r = self._cffi_session.post(url, data=body, headers=headers,
+                                            timeout=self.timeout, proxies=proxies,
+                                            impersonate=self.tls_impersonate)
+            else:
+                r = self._cffi_session.get(url, headers=headers, timeout=self.timeout,
+                                           proxies=proxies,
+                                           impersonate=self.tls_impersonate)
+            return r.status_code, r.text
         if _HAS_REQUESTS:
-            proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
             r = requests.post(url, data=body, headers=headers,
                               timeout=self.timeout, proxies=proxies) if body is not None else \
                 requests.get(url, headers=headers, timeout=self.timeout, proxies=proxies)

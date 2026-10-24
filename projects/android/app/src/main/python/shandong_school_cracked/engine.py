@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import threading
 import time
-import uuid
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 from . import protocol
 from .constants import (
@@ -22,14 +21,12 @@ from .constants import (
     CODE_OK,
     DEFAULT_SAMPLE_S,
     SPORT_TYPE_SUN,
-    STATE_INIT,
     STRIDE_STATISTICS_M,
 )
 from .protocol import (
     IntervalPace,
     IntervalStep,
     RunLatLng,
-    RuleSet,
     StrideSegment,
     TrackGenerator,
     evaluate_run,
@@ -244,6 +241,13 @@ class RunEngine:
             c.store.add_checkpoints(code, self.checkpoints)
             self._emit("log", f"服务端未下发打卡点，按围栏预估 {len(self.checkpoints)} 个",
                        level="warn")
+        # 人脸检查点计划（原版在 checkRunRule 后生成，服务端只发区间；报告二十四）。
+        # 计划存 kv：结算时与 simulate 落的快照合并成 faceCheckRecordList。
+        plan = c.plan_face_checks()
+        if plan:
+            c.store.kv_set(f"faceplan:{code}", plan)
+            self._emit("log", f"已生成 {len(plan)} 个人脸检查点（里程 "
+                        + "、".join(f"{p['randomDistance']}m" for p in plan) + "）")
         self.last = {"run_code": code, "target_m": target, "started_at": int(time.time() * 1000)}
         self._emit("run_started", f"已开跑：{code}", run_code=code, target_m=target)
         return code
@@ -277,7 +281,6 @@ class RunEngine:
         # 时长由 距离 ÷ 步幅 ÷ 步频 反推，保证三个量自洽
         total_step_est = target / max(0.5, stride)
         seconds = int(round(total_step_est / (cadence / 60.0)))
-        pace = seconds / (target / 1000.0)
 
         self._step(20, f"生成轨迹：{target:.0f} 米 / 预计 {seconds // 60}分{seconds % 60}秒")
 
@@ -304,7 +307,8 @@ class RunEngine:
         sim.start(start_ms=start_ms)
         timeline = sim.step_timeline(duration_s=seconds, interval_s=gen.sample_s,
                                      start_ms=start_ms)
-        steps: List[IntervalStep] = gen.build_steps(timeline, start_ms=start_ms)
+        steps: List[IntervalStep] = gen.build_steps(
+            timeline, start_ms=start_ms, interval_s=c.step_interval())
         paces: List[IntervalPace] = gen.generate_paces(start_ms=start_ms)
         stride_interval = int((self.cfg.get("common") or {}).get("strideStatisticsInterval")
                               or STRIDE_STATISTICS_M)
@@ -318,6 +322,19 @@ class RunEngine:
         self.store.add_steps(run_code, steps)
         self.store.add_paces(run_code, paces)
         self.store.add_strides(run_code, strides)
+
+        # 人脸检查点快照：轨迹回放，取「累计里程 ≥ randomDistance」的首个点
+        # 作为扫脸时刻（popTime/checkDistance/checkLng/checkLat），存 kv 供结算用。
+        plan = self.store.kv_get(f"faceplan:{run_code}") or []
+        if plan:
+            snaps = protocol.face_snapshots_from_track(plan, pts)
+            self.store.kv_set(f"facecheck:{run_code}", snaps)
+            missed = [s for s in snaps if not s.get("hasChecked")]
+            if missed:
+                self._emit("log", f"⚠ {len(missed)} 个人脸检查点里程未跑到"
+                            f"（目标距离不足），对应记录将以未完成状态上送", level="warn")
+            else:
+                self._emit("log", f"人脸检查点快照完成：{len(snaps)}/{len(snaps)}")
 
         hits = self.match_checkpoints(run_code, pts)
         total_step = sum(int(s.step) for s in steps)
@@ -536,7 +553,6 @@ class RunEngine:
     # ══════════════════ 导出 ══════════════════
     def export_gpx(self, run_code: str) -> str:
         pts = self.store.get_points(run_code, None)
-        run = self.store.get_run(run_code) or {}
         parts = ['<?xml version="1.0" encoding="UTF-8"?>',
                  '<gpx version="1.1" creator="shandong-school_cracked" '
                  'xmlns="http://www.topografix.com/GPX/1/1">',

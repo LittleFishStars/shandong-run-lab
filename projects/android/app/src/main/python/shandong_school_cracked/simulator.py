@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+from .constants import MODEL_POOL
 
 # 传感器类型（对齐 android.hardware.Sensor）
 TYPE_ACCELEROMETER = 1
@@ -362,3 +364,35 @@ def random_device_id(seed: Optional[int] = None) -> str:
     """16 位小写 hex 设备 ID（与 Android ID 格式一致）"""
     rng = random.Random(seed)
     return "".join(rng.choice("0123456789abcdef") for _ in range(16))
+
+
+# ══════════════════ 设备机型池 ══════════════════
+def resolve_device_profile(cfg_device: Optional[Dict[str, Any]],
+                           device_id: str) -> Dict[str, Any]:
+    """按 deviceId 稳定地从机型池解析设备档案（吸收 ShandongTool device_identity）
+
+    规则（与 ST 的「显式 > 池」一致）：
+      · cfg_device 里显式写了 model → 原样返回（用户显式配置优先）；
+      · 否则按 sha1(deviceId) 从 MODEL_POOL 确定性选机型 + 版本——
+        同一账号永远同一机型（防「每次登录换机型」的新异常），不同账号
+        自然散开（防「全部账号同一机型」的聚类特征）。
+      · 版本从该机型的真实版本区间内确定性选取，禁止跨机型混搭。
+    """
+    dev = dict(cfg_device or {})
+    if dev.get("model"):
+        return dev
+    did = str(device_id or "")
+    if not did:
+        return dev
+    import hashlib
+    h = hashlib.sha1(did.encode("utf-8")).digest()
+    entry = MODEL_POOL[h[0] % len(MODEL_POOL)]
+    version = entry["versions"][h[1] % len(entry["versions"])]
+    out = dict(dev)
+    out.update({
+        "model": entry["model"], "brand": entry["brand"],
+        "manufacturer": entry["manufacturer"], "device": entry["device"],
+        "product": entry["product"], "board": entry["board"],
+        "hardware": entry["hardware"], "system_version": version,
+    })
+    return out

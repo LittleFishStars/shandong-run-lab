@@ -16,6 +16,8 @@ GUI 与 CLI 都只跟这一层打交道。
 """
 from __future__ import annotations
 
+import base64
+import hmac
 import hashlib
 import io
 import math
@@ -127,6 +129,37 @@ def process_face_photo(raw: bytes, rng: Optional[random.Random] = None) -> bytes
         return buf.getvalue()
     except Exception:
         return raw
+
+
+def _oss_put_stdlib(endpoint: str, bucket: str, key: str, data: bytes,
+                    ak: str, sk: str, token: str, timeout: float = 30.0) -> None:
+    """纯标准库的 OSS PUT（V1 签名）——Android/Chaquopy 无 oss2 时的降级
+
+    StringToSign = "PUT\n{md5}\n{type}\n{date}\n{x-oss-security-token:TOKEN\n}/{bucket}/{key}"
+    Authorization = "OSS {AK}:{base64(hmac_sha1(SK, StringToSign))}"
+    与 ShandongTool face_prep.oss_put 同一公式（对生产 OSS 实测可用），
+    Content-MD5 与 x-oss-security-token 两个头签名时必须带上。
+    """
+    import urllib.request
+    date = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+    content_md5 = base64.b64encode(hashlib.md5(data).digest()).decode()
+    content_type = "image/jpeg"
+    sts = (f"PUT\n{content_md5}\n{content_type}\n{date}\n"
+           f"x-oss-security-token:{token}\n/{bucket}/{key}")
+    sig = base64.b64encode(
+        hmac.new(sk.encode(), sts.encode(), hashlib.sha1).digest()).decode()
+    headers = {
+        "Date": date,
+        "Content-MD5": content_md5,
+        "Content-Type": content_type,
+        "x-oss-security-token": token,
+        "Authorization": f"OSS {ak}:{sig}",
+    }
+    req = urllib.request.Request(f"https://{bucket}.{endpoint}/{key}",
+                                 data=data, headers=headers, method="PUT")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        if resp.status != 200:
+            raise RuntimeError(f"OSS PUT 失败：HTTP {resp.status}")
 
 
 class ShandongClient:
@@ -968,23 +1001,31 @@ class ShandongClient:
         对象键 <directory>/face/run/<md5>.jpg →
         URL = <domain>/<directory>/face/run/<md5>.jpg（n66.b.d 的拼接顺序）。
         本地仿真（mock）模式跳过真实上传，返回占位 URL。
+
+        上传实现两级降级：
+          ① oss2（桌面主路径，官方 SDK）；
+          ② 纯标准库 OSS V1 签名 PUT——Android/Chaquopy 装不了 oss2
+             （crcmod 等 C 扩展无 Android wheel），签名公式与 ShandongTool
+             face_prep.oss_put 完全同源（该实现对生产 OSS 实测可用）。
         """
         if self.local_mode:
             return f"https://mock.local/face/run/{hashlib.md5(image_bytes).hexdigest()}.jpg"
         info = self.oss_token("")
         if not info.get("accessKeyId"):
             raise RuntimeError(f"OSS STS 获取失败：{info.get('message')}")
-        try:
-            import oss2
-        except ImportError as e:
-            raise RuntimeError("缺少 oss2（pip install oss2），无法上传现场照") from e
-        auth = oss2.StsAuth(info["accessKeyId"], info["accessKeySecret"],
-                             info.get("securityToken") or "")
-        bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
         digest = hashlib.md5(image_bytes).hexdigest()
         directory = str(info.get("directory") or "").strip("/")
         key = f"{directory}/face/run/{digest}.jpg" if directory else f"face/run/{digest}.jpg"
-        bucket.put_object(key, image_bytes)
+        try:
+            import oss2
+            auth = oss2.StsAuth(info["accessKeyId"], info["accessKeySecret"],
+                                info.get("securityToken") or "")
+            bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
+            bucket.put_object(key, image_bytes)
+        except ImportError:
+            _oss_put_stdlib(OSS_ENDPOINT, OSS_BUCKET, key, image_bytes,
+                            info["accessKeyId"], info["accessKeySecret"],
+                            info.get("securityToken") or "", self.timeout)
         domain = str(info.get("domain") or "").rstrip("/")
         url = f"{domain}/{key}" if domain else key
         if self.bus:

@@ -19,10 +19,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tupl
 from .constants import (
     CHECKPOINT_HIT_RADIUS_M,
     SPORT_TYPE_SUN,
-    STATE_FAIL,
-    STATE_INIT,
     STATE_SUCC,
-    STATE_UPLOADING,
 )
 from .protocol import IntervalPace, IntervalStep, RunLatLng, StrideSegment
 

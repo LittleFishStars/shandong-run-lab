@@ -389,7 +389,7 @@ def cmd_records(args: argparse.Namespace) -> int:
                         "checkpoints_done": sum(1 for c in d.get("checkpoints", []) if c.get("passed")),
                         "checkpoints_total": len(d.get("checkpoints") or [])})
         print(f"  上传计数 {json.dumps(d['counts'], ensure_ascii=False)}")
-        print(f"  打卡点   " + " ".join(
+        print("  打卡点   " + " ".join(
             f"#{c.get('index')}{'✓' if c.get('passed') else '·'}" for c in d.get("checkpoints", [])))
         if args.points:
             print("\n  轨迹点（前 20）")

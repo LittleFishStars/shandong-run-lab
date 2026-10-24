@@ -16,7 +16,12 @@ GUI 与 CLI 都只跟这一层打交道。
 """
 from __future__ import annotations
 
+import base64
+import hmac
+import hashlib
+import io
 import math
+import random
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -30,6 +35,11 @@ from .constants import (
     CODE_NEED_LOGIN,
     EP,
     DEFAULT_UPLOAD_BATCH,
+    OSS_BUCKET,
+    OSS_ENDPOINT,
+    FACE_PHOTO_W,
+    FACE_PHOTO_H,
+    FACE_PHOTO_QUALITY,
     PACE_INTERVAL_M,
     POI_UPLOAD_MIN_POINTS,
     SEGMENT_UPLOAD_MIN,
@@ -50,13 +60,106 @@ from .protocol import (
     build_pace_list,
     build_step_list,
     build_stride_list,
-    build_target_points,
     build_upload_pois,
-    tail_points,
 )
 from .store import RecordStore
 
 KV_TOKEN = "session"
+
+
+def process_face_photo(raw: bytes, rng: Optional[random.Random] = None) -> bytes:
+    """底图字节流 → 真机规格「现场照」（192x256 / 3:4 / JPEG ~q82）
+
+    纯函数（可离线单测）：居中裁成 3:4 竖版 → 缩放到 FACE_PHOTO_W×H →
+    JPEG 重编码。任何异常（PIL 缺席、非图像）都返回原字节——退化为
+    muccc526 的「底图原样上送」方案，流程不中断。
+
+    每次调用都做**相机级随机化**（同一底图两次产物字节必不同），
+    防哈希/对象名比对发现"每次传的都是同一张图"：
+      · 裁剪窗随机偏移 ±3%（取景框不可能每帧完全一致）
+      · 亮度 ±8% / 对比度 ±6% / 饱和度 ±5%（曝光与光线差异）
+      · 轻高斯模糊 0.2~0.6px（40-70% 概率，镜头软/对焦差异）
+      · 传感器高斯噪声 σ1.5~3.5（luminance 噪声）
+      · JPEG 质量抖动 q78~86
+    幅度刻意压在人脸识别无损区间（embedding 对 mild blur/noise/exposure
+    鲁棒，与底图的相似度仍在高位）——真实相机的两次抓拍本来就有这些差异。
+    传 rng=None 每次全新熵；传种子可复现（测试用）。
+    """
+    if rng is None:
+        rng = random.Random()
+    try:
+        from PIL import Image, ImageChops, ImageEnhance, ImageFilter
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        w, h = img.size
+        target_ratio = FACE_PHOTO_W / FACE_PHOTO_H       # 3:4
+        # 裁成 3:4 竖版（宽不足裁高，高不足裁宽）+ 随机取景偏移 ±3%
+        if w / h > target_ratio:
+            cw = int(h * target_ratio)
+            x0 = (w - cw) // 2 + int(rng.uniform(-0.03, 0.03) * cw)
+            x0 = max(0, min(w - cw, x0))
+            img = img.crop((x0, 0, x0 + cw, h))
+        else:
+            ch = int(w / target_ratio)
+            y0 = (h - ch) // 2 + int(rng.uniform(-0.03, 0.03) * ch)
+            y0 = max(0, min(h - ch, y0))
+            img = img.crop((0, y0, w, y0 + ch))
+        img = img.resize((FACE_PHOTO_W, FACE_PHOTO_H))
+        # 曝光/光线差异
+        if rng.random() < 0.85:
+            img = ImageEnhance.Brightness(img).enhance(rng.uniform(0.92, 1.08))
+        if rng.random() < 0.7:
+            img = ImageEnhance.Contrast(img).enhance(rng.uniform(0.94, 1.06))
+        if rng.random() < 0.5:
+            img = ImageEnhance.Color(img).enhance(rng.uniform(0.95, 1.05))
+        # 镜头软（轻度模糊，识别无损区间）
+        if rng.random() < 0.55:
+            img = img.filter(ImageFilter.GaussianBlur(rng.uniform(0.2, 0.6)))
+        # 传感器噪声（luminance 高斯噪声）。不用 PIL.effect_noise——它走
+        # C 库 rand()，不吃传入的 rng，种子可复现会破；自己生成灰度噪声层
+        sigma = rng.uniform(1.5, 3.5)
+        nw, nh = img.size
+        noise_bytes = bytes(
+            min(255, max(0, int(128 + rng.gauss(0.0, sigma))))
+            for _ in range(nw * nh))
+        noise = Image.frombytes("L", (nw, nh), noise_bytes).convert("RGB")
+        img = ImageChops.add(img, noise, 1, -128)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG",
+                 quality=FACE_PHOTO_QUALITY + rng.randint(-4, 4))
+        return buf.getvalue()
+    except Exception:
+        return raw
+
+
+def _oss_put_stdlib(endpoint: str, bucket: str, key: str, data: bytes,
+                    ak: str, sk: str, token: str, timeout: float = 30.0) -> None:
+    """纯标准库的 OSS PUT（V1 签名）——Android/Chaquopy 无 oss2 时的降级
+
+    StringToSign = "PUT\n{md5}\n{type}\n{date}\n{x-oss-security-token:TOKEN\n}/{bucket}/{key}"
+    Authorization = "OSS {AK}:{base64(hmac_sha1(SK, StringToSign))}"
+    与 ShandongTool face_prep.oss_put 同一公式（对生产 OSS 实测可用），
+    Content-MD5 与 x-oss-security-token 两个头签名时必须带上。
+    """
+    import urllib.request
+    date = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+    content_md5 = base64.b64encode(hashlib.md5(data).digest()).decode()
+    content_type = "image/jpeg"
+    sts = (f"PUT\n{content_md5}\n{content_type}\n{date}\n"
+           f"x-oss-security-token:{token}\n/{bucket}/{key}")
+    sig = base64.b64encode(
+        hmac.new(sk.encode(), sts.encode(), hashlib.sha1).digest()).decode()
+    headers = {
+        "Date": date,
+        "Content-MD5": content_md5,
+        "Content-Type": content_type,
+        "x-oss-security-token": token,
+        "Authorization": f"OSS {ak}:{sig}",
+    }
+    req = urllib.request.Request(f"https://{bucket}.{endpoint}/{key}",
+                                 data=data, headers=headers, method="PUT")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        if resp.status != 200:
+            raise RuntimeError(f"OSS PUT 失败：HTTP {resp.status}")
 
 
 class ShandongClient:
@@ -80,6 +183,9 @@ class ShandongClient:
         self.abstract: Dict[str, Any] = {}
         self.common: Dict[str, Any] = {}     # 服务端 common/getConfig 原始返回
         self.user: Dict[str, Any] = {}
+        # 人脸扫脸配置（checkSunRunConfig 响应的 faceCheck* 字段，报告二十四）
+        self.face_check: Dict[str, Any] = {}
+        self._oss_token: Dict[str, Any] = {}   # OSS STS 缓存（expiration 毫秒）
         self.logged_in = False
         # 开跑响应里的会话级设置（StartRunEntity）：clockMode 2/3 = 顺序打卡，
         # whiteFlag = GPS 白名单，cheatLevel 3/4 影响步频异常判定
@@ -401,6 +507,28 @@ class ShandongClient:
                                      f"：{res.get('message') or '响应为空'}，保留上一次规则",
                               level="warn")
             return res
+        # 人脸扫脸配置（CheckRunConfig 的 faceCheck* 字段，报告二十四）：
+        # 服务端只下发 [lowerLimit, upperLimit] 区间，检查点里程由客户端随机
+        # （StartRunUtils$checkRunRule$2:95-108），与结算上报的 randomDistance 同源。
+        # 放在规则 fallback 之前解析：真实服务端本接口不带 schoolRule，
+        # 规则异常时不能连人脸配置一起丢。
+        self.face_check = {
+            "faceEnabled": int(data.get("faceEnabled") or 0),
+            "faceAuth": bool(data.get("faceAuth")),
+            "faceImg": str(data.get("faceImg") or ""),
+            "similarityValue": int(data.get("similarityValue") or 0),
+            "faceTime": int(data.get("faceTime") or 0),
+            "bodyEnable": bool(data.get("bodyEnable")),
+            "bodyRate": int(data.get("bodyRate") or 0),
+            "faceModelType": int(data.get("faceModelType") or 0),
+            "runScene": int(data.get("runScene") or 0),
+            "faceCheckConfigList": data.get("faceCheckConfigList") or [],
+        }
+        if self.face_check["faceEnabled"] and self.bus:
+            self.bus.emit("log", "人脸核验已开启：模式 "
+                          f"{'阿里云' if self.face_check['faceModelType'] == 1 else '本地'}，"
+                          f"阈值 {self.face_check['similarityValue']}，"
+                          f"检查点 {len(self.face_check['faceCheckConfigList'])} 个")
         rule = data.get("schoolRule") if isinstance(data.get("schoolRule"), dict) else None
         source = "run/checkSunRunConfig"
         if not rule:
@@ -694,13 +822,26 @@ class ShandongClient:
         data["uploaded"] = int(uploaded)
         data["count"] = int(total)
         return {**res, "data": data}
+    def step_interval(self) -> int:
+        """步频段周期（秒）：服务端 common/getConfig 若下发 stepInterval 则用之
+        （真实服务端 2026-10 实测不下发，回落 APK 默认 20；ShandongTool 真机
+        HAR 观察到 iOS 端 60 秒分片——那是平台差异，Android 口径以 getConfig 为准）。
+        """
+        common = self.cfg.get("common", {}) or {}
+        try:
+            return int(common.get("stepInterval") or STEP_INTERVAL_S)
+        except (TypeError, ValueError):
+            return STEP_INTERVAL_S
+
     def upload_steps(self, run_code: str,
-                     interval_s: int = STEP_INTERVAL_S) -> Dict[str, Any]:
+                     interval_s: Optional[int] = None) -> Dict[str, Any]:
         """上传步频段：照抄 ApiDataComponent.d0()
 
         原版只取 is_uploaded=false 的段（StepDao.b 不带 isValid 条件），
         且不足 3 段直接 onCompleted 不发。stepInterval 是**秒**（CommonConfig 默认 20）。
         """
+        if interval_s is None:
+            interval_s = self.step_interval()
         steps = self.store.get_steps(run_code, only_pending=True)
         if not steps:
             return {"code": CODE_OK, "message": "无待上传步频", "data": None}
@@ -795,6 +936,175 @@ class ShandongClient:
                               str(res.get("message")), targets, res)
         return self._with_count(res, len(targets) if res.get("code") == CODE_OK else 0, len(targets))
 
+    # ══════════════════ 人脸扫脸（报告二十四） ══════════════════
+    def fetch_user_face_img(self) -> Dict[str, Any]:
+        """face/getUserFaceImg（CompatApi.i）：底库照 URL 与学校人脸配置"""
+        return self.transport.post("user_face_img", self.transport.base_payload())
+
+    def plan_face_checks(self) -> List[Dict[str, Any]]:
+        """照原版生成检查点计划（StartRunUtils$checkRunRule$2:95-108）
+
+        服务端只下发 [{lowerLimit, upperLimit}, …]，客户端对每个区间取
+        randomDistance = Random().nextInt(upper - lower) + lower（upper<=lower
+        时直接用 lower），checkIndex 从 1 起。服务端无从预知这个值，
+        只能验证它在区间内——muccc526 硬编码 1104 能过也是这个原因。
+        """
+        configs = self.face_check.get("faceCheckConfigList") or []
+        plan: List[Dict[str, Any]] = []
+        for i, cfg in enumerate(configs, start=1):
+            if not isinstance(cfg, dict):
+                continue
+            lower = int(cfg.get("lowerLimit") or 0)
+            upper = int(cfg.get("upperLimit") or 0)
+            dist = (random.randint(lower, upper - 1)
+                    if upper > lower else lower)
+            plan.append({"checkIndex": i, "randomDistance": dist})
+        return plan
+
+    def oss_token(self, token_type: str = "") -> Dict[str, Any]:
+        """aliyun/oss/getToken（CommonApi.i）：OSS 上传 STS
+
+        原版 k66.f()=""（OSS 上传）/ ml2.f()="1"（facebody 比对）；
+        响应 OssTokenInfo = {accessKeyId, accessKeySecret, securityToken,
+        expiration, domain, directory}。带过期缓存。
+        """
+        exp = self._oss_token.get("_expiration_ms") or 0
+        if self._oss_token and exp > time.time() * 1000 + 60_000:
+            return self._oss_token
+        res = self.transport.post("oss_token", self.transport.base_payload({
+            "tokenType": token_type,
+        }))
+        data = res.get("data") if isinstance(res.get("data"), dict) else {}
+        if res.get("code") != CODE_OK or not data.get("accessKeyId"):
+            return {"code": res.get("code", -1), "message": res.get("message", "无 data"),
+                    "data": None}
+        info = dict(data)
+        # 原版 AliyunTokenConfig.b()：expiration 是 "yyyy-MM-dd HH:mm:ss" 字符串
+        exp_str = str(data.get("expiration") or "")
+        try:
+            if exp_str:
+                import datetime
+                info["_expiration_ms"] = int(datetime.datetime.strptime(
+                    exp_str, "%Y-%m-%d %H:%M:%S").replace(
+                    tzinfo=datetime.timezone.utc).timestamp() * 1000)
+            else:
+                info["_expiration_ms"] = 0
+        except ValueError:
+            info["_expiration_ms"] = 0
+        self._oss_token = info
+        return info
+
+    def upload_face_run_image(self, image_bytes: bytes) -> str:
+        """把「现场照」上传 OSS face/run/ 并返回最终 URL（原版 n66.g + k66）
+
+        链路：STS(tokenType="") → bucket sd-campus-badge →
+        对象键 <directory>/face/run/<md5>.jpg →
+        URL = <domain>/<directory>/face/run/<md5>.jpg（n66.b.d 的拼接顺序）。
+        本地仿真（mock）模式跳过真实上传，返回占位 URL。
+
+        上传实现两级降级：
+          ① oss2（桌面主路径，官方 SDK）；
+          ② 纯标准库 OSS V1 签名 PUT——Android/Chaquopy 装不了 oss2
+             （crcmod 等 C 扩展无 Android wheel），签名公式与 ShandongTool
+             face_prep.oss_put 完全同源（该实现对生产 OSS 实测可用）。
+        """
+        if self.local_mode:
+            return f"https://mock.local/face/run/{hashlib.md5(image_bytes).hexdigest()}.jpg"
+        info = self.oss_token("")
+        if not info.get("accessKeyId"):
+            raise RuntimeError(f"OSS STS 获取失败：{info.get('message')}")
+        digest = hashlib.md5(image_bytes).hexdigest()
+        directory = str(info.get("directory") or "").strip("/")
+        key = f"{directory}/face/run/{digest}.jpg" if directory else f"face/run/{digest}.jpg"
+        try:
+            import oss2
+            auth = oss2.StsAuth(info["accessKeyId"], info["accessKeySecret"],
+                                info.get("securityToken") or "")
+            bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
+            bucket.put_object(key, image_bytes)
+        except ImportError:
+            _oss_put_stdlib(OSS_ENDPOINT, OSS_BUCKET, key, image_bytes,
+                            info["accessKeyId"], info["accessKeySecret"],
+                            info.get("securityToken") or "", self.timeout)
+        domain = str(info.get("domain") or "").rstrip("/")
+        url = f"{domain}/{key}" if domain else key
+        if self.bus:
+            self.bus.emit("log", f"↑ 现场照已传 OSS：{url}")
+        return url
+
+    def prepare_face_photo(self, face_img_url: str) -> Optional[bytes]:
+        """下载底库照并加工成「现场照」字节流
+
+        真机实测（ShandongTool 两次阳光跑的 runFaceImg）：SDK 输出是
+        192x256（3:4 竖版）、JPEG q82、约 8KB 的小图；rw0.d(…, 256, 256, …)
+        的 256 是上界，等比输出 3:4。这里：下载底图 → 居中裁成 3:4 竖版 →
+        缩放到 192x256 → 重编码 JPEG(82)。重编码的副作用：md5 与底图对象名
+        不同，现场照/底图在服务端侧不会是同一个 OSS 对象。
+        PIL 缺席 / 图像异常时退化为原样上送（md5 与底图相同，muccc526 方案）。
+        """
+        raw = self.transport.download(face_img_url)
+        if not raw:
+            return None
+        return process_face_photo(raw)
+
+    def build_face_check_list(self, run_code: str) -> Optional[List[Dict[str, Any]]]:
+        """结算用 faceCheckRecordList（跑前计划 + 跑中快照 → 线缆形态）
+
+        现场照策略（cfg.run.face_check.mode）：
+          · real（默认）：底图加工后上传 OSS face/run/，runFaceImg = 新 URL
+          · reuse：直接用底图 URL（muccc526 方案，实测可过）
+          · off：不注入 faceCheckRecordList
+        """
+        fc = self.cfg.get("run", {}).get("face_check", {}) or {}
+        mode = str(fc.get("mode") or "real")
+        snaps = self.store.kv_get(f"facecheck:{run_code}") or []
+        face = self.face_check or {}
+        # 门控逐字对齐 DataComponent.t1()：runScene==20 && faceAuth 才 put 整表；
+        # 加上我们自己的必要条件（模式关 / 没跑过快照 / 没底图都构不成记录）。
+        # 注：原版里 faceAuth=false 时跑步根本开不了（StartRunUtils.C 强制先认证），
+        # 所以正常样本永远满足前两条；这里保留判定以防配置异常的服务端。
+        if (mode == "off" or not snaps or not face.get("faceImg")
+                or int(face.get("runScene") or 0) != 20
+                or not bool(face.get("faceAuth"))):
+            return None
+        if self.local_mode and mode == "real":
+            mode = "reuse"      # 本地仿真没有真 OSS
+        if mode == "real":
+            # 原版语义：每个检查点独立扫脸 → 独立照片 → 独立 OSS 对象。
+            # 底图只下载一次，每个检查点独立加工（相机级随机化，字节必不同
+            # → md5/URL 必不同），杜绝「一次跑多个点共用同一张照片」的破绽。
+            base_raw = self.transport.download(face["faceImg"])
+            photos: Dict[int, str] = {}
+            fallback = face["faceImg"]
+            for s in snaps:
+                if not s.get("hasChecked"):
+                    continue
+                idx = int(s.get("checkIndex") or 0)
+                if base_raw is None:
+                    if self.bus and not photos:
+                        self.bus.emit("log", "⚠ 底图下载失败，人脸现场照退化为底图 URL",
+                                      level="warn")
+                    photos[idx] = fallback
+                    continue
+                url = fallback            # 单点失败退化，不拖垮整张表
+                try:
+                    url = self.upload_face_run_image(
+                        process_face_photo(base_raw))
+                except Exception as e:  # noqa: BLE001
+                    if self.bus:
+                        self.bus.emit("log", f"⚠ 现场照上传失败（{e}），"
+                                      f"检查点 {idx} 退化为底图 URL", level="warn")
+                photos[idx] = url
+            return protocol.build_face_check_records(
+                snaps, photos, int(face.get("similarityValue") or 0),
+                face_model_type=int(face.get("faceModelType") or 1),
+                body_enable=bool(face.get("bodyEnable")))
+        # reuse 模式：直接用底图 URL（muccc526 方案，实测可过）
+        return protocol.build_face_check_records(
+            snaps, face["faceImg"], int(face.get("similarityValue") or 0),
+            face_model_type=int(face.get("faceModelType") or 1),
+            body_enable=bool(face.get("bodyEnable")))
+
     def finish_run(self, run_code: str, sport_type: int = SPORT_TYPE_SUN,
                    sun: bool = True, abnormal_code: int = 0) -> Dict[str, Any]:
         """结算：完整照搬原版 DataComponent.t1()/StopRunUtils.q() 的报文
@@ -843,7 +1153,7 @@ class ShandongClient:
             "duration": str(duration),
             "totalStep": str(max(0, total_step)),
             "status": int(is_valid),
-            "stepInterval": int(common_cfg.get("stepInterval") or STEP_INTERVAL_S),
+            "stepInterval": self.step_interval(),
             "paceInterval": int(common_cfg.get("paceInterval") or PACE_INTERVAL_M),
             "targetPoints": self.store.checkpoint_targets(run_code),
             "alignType": align_type,
@@ -863,6 +1173,21 @@ class ShandongClient:
         reasons = self.store.invalid_reasons(run_code)
         if reasons:
             payload["invalidReasons"] = reasons
+        # 原版 t1()：runScene==20 且已认证时上送人脸检查点（报告二十四）。
+        # 我们没有真实摄像头，现场照 = 底图加工重传（cfg.run.face_check.mode）。
+        if sun:
+            try:
+                face_list = self.build_face_check_list(run_code)
+            except Exception as e:  # noqa: BLE001
+                face_list = None
+                if self.bus:
+                    self.bus.emit("log", f"⚠ faceCheckRecordList 构造失败（{e}）",
+                                  level="warn")
+            if face_list:
+                payload["faceCheckRecordList"] = face_list
+                if self.bus:
+                    done = sum(1 for r in face_list if r.get("finishFaceCheck"))
+                    self.bus.emit("log", f"✓ 人脸检查点 {done}/{len(face_list)} 已随结算上送")
         # 原版 ApiDataComponent.J() 的注入顺序：pois → stepList → paceList
         if pending_pts:
             payload["pois"] = build_upload_pois(pending_pts)

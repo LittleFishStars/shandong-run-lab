@@ -143,3 +143,46 @@ class HAR工具测试(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OSS标准库降级测试(unittest.TestCase):
+    """Android/Chaquopy 装不了 oss2 时的纯标准库 PUT：签名必须与官方 SDK 逐字节一致"""
+
+    def test_签名与oss2官方一致(self):
+        try:
+            import oss2
+        except ImportError:
+            self.skipTest("oss2 未安装（本机应有）")
+        import time as _time
+        from unittest import mock as _mock
+        from shandong_school_cracked.client import _oss_put_stdlib
+        caps = {}
+
+        class FakeResp:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        with _mock.patch.object(_time, 'strftime',
+                                lambda f, g: 'Fri, 24 Oct 2025 16:00:00 GMT'), \
+             _mock.patch('urllib.request.urlopen',
+                         lambda req, timeout=None: (caps.__setitem__('req', req), FakeResp())[1]):
+            _oss_put_stdlib('oss-cn-hangzhou.aliyuncs.com', 'sd-campus-badge',
+                            'prod/run-front/face/run/abc.jpg', b'\xff\xd8testdata',
+                            'STS.ak', 'SECRET', 'TOKEN123', timeout=5)
+        mine = caps['req'].headers['Authorization']
+
+        from oss2.http import Request
+        req = Request('PUT',
+                      'https://sd-campus-badge.oss-cn-hangzhou.aliyuncs.com/'
+                      'prod/run-front/face/run/abc.jpg',
+                      data=b'\xff\xd8testdata',
+                      headers={'Content-MD5': __import__('base64').b64encode(
+                          __import__('hashlib').md5(b'\xff\xd8testdata').digest()).decode(),
+                          'Content-Type': 'image/jpeg'})
+        auth = oss2.StsAuth('STS.ak', 'SECRET', 'TOKEN123')
+        with _mock.patch.object(oss2.auth.utils, 'http_date',
+                                lambda: 'Fri, 24 Oct 2025 16:00:00 GMT'):
+            auth._sign_request(req, 'sd-campus-badge',
+                               'prod/run-front/face/run/abc.jpg')
+        self.assertEqual(mine, req.headers['authorization'])
