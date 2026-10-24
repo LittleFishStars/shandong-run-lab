@@ -1193,7 +1193,7 @@ def face_snapshots_from_track(plan: Sequence[Dict[str, Any]],
 
 
 def build_face_check_records(snapshots: Sequence[Dict[str, Any]],
-                             run_face_img: str,
+                             run_face_img: Any,
                              similarity_value: int,
                              face_model_type: int = 1,
                              body_enable: bool = False,
@@ -1218,6 +1218,8 @@ def build_face_check_records(snapshots: Sequence[Dict[str, Any]],
         `!k()?1:0` 反直觉但照抄）、baseImageDownload/baseImageParse=1、
         bestImageCapture=1、livenessCheck=bodyEnable?1:0、similarityCheck=1、
         uploadImage=1。
+    · run_face_img：str = 所有记录同图；dict{checkIndex: url} = 每点独立
+      （real 模式，相机级随机化后各点字节/URL 必不同，对齐原版逐点拍照）。
     · 唯一合成项：confidence（真值来自阿里云 CompareFace / InspireFace 比对，
       我们没有真摄像头与真调用，取 [阈值+5, min(97, 阈值+15)] 均匀分布——
       刚过阈值但不像同一张图比出来的 100 分）。
@@ -1236,7 +1238,7 @@ def build_face_check_records(snapshots: Sequence[Dict[str, Any]],
             "randomDistance": int(s.get("randomDistance") or 0),
             "hasChecked": checked,
             "finishFaceCheck": checked,
-            "runFaceUpload": checked and bool(run_face_img),
+            "runFaceUpload": False,   # 下方按每点 URL 实判（e2 语义）
         }
         if checked:
             # f2()：弹出时刻快照（对象包装类型，有值才序列化）
@@ -1244,8 +1246,14 @@ def build_face_check_records(snapshots: Sequence[Dict[str, Any]],
             rec["checkDistance"] = s.get("checkDistance")
             rec["checkLng"] = s.get("checkLng")
             rec["checkLat"] = s.get("checkLat")
-            if run_face_img:
-                rec["runFaceImg"] = run_face_img
+            # 现场照 URL：str = 全部同图（reuse）；dict = {checkIndex: url}
+            # （real 模式每个检查点独立上传，原版语义）
+            url = run_face_img
+            if isinstance(run_face_img, dict):
+                url = run_face_img.get(int(s.get("checkIndex") or 0)) or ""
+            rec["runFaceUpload"] = bool(url)
+            if url:
+                rec["runFaceImg"] = url
             # c2()：比对结果（DetectResultBean）
             rec["confidence"] = round(rng.uniform(lo, hi), 2)
             rec["rate"] = 1.0

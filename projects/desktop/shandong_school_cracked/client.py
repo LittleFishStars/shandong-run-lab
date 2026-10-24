@@ -65,28 +65,65 @@ from .store import RecordStore
 KV_TOKEN = "session"
 
 
-def process_face_photo(raw: bytes) -> bytes:
-    """底图字节流 → 真机规格「现场照」（192x256 / 3:4 / JPEG q82）
+def process_face_photo(raw: bytes, rng: Optional[random.Random] = None) -> bytes:
+    """底图字节流 → 真机规格「现场照」（192x256 / 3:4 / JPEG ~q82）
 
     纯函数（可离线单测）：居中裁成 3:4 竖版 → 缩放到 FACE_PHOTO_W×H →
     JPEG 重编码。任何异常（PIL 缺席、非图像）都返回原字节——退化为
     muccc526 的「底图原样上送」方案，流程不中断。
+
+    每次调用都做**相机级随机化**（同一底图两次产物字节必不同），
+    防哈希/对象名比对发现"每次传的都是同一张图"：
+      · 裁剪窗随机偏移 ±3%（取景框不可能每帧完全一致）
+      · 亮度 ±8% / 对比度 ±6% / 饱和度 ±5%（曝光与光线差异）
+      · 轻高斯模糊 0.2~0.6px（40-70% 概率，镜头软/对焦差异）
+      · 传感器高斯噪声 σ1.5~3.5（luminance 噪声）
+      · JPEG 质量抖动 q78~86
+    幅度刻意压在人脸识别无损区间（embedding 对 mild blur/noise/exposure
+    鲁棒，与底图的相似度仍在高位）——真实相机的两次抓拍本来就有这些差异。
+    传 rng=None 每次全新熵；传种子可复现（测试用）。
     """
+    if rng is None:
+        rng = random.Random()
     try:
-        from PIL import Image
+        from PIL import Image, ImageChops, ImageEnhance, ImageFilter
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         w, h = img.size
         target_ratio = FACE_PHOTO_W / FACE_PHOTO_H       # 3:4
-        # 居中裁成 3:4 竖版（宽不足裁高，高不足裁宽）
+        # 裁成 3:4 竖版（宽不足裁高，高不足裁宽）+ 随机取景偏移 ±3%
         if w / h > target_ratio:
             cw = int(h * target_ratio)
-            img = img.crop(((w - cw) // 2, 0, (w + cw) // 2, h))
+            x0 = (w - cw) // 2 + int(rng.uniform(-0.03, 0.03) * cw)
+            x0 = max(0, min(w - cw, x0))
+            img = img.crop((x0, 0, x0 + cw, h))
         else:
             ch = int(w / target_ratio)
-            img = img.crop((0, (h - ch) // 2, w, (h + ch) // 2))
+            y0 = (h - ch) // 2 + int(rng.uniform(-0.03, 0.03) * ch)
+            y0 = max(0, min(h - ch, y0))
+            img = img.crop((0, y0, w, y0 + ch))
         img = img.resize((FACE_PHOTO_W, FACE_PHOTO_H))
+        # 曝光/光线差异
+        if rng.random() < 0.85:
+            img = ImageEnhance.Brightness(img).enhance(rng.uniform(0.92, 1.08))
+        if rng.random() < 0.7:
+            img = ImageEnhance.Contrast(img).enhance(rng.uniform(0.94, 1.06))
+        if rng.random() < 0.5:
+            img = ImageEnhance.Color(img).enhance(rng.uniform(0.95, 1.05))
+        # 镜头软（轻度模糊，识别无损区间）
+        if rng.random() < 0.55:
+            img = img.filter(ImageFilter.GaussianBlur(rng.uniform(0.2, 0.6)))
+        # 传感器噪声（luminance 高斯噪声）。不用 PIL.effect_noise——它走
+        # C 库 rand()，不吃传入的 rng，种子可复现会破；自己生成灰度噪声层
+        sigma = rng.uniform(1.5, 3.5)
+        nw, nh = img.size
+        noise_bytes = bytes(
+            min(255, max(0, int(128 + rng.gauss(0.0, sigma))))
+            for _ in range(nw * nh))
+        noise = Image.frombytes("L", (nw, nh), noise_bytes).convert("RGB")
+        img = ImageChops.add(img, noise, 1, -128)
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=FACE_PHOTO_QUALITY)
+        img.save(buf, format="JPEG",
+                 quality=FACE_PHOTO_QUALITY + rng.randint(-4, 4))
         return buf.getvalue()
     except Exception:
         return raw
@@ -992,23 +1029,38 @@ class ShandongClient:
         if self.local_mode and mode == "real":
             mode = "reuse"      # 本地仿真没有真 OSS
         if mode == "real":
-            photo = self.prepare_face_photo(face["faceImg"])
-            if photo is None:
-                if self.bus:
-                    self.bus.emit("log", "⚠ 底图下载失败，人脸现场照退化为底图 URL", level="warn")
-                run_face_img = face["faceImg"]
-            else:
+            # 原版语义：每个检查点独立扫脸 → 独立照片 → 独立 OSS 对象。
+            # 底图只下载一次，每个检查点独立加工（相机级随机化，字节必不同
+            # → md5/URL 必不同），杜绝「一次跑多个点共用同一张照片」的破绽。
+            base_raw = self.transport.download(face["faceImg"])
+            photos: Dict[int, str] = {}
+            fallback = face["faceImg"]
+            for s in snaps:
+                if not s.get("hasChecked"):
+                    continue
+                idx = int(s.get("checkIndex") or 0)
+                if base_raw is None:
+                    if self.bus and not photos:
+                        self.bus.emit("log", "⚠ 底图下载失败，人脸现场照退化为底图 URL",
+                                      level="warn")
+                    photos[idx] = fallback
+                    continue
+                url = fallback            # 单点失败退化，不拖垮整张表
                 try:
-                    run_face_img = self.upload_face_run_image(photo)
+                    url = self.upload_face_run_image(
+                        process_face_photo(base_raw))
                 except Exception as e:  # noqa: BLE001
                     if self.bus:
-                        self.bus.emit("log", f"⚠ 现场照上传失败（{e}），退化为底图 URL",
-                                      level="warn")
-                    run_face_img = face["faceImg"]
-        else:
-            run_face_img = face["faceImg"]
+                        self.bus.emit("log", f"⚠ 现场照上传失败（{e}），"
+                                      f"检查点 {idx} 退化为底图 URL", level="warn")
+                photos[idx] = url
+            return protocol.build_face_check_records(
+                snaps, photos, int(face.get("similarityValue") or 0),
+                face_model_type=int(face.get("faceModelType") or 1),
+                body_enable=bool(face.get("bodyEnable")))
+        # reuse 模式：直接用底图 URL（muccc526 方案，实测可过）
         return protocol.build_face_check_records(
-            snaps, run_face_img, int(face.get("similarityValue") or 0),
+            snaps, face["faceImg"], int(face.get("similarityValue") or 0),
             face_model_type=int(face.get("faceModelType") or 1),
             body_enable=bool(face.get("bodyEnable")))
 

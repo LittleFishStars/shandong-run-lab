@@ -23,6 +23,7 @@ from pathlib import Path
 from shandong_school_cracked import constants as C
 from shandong_school_cracked import protocol
 from shandong_school_cracked.app import App
+from shandong_school_cracked.client import process_face_photo
 from shandong_school_cracked.protocol import RunLatLng
 
 超时上限 = 120.0
@@ -319,3 +320,138 @@ class TLS伪装测试(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+def _真底图(w=540, h=720):
+    import io
+    from PIL import Image, ImageDraw
+    buf = io.BytesIO()
+    img = Image.new("RGB", (w, h), (110, 130, 150))
+    d = ImageDraw.Draw(img)
+    d.ellipse((w//2-90, h//2-160, w//2+90, h//2+180), fill=(190, 160, 140))
+    d.ellipse((w//2-40, h//2-80, w//2-10, h//2-50), fill=(40, 30, 30))
+    d.ellipse((w//2+10, h//2-80, w//2+40, h//2-50), fill=(40, 30, 30))
+    img.save(buf, format="JPEG", quality=92)
+    return buf.getvalue()
+
+
+class 现场照随机化测试(unittest.TestCase):
+    """同一底图两次加工必出不同字节（防哈希/对象名比对），且识别无损"""
+
+    @staticmethod
+    def _底图(w=540, h=720):
+        import io
+        from PIL import Image, ImageDraw
+        buf = io.BytesIO()
+        img = Image.new("RGB", (w, h), (110, 130, 150))
+        d = ImageDraw.Draw(img)
+        d.ellipse((w//2-90, h//2-160, w//2+90, h//2+180), fill=(190, 160, 140))
+        d.ellipse((w//2-40, h//2-80, w//2-10, h//2-50), fill=(40, 30, 30))
+        d.ellipse((w//2+10, h//2-80, w//2+40, h//2-50), fill=(40, 30, 30))
+        d.line((w//2-25, h//2+60, w//2+25, h//2+60), fill=(120, 70, 70), width=6)
+        img.save(buf, format="JPEG", quality=92)
+        return buf.getvalue()
+
+    def test_同底图两次产物字节必不同(self):
+        raw = self._底图()
+        outs = {process_face_photo(raw) for _ in range(6)}
+        self.assertEqual(len(outs), 6, "六次加工出现了重复字节——哈希比对会暴露")
+        for out in outs:
+            self.assertNotEqual(out, raw)
+
+    def test_规格恒为192x256且可解码(self):
+        from PIL import Image
+        import io
+        raw = self._底图()
+        for _ in range(4):
+            img = Image.open(io.BytesIO(process_face_photo(raw)))
+            self.assertEqual(img.size, (192, 256))
+
+    def test_种子可复现(self):
+        import random
+        raw = self._底图()
+        a = process_face_photo(raw, rng=random.Random(42))
+        b = process_face_photo(raw, rng=random.Random(42))
+        self.assertEqual(a, b)
+
+    def test_扰动幅度在识别无损区间(self):
+        """两次随机化产物的灰度结构相关 > 0.97：人脸 embedding 依赖结构，
+        相关 0.97+ 意味着视觉内容基本未变，比对相似度不受影响"""
+        import io
+        import statistics
+        from PIL import Image
+        raw = self._底图()
+
+        def gray(b):
+            return list(Image.open(io.BytesIO(b)).convert("L").getdata())
+
+        samples = [gray(process_face_photo(raw)) for _ in range(8)]
+        cors = []
+        for i in range(len(samples)):
+            for j in range(i + 1, len(samples)):
+                a, b = samples[i], samples[j]
+                ma, mb = statistics.mean(a), statistics.mean(b)
+                cov = sum((x - ma) * (y - mb) for x, y in zip(a, b))
+                va = sum((x - ma) ** 2 for x in a) ** 0.5
+                vb = sum((y - mb) ** 2 for y in b) ** 0.5
+                cors.append(cov / (va * vb) if va * vb > 0 else 0)
+        self.assertGreater(min(cors), 0.97,
+                           f"随机化产物结构相关过低：{min(cors):.4f}")
+
+
+class 按检查点独立上传测试(unittest.TestCase):
+    """real 模式：每个检查点独立加工+上传 → URL 必不同（原版逐点拍照语义）"""
+
+    def test_线缆层按checkIndex取URL(self):
+        snaps = [
+            {"checkIndex": 1, "randomDistance": 700, "hasChecked": True,
+             "popTime": 1, "checkDistance": 705, "checkLng": 1.0, "checkLat": 2.0},
+            {"checkIndex": 2, "randomDistance": 1600, "hasChecked": True,
+             "popTime": 2, "checkDistance": 1605, "checkLng": 1.0, "checkLat": 2.0},
+            {"checkIndex": 3, "randomDistance": 5000, "hasChecked": False,
+             "popTime": None, "checkDistance": None, "checkLng": None, "checkLat": None},
+        ]
+        photos = {1: "https://x/run/a.jpg", 2: "https://x/run/b.jpg"}
+        recs = protocol.build_face_check_records(snaps, photos, 75, face_model_type=2)
+        self.assertEqual(recs[0]["runFaceImg"], "https://x/run/a.jpg")
+        self.assertEqual(recs[1]["runFaceImg"], "https://x/run/b.jpg")
+        self.assertNotIn("runFaceImg", recs[2])
+        self.assertFalse(recs[2]["runFaceUpload"])
+        self.assertTrue(recs[0]["runFaceUpload"] and recs[1]["runFaceUpload"])
+
+    def test_缺URL的检查点runFaceUpload为假(self):
+        snaps = [{"checkIndex": 1, "randomDistance": 700, "hasChecked": True,
+                  "popTime": 1, "checkDistance": 705, "checkLng": 1.0, "checkLat": 2.0}]
+        recs = protocol.build_face_check_records(snaps, {}, 75)
+        self.assertFalse(recs[0]["runFaceUpload"])
+        self.assertNotIn("runFaceImg", recs[0])
+
+    def test_客户端层每点独立上传(self):
+        from unittest import mock
+        from shandong_school_cracked.client import ShandongClient
+        from shandong_school_cracked.store import RecordStore
+        import tempfile
+        c = ShandongClient.__new__(ShandongClient)
+        c.cfg = {}
+        c.local_mode = False            # 走 real 分支
+        c.bus = None
+        c._oss_token = {}
+        c.transport = mock.Mock()
+        c.transport.download.return_value = self._底图() if hasattr(self, "_底图") else _真底图()
+        c.face_check = {"faceImg": "https://x/base.jpg", "faceAuth": True,
+                        "runScene": 20, "similarityValue": 75,
+                        "faceModelType": 2}
+        c.store = RecordStore(Path(tempfile.mkdtemp(prefix="face-per-")) / "r.db")
+        c.store.kv_set("facecheck:R1", [
+            {"checkIndex": 1, "randomDistance": 700, "hasChecked": True,
+             "popTime": 1, "checkDistance": 705, "checkLng": 1.0, "checkLat": 2.0},
+            {"checkIndex": 2, "randomDistance": 1600, "hasChecked": True,
+             "popTime": 2, "checkDistance": 1605, "checkLng": 1.0, "checkLat": 2.0},
+        ])
+        with mock.patch.object(c, "upload_face_run_image",
+                               side_effect=lambda b: f"https://x/run/{hash(b) & 0xffffffff:x}.jpg") as up:
+            lst = c.build_face_check_list("R1")
+        self.assertEqual(up.call_count, 2, "两个检查点应各传一张")
+        urls = [r["runFaceImg"] for r in lst]
+        self.assertEqual(len(set(urls)), 2, f"两个检查点 URL 相同：{urls}")
